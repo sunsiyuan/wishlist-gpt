@@ -1,0 +1,22 @@
+{
+  "name": "wishlist-gpt",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "smoke:oauth": "bash -lc 'set -a; source .env.local; set +a; ./scripts/smoke_oauth.sh'",
+    "smoke:oauth:header:on": "bash -lc 'set -a; source .env.local; set +a; export OAUTH_ALLOW_AUTH_HEADER_LOGIN=true; ./scripts/smoke_oauth.sh'",
+    "smoke:oauth:header:off": "bash -lc 'set -a; source .env.local; set +a; export OAUTH_ALLOW_AUTH_HEADER_LOGIN=false; ./scripts/smoke_oauth.sh'"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "25.0.3",
+    "@types/react": "19.2.7",
+    "typescript": "5.9.3"
+  }
+}
