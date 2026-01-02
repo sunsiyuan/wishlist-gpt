@@ -33,7 +33,7 @@ This doc defines the **minimal OAuth bridge** required by the MVP spec, focusing
    `POST /oauth/token` (`grant_type=authorization_code`)
 5. Server returns:
    - `access_token` (TTL 15 min)
-   - `refresh_token` (recommended, TTL 30 days)
+   - `refresh_token` (TTL 30 days)
 
 > Note: If the platform requires PKCE, add it later (out of MVP unless required).
 
@@ -55,10 +55,12 @@ This doc defines the **minimal OAuth bridge** required by the MVP spec, focusing
 
 **Behavior**
 - Validate `redirect_uri` matches allowlist for `client_id`.
-- Require user login (Google/Apple).
+- Require user login (Google/Apple via Supabase Auth).
+- **State cookie**: write `state` to an httpOnly secure cookie with ~5 min TTL on entry. If cookie is missing, server 302 redirects back to the same authorize URL once to ensure the cookie is present, then validates it matches before issuing a code.
 - Create `oauth_codes` row:
   - `code` (pk), `user_id`, `client_id`, `redirect_uri`, `expires_at`, `used_at=null`
 - Redirect: `redirect_uri?code=...&state=...`
+- Clear the state cookie after issuing code.
 
 ### 3.2 `POST /oauth/token`
 
@@ -78,14 +80,28 @@ This doc defines the **minimal OAuth bridge** required by the MVP spec, focusing
 - `access_token`
 - `token_type` = `Bearer`
 - `expires_in` (seconds)
-- `refresh_token` (optional, but recommended)
+- `refresh_token` (only for `authorization_code` grant)
 - `scope` (optional)
 
 **Rules**
 - Code is **one-time**: set `used_at` on success; reject reuse.
 - Code must not be expired; TTL ~ 5 minutes.
 - Access token TTL ~ 15 minutes.
-- Refresh token TTL ~ 30 days; stored hashed in `oauth_tokens` (optional table).
+- Refresh token TTL ~ 30 days; stored **hashed** in `oauth_tokens`.
+- Refresh grant returns a new access token (no rotation in MVP).
+
+### 3.3 `GET /me`
+
+**Purpose**
+- Minimal protected endpoint used by Actions to validate that `access_token` maps to Supabase user id.
+
+**Headers**
+- `Authorization: Bearer <access_token>`
+
+**Response**
+```json
+{ "user_id": "<uuid>", "client_id": "<client_id>" }
+```
 
 ---
 
@@ -95,7 +111,7 @@ MVP requirement:
 - token must map uniquely to **Supabase `user.id`**.
 
 Implementation notes (minimal):
-- `access_token` can be a signed JWT (server secret), with claims:
+- `access_token` is a signed JWT (HS256) with claims:
   - `sub = user_id`
   - `aud = client_id`
   - `exp`
@@ -103,10 +119,20 @@ Implementation notes (minimal):
 
 ---
 
-## 5) Security Checklist / 安全检查清单（MVP）
+## 5) Config / 配置
 
-- [ ] Validate `state` strictly (CSRF)
-- [ ] `redirect_uri` allowlist per `client_id`
-- [ ] One-time code with TTL and `used_at`
+Required env vars:
+- `OAUTH_ALLOWED_CLIENTS_JSON` → `client_id -> redirect_uris` allowlist
+- `OAUTH_SIGNING_SECRET` → HMAC secret used for access tokens
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+---
+
+## 6) Security Checklist / 安全检查清单（MVP）
+
+- [x] Validate `state` strictly (CSRF)
+- [x] `redirect_uri` allowlist per `client_id`
+- [x] One-time code with TTL and `used_at`
 - [ ] Rate limit token endpoint (per IP / per user)
-- [ ] Token secrets stored in env vars only
+- [x] Token secrets stored in env vars only

@@ -66,5 +66,5 @@
 
 ## 3) Migration Plan / 迁移计划
 
-- `supabase/migrations/001_init.sql` creates tables and indexes
+- `supabase/migrations/001_init.sql` creates OAuth tables (`oauth_codes`, `oauth_tokens`) and indexes
 - `supabase/migrations/002_rls.sql` enables RLS and policies
