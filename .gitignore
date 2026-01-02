@@ -2,6 +2,7 @@
 
 # local smoke test artifacts
 scripts/.tmp/
+!scripts/.tmp/.gitkeep
 
 # dependencies
 /node_modules
