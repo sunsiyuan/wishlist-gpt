@@ -92,19 +92,66 @@
 
 ```txt
 .
+├─ actions/
+│  └─ README.md                    # Actions folder placeholder
 ├─ docs/
-│  └─ MVP_SPEC.md
+│  ├─ API_SURFACE.md               # Actions surface (planned Items/Share)
+│  ├─ CR_PROMPT_TEMPLATE.md        # Change request checklist template
+│  ├─ DATA_MODEL.md                # Minimal data model (incl. oauth tables)
+│  ├─ DEPLOYMENT.md                # Domains/env/headers guidance
+│  ├─ MVP_SPEC.md                  # Source-of-truth MVP spec
+│  ├─ OAUTH_BRIDGE.md              # OAuth bridge spec (kept in sync)
+│  ├─ PROJECT_MAP.md               # (this file)
+│  ├─ SECURITY.md                  # Threat model + guardrails
+│  ├─ SHARE_PAGE.md                # Share page noindex rules
+│  └─ URL_NORMALIZE.md             # LLM-first URL normalization rules
+├─ prompts/
+│  ├─ README.md
+│  └─ url_normalize/
+│     ├─ README.md
+│     ├─ v1.md
+│     └─ CHANGELOG.md
+├─ scripts/
+│  └─ README.md
+├─ src/
+│  ├─ app/
+│  │  ├─ README.md                 # App Router routing notes
+│  │  └─ api/
+│  │     ├─ me/route.ts            # Minimal protected endpoint (Bearer token)
+│  │     └─ oauth/
+│  │        ├─ authorize/route.ts  # OAuth authorize endpoint
+│  │        └─ token/route.ts      # OAuth token endpoint
+│  │  ├─ me/route.ts               # /me alias to API handler
+│  │  └─ oauth/
+│  │     ├─ authorize/route.ts     # /oauth/authorize alias
+│  │     └─ token/route.ts         # /oauth/token alias
+│  ├─ components/                  # (empty, reserved for UI components)
+│  └─ server/
+│     ├─ README.md                 # Server-only boundary description
+│     ├─ auth/
+│     │  ├─ bearer.ts              # Access-token parsing/verification
+│     │  └─ supabase.ts            # Supabase user lookup
+│     ├─ oauth/
+│     │  ├─ access-token.ts        # Access token issuance
+│     │  ├─ clients.ts             # Client allowlist parsing
+│     │  ├─ code-store.ts          # oauth_codes persistence helpers
+│     │  ├─ config.ts              # OAuth TTLs + env
+│     │  ├─ jwt.ts                 # JWT sign/verify helpers
+│     │  ├─ refresh-store.ts       # oauth_tokens persistence helpers
+│     │  └─ tokens.ts              # Random token + hash utils
+│     └─ supabase/
+│        └─ admin.ts               # Supabase admin fetch helper
+├─ supabase/
+│  ├─ README.md
+│  └─ migrations/
+│     └─ 001_init.sql              # oauth_codes + oauth_tokens tables
 └─ .gitignore
 ```
 
 ### 2.2 Gaps / 与目标差距（要补齐的结构件）
 
-- [ ] `docs/PROJECT_MAP.md` (this file) committed into repo
-- [ ] OAuth bridge docs + API surface docs
-- [ ] Create `src/` skeleton (app/server/components)
-- [ ] Create `supabase/` migrations
 - [ ] Create `actions/openapi.yaml`
-- [ ] Create `prompts/url_normalize/v1.md` + changelog
+- [ ] Add `supabase/migrations/002_rls.sql` for RLS policies
 
 ---
 
