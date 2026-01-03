@@ -93,24 +93,27 @@
 ```txt
 .
 ├─ actions/
-│  └─ README.md                    # Actions folder placeholder
+│  ├─ openapi.template.yaml         # Actions OpenAPI template
+│  └─ README.md                     # Actions folder placeholder
 ├─ docs/
-│  ├─ API_SURFACE.md               # Actions surface (planned Items/Share)
-│  ├─ CR_PROMPT_TEMPLATE.md        # Change request checklist template
-│  ├─ DATA_MODEL.md                # Minimal data model (incl. oauth tables)
-│  ├─ DEPLOYMENT.md                # Domains/env/headers guidance
-│  ├─ MVP_SPEC.md                  # Source-of-truth MVP spec
-│  ├─ OAUTH_BRIDGE.md              # OAuth bridge spec (kept in sync)
-│  ├─ PROJECT_MAP.md               # (this file)
-│  ├─ SECURITY.md                  # Threat model + guardrails
-│  ├─ SHARE_PAGE.md                # Share page noindex rules
-│  └─ URL_NORMALIZE.md             # LLM-first URL normalization rules
+│  ├─ API_SURFACE.md                # Actions surface (planned Items/Share)
+│  ├─ CR_PROMPT_TEMPLATE.md         # Change request checklist template
+│  ├─ DATA_MODEL.md                 # Minimal data model (incl. oauth tables)
+│  ├─ DEPLOYMENT.md                 # Domains/env/headers guidance
+│  ├─ MVP_SPEC.md                   # Source-of-truth MVP spec
+│  ├─ OAUTH_BRIDGE.md               # OAuth bridge spec (kept in sync)
+│  ├─ PROJECT_MAP.md                # (this file)
+│  ├─ SECURITY.md                   # Threat model + guardrails
+│  ├─ SHARE_PAGE.md                 # Share page noindex rules
+│  └─ URL_NORMALIZE.md              # LLM-first URL normalization rules
 ├─ prompts/
 │  ├─ README.md
 │  └─ url_normalize/
 │     ├─ README.md
 │     ├─ v1.md
 │     └─ CHANGELOG.md
+├─ public/
+│  └─ openapi.yaml                  # Build artifact from template (npm run gen:openapi)
 ├─ scripts/
 │  ├─ README.md
 │  ├─ smoke_items.sh              # Items API smoke test (idempotent POST/GET)
@@ -163,7 +166,6 @@
 
 ### 2.2 Gaps / 与目标差距（要补齐的结构件）
 
-- [ ] Create `actions/openapi.yaml`
 - [ ] Implement share endpoints + share page (`/share`, `/s/{token}`)
 
 ---
