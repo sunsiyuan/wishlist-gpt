@@ -6,23 +6,19 @@
 
 ## 1) Tables / 表
 
-### 1.1 `items`
+### 1.1 `items` (Step 1 minimal, implemented)
 
 **Core fields**
 - `id` (uuid pk)
 - `user_id` (uuid, FK to auth.users.id)
 - `url_original` (text)
-- `url_normalized` (text, nullable)
-- `dedupe_key` (text, unique per user)
-- `title` (text, nullable)
-- `image_url` (text, nullable)
-- `rank` (numeric or text; supports fractional rank ordering)
-- `deleted_at` (timestamptz, nullable)
 - `created_at`, `updated_at`
 
 **Indexes**
-- `(user_id, rank)`
-- `(user_id, dedupe_key)` unique
+- unique `(user_id, url_original)`
+
+**Planned next fields (not yet implemented)**
+- `url_normalized`, `dedupe_key`, `title`, `image_url`, `rank`, `deleted_at`
 
 ### 1.2 `shares`
 
@@ -67,4 +63,5 @@
 ## 3) Migration Plan / 迁移计划
 
 - `supabase/migrations/001_init.sql` creates OAuth tables (`oauth_codes`, `oauth_tokens`) and indexes
-- `supabase/migrations/002_rls.sql` enables RLS and policies
+- `supabase/migrations/002_items.sql` creates `items` table (minimal fields)
+- `supabase/migrations/003_rls.sql` enables RLS and policies (including `items`)
