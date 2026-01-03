@@ -6,30 +6,127 @@ servers:
   - url: __BASE_URL__
 
 components:
-  schemas: {}
+  schemas:
+    MeResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+        client_id:
+          type: string
+      required:
+        - user_id
+        - client_id
+    Item:
+      type: object
+      properties:
+        id:
+          type: string
+        url_original:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - url_original
+        - created_at
+        - updated_at
+    CreateItemRequest:
+      type: object
+      properties:
+        url:
+          type: string
+      required:
+        - url
+    CreateItemResponse:
+      type: object
+      properties:
+        item:
+          $ref: "#/components/schemas/Item"
+      required:
+        - item
+    ListItemsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+      required:
+        - items
   securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: __BASE_URL__/oauth/authorize
+          tokenUrl: __BASE_URL__/oauth/token
+          scopes:
+            wishlist:read: Read wishlist data
+            wishlist:write: Write wishlist data
 
 security:
-  - bearerAuth: []
+  - oauth2:
+      - wishlist:read
+      - wishlist:write
 
 paths:
   /me:
     get:
       operationId: getMe
       summary: Validate current user access token
+      security:
+        - oauth2:
+            - wishlist:read
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  user_id: { type: string }
-                  client_id: { type: string }
-                required: [user_id, client_id]
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          description: Unauthorized
+  /items:
+    post:
+      operationId: createItem
+      summary: Create or touch a wishlist item
+      security:
+        - oauth2:
+            - wishlist:write
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateItemRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateItemResponse"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
+    get:
+      operationId: listItems
+      summary: List wishlist items
+      security:
+        - oauth2:
+            - wishlist:read
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListItemsResponse"
         "401":
           description: Unauthorized
