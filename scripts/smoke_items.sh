@@ -7,6 +7,11 @@ fail() { printf "[FAIL] %s\n" "$*"; exit 1; }
 
 trap 'echo "[FAIL] line=$LINENO cmd=$BASH_COMMAND" >&2' ERR
 
+# shellcheck disable=SC1091
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib/dotenv.sh"
+
+eval "$(bash scripts/oauth_session.sh ensure --print | sed -n '/^export /p')"
+
 require_env() {
   local name="$1"
   if [[ -z "${!name:-}" ]]; then
@@ -35,30 +40,27 @@ print("" if cur is None else cur)
 json_count_url() {
   local json="$1"
   local url="$2"
-  python - "$url" <<'PY'
-import json,sys
+  python -c 'import json,sys
 url=sys.argv[1]
 raw=sys.stdin.read().strip()
 items=json.loads(raw).get("items", []) if raw else []
 count=sum(1 for item in items if item.get("url_original") == url)
 print(count)
-PY
+' "$url" <<<"$json"
 }
 
 json_find_id_by_url() {
   local json="$1"
   local url="$2"
-  python - "$url" <<'PY'
-import json,sys
+  python -c 'import json,sys
 url=sys.argv[1]
 raw=sys.stdin.read().strip()
 items=json.loads(raw).get("items", []) if raw else []
-for item in items:
-    if item.get("url_original") == url:
-        print(item.get("id", ""))
-        raise SystemExit(0)
-print("")
-PY
+for it in items:
+  if it.get("url_original")==url:
+    print(it.get("id",""))
+    break
+' "$url" <<<"$json"
 }
 
 require_env ACCESS_TOKEN

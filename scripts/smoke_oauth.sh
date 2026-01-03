@@ -8,6 +8,9 @@ fail() { printf "[FAIL] %s\n" "$*"; exit 1; }
 # Better error diagnostics
 trap 'echo "[FAIL] line=$LINENO cmd=$BASH_COMMAND" >&2' ERR
 
+# shellcheck disable=SC1091
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib/dotenv.sh"
+
 require_env() {
   local name="$1"
   if [[ -z "${!name:-}" ]]; then
@@ -47,7 +50,7 @@ require_env TEST_USER_PASSWORD
 # ---- optional env (defaults) ----
 BASE_URL="${BASE_URL:-http://localhost:3000}"
 BASE_URL="${BASE_URL%/}"
-CLIENT_ID="${CLIENT_ID:-local-dev-client}"
+CLIENT_ID="${CLIENT_ID:-wishlistgpt-dev}"
 REDIRECT_URI="${REDIRECT_URI:-http://localhost:3000/dev/callback}"
 STATE="${STATE:-state-123}"
 EXPECT_SUPABASE_HEADER_BYPASS="${EXPECT_SUPABASE_HEADER_BYPASS:-skip}"

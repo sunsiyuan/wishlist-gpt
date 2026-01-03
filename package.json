@@ -5,9 +5,10 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "smoke:oauth": "bash -lc 'set -a; source .env.local; set +a; export EXPECT_SUPABASE_HEADER_BYPASS=skip; ./scripts/smoke_oauth.sh'",
-    "smoke:oauth:header:on": "bash -lc 'set -a; source .env.local; set +a; export OAUTH_ALLOW_AUTH_HEADER_LOGIN=true; export EXPECT_SUPABASE_HEADER_BYPASS=on; ./scripts/smoke_oauth.sh'",
-    "smoke:oauth:header:off": "bash -lc 'set -a; source .env.local; set +a; export OAUTH_ALLOW_AUTH_HEADER_LOGIN=false; export EXPECT_SUPABASE_HEADER_BYPASS=off; ./scripts/smoke_oauth.sh'"
+    "smoke:oauth": "bash -lc 'export EXPECT_SUPABASE_HEADER_BYPASS=skip; ./scripts/smoke_oauth.sh'",
+    "smoke:oauth:header:on": "bash -lc 'export OAUTH_ALLOW_AUTH_HEADER_LOGIN=true; export EXPECT_SUPABASE_HEADER_BYPASS=on; ./scripts/smoke_oauth.sh'",
+    "smoke:oauth:header:off": "bash -lc 'export OAUTH_ALLOW_AUTH_HEADER_LOGIN=false; export EXPECT_SUPABASE_HEADER_BYPASS=off; ./scripts/smoke_oauth.sh'",
+    "smoke:items": "bash -lc './scripts/smoke_items.sh'"
   },
   "dependencies": {
     "next": "latest",

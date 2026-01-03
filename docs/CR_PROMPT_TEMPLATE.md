@@ -76,6 +76,11 @@ Example (OAuth):
 - [ ] Follow existing naming conventions and folder boundaries
 - [ ] Do not add new dependencies unless necessary (if yes, explain)
 
+### Workflow invariants / 工作流不变量（强制）
+- [ ] Run smoke ONLY via npm scripts: `npm run smoke:*` (do NOT run bash scripts directly)
+- [ ] Any bash script that depends on env MUST `source scripts/lib/dotenv.sh` (no manual export rituals)
+- [ ] Any script needing `ACCESS_TOKEN` MUST consume persisted session via `scripts/oauth_session.sh` (never reuse one-time `code`)
+
 ---
 
 ## 6) **Docs Update Checklist (MANDATORY)** / **文档更新清单（强制）**
@@ -120,6 +125,12 @@ Example (OAuth):
 - [ ] Reused code
 - [ ] Invalid redirect_uri
 - [ ] Missing/invalid state
+
+### Smoke entrypoints / Smoke 入口（强制）
+- [ ] Use npm as the single entrypoint (env/session handled inside scripts)
+  - `npm run smoke:oauth`
+  - `npm run smoke:items`
+  - `npm run smoke:all` (if exists)
 
 ---
 
