@@ -30,7 +30,8 @@ export async function loginWithPassword(formData: FormData) {
   }
 
   const maxAge = Number.isFinite(result.expiresIn) ? result.expiresIn : 3600;
-  cookies().set(SUPABASE_ACCESS_TOKEN_COOKIE, result.accessToken, {
+  const store = await cookies();
+  store.set(SUPABASE_ACCESS_TOKEN_COOKIE, result.accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
