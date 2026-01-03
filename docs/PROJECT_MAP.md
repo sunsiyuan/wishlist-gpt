@@ -1,191 +1,98 @@
-# Project Map / 项目地图（Intended vs Current）
+# PROJECT_MAP
 
-> This document is the **single navigation entry** for the repo.
-> It contains **two maps**:
-> 1) **Intended Project Map** (the design target)
-> 2) **Current Project Map** (the as-is repo state)
->
-> Going forward, every implementation change should:
-> - move the repo **closer to the Intended Map**, and
-> - update the **Current Map** to match reality.
+## 0. 单一导航入口 / Single navigation entry
+CN：本项目的规范性文档只保留：`README.md`、`MVP_SPEC`、`PROJECT_MAP`、`CHEATSHEET`、`SECURITY`。其他任何文档都不再是规范来源。  
+EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEATSHEET`, `SECURITY`. No other doc is normative.
 
 ---
 
-## 0) Context / 背景
-
-- Spec of record: `docs/MVP_SPEC.md`
-- MVP first milestone: **OAuth bridge end-to-end** (Actions connect -> API call as user)
-
----
-
-## 1) Intended Project Map / 目标结构（设计态）
-
-### 1.1 Repo Tree / 仓库树（目标）
-
-```txt
-.
-├─ docs/
-│  ├─ MVP_SPEC.md
-│  ├─ PROJECT_MAP.md                # (this file) intended vs current
-│  ├─ OAUTH_BRIDGE.md               # OAuth bridge: endpoints + flows + token rules
-│  ├─ API_SURFACE.md                # Actions surface: Items/Share API contract
-│  ├─ DATA_MODEL.md                 # Minimal tables + RLS policies
-│  ├─ URL_NORMALIZE.md              # LLM-first normalize + prompt versioning rules
-│  ├─ SHARE_PAGE.md                 # /s/{token} noindex / unlisted rules
-│  ├─ DEPLOYMENT.md                 # domains, headers, env, secrets
-│  └─ SECURITY.md                   # threat model + MVP guardrails
-│
-├─ src/
-│  ├─ app/                          # Next.js routes (UI + API routes)
-│  ├─ server/                       # server-only business logic (no React import)
-│  └─ components/                   # reusable UI components (drag reorder, list, etc.)
-│
-├─ actions/
-│  ├─ openapi.yaml                  # GPT Actions contract
-│  └─ README.md
-│
-├─ prompts/
-│  ├─ README.md
-│  └─ url_normalize/
-│     ├─ README.md
-│     ├─ v1.md                      # prompt text (treat as code)
-│     └─ CHANGELOG.md
-│
-├─ supabase/
-│  ├─ README.md
-│  └─ migrations/
-│     ├─ 001_init.sql               # items / shares / oauth_codes / oauth_tokens(optional)
-│     └─ 002_rls.sql                # RLS policies
-│
-├─ scripts/
-│  ├─ README.md
-│  └─ smoke_oauth.ts                # OAuth e2e smoke test (optional)
-│
-├─ middleware.ts                    # host split + security headers + noindex
-├─ next.config.js                   # headers/rewrites
-├─ .env.example
-└─ README.md
-```
-
-### 1.2 Boundary Rules / 边界规则（必须遵守）
-
-**Server-only boundary (`src/server/*`)**
-- Must not be imported from Client Components.
-- Holds: auth session parsing, OAuth code/token issuance, DB calls (admin), normalize, OG fetch, rate limit, audit.
-
-**API route handlers (`src/app/api/**/route.ts`)**
-- Thin layer only: parse input → call `src/server/*` → return JSON.
-- No business logic duplication.
-
-**Prompts (`prompts/**`)**
-- Prompt files are **versioned** and treated like code.
-- Every normalize result should record `prompt_version` in logs.
-
-**Supabase (`supabase/**`)**
-- Schema + RLS are security-critical; changes must be migration-based.
+## 1. “我该去哪找？”索引 / “Where do I find…?” index
+- OAuth authorize 路由 / route: `src/app/api/oauth/authorize/route.ts`（别名 / alias: `src/app/oauth/authorize/route.ts`）
+- OAuth token 路由 / route: `src/app/api/oauth/token/route.ts`（别名 / alias: `src/app/oauth/token/route.ts`）
+- Bearer 认证 / auth: `src/server/auth/bearer.ts`
+- Supabase session + header bypass / gating: `src/server/auth/supabase.ts`
+- Items 存储 / storage: `src/server/items/`
+- OpenAPI 模板与生成 / template & generator:
+  - `actions/openapi.template.yaml`
+  - `scripts/gen-openapi.mjs`
+  - `public/openapi.yaml`
+- Smoke / preflight:
+  - `scripts/preflight.sh`
+  - `scripts/smoke_oauth.sh`
+  - `scripts/smoke_items.sh`
 
 ---
 
-## 2) Current Project Map / 当前结构（现实态）
+## 2. 当前项目地图 / Current project map
 
-### 2.1 Repo Tree / 仓库树（当前）
+> 说明 / Note: 这里只表达“代码组织与入口”。API 的对外 contract 以 `MVP_SPEC` 为准。  
+> This section describes structure/entrypoints; the external contract is defined in `MVP_SPEC`.
 
-```txt
+```text
 .
 ├─ actions/
-│  ├─ openapi.template.yaml         # Actions OpenAPI template
-│  └─ README.md                     # Actions folder placeholder
+│  └─ openapi.template.yaml          # OpenAPI 模板（占位符 __BASE_URL__）/ OpenAPI template (__BASE_URL__)
 ├─ docs/
-│  ├─ API_SURFACE.md                # Actions surface (planned Items/Share)
-│  ├─ CR_PROMPT_TEMPLATE.md         # Change request checklist template
-│  ├─ DATA_MODEL.md                 # Minimal data model (incl. oauth tables)
-│  ├─ DEPLOYMENT.md                 # Domains/env/headers guidance
-│  ├─ MVP_SPEC.md                   # Source-of-truth MVP spec
-│  ├─ OAUTH_BRIDGE.md               # OAuth bridge spec (kept in sync)
-│  ├─ PROJECT_MAP.md                # (this file)
-│  ├─ SECURITY.md                   # Threat model + guardrails
-│  ├─ SHARE_PAGE.md                 # Share page noindex rules
-│  └─ URL_NORMALIZE.md              # LLM-first URL normalization rules
-├─ prompts/
-│  ├─ README.md
-│  └─ url_normalize/
-│     ├─ README.md
-│     ├─ v1.md
-│     └─ CHANGELOG.md
+│  ├─ MVP_SPEC.md                    # MVP 范围与验收 / MVP scope & acceptance
+│  ├─ PROJECT_MAP.md                 # 本文件 / this file
+│  ├─ CHEATSHEET.md                  # 速查与排障 / cheats & troubleshooting
+│  └─ SECURITY.md                    # 安全与生产默认 / security & prod defaults
 ├─ public/
-│  └─ openapi.yaml                  # Build artifact from template (npm run gen:openapi)
+│  └─ openapi.yaml                   # 由模板生成（npm run gen:openapi）/ generated artifact
 ├─ scripts/
-│  ├─ README.md
-│  ├─ smoke_items.sh              # Items API smoke test (idempotent POST/GET)
-│  └─ smoke_oauth.sh              # OAuth bridge smoke test (cookie-seeded + bypass checks)
+│  ├─ gen-openapi.mjs                # 渲染模板 -> public/openapi.yaml / render template -> artifact
+│  ├─ smoke_oauth.sh                 # OAuth flow smoke / OAuth flow smoke
+│  ├─ smoke_items.sh                 # Items API smoke / Items API smoke
+│  └─ preflight.sh                   # 预检查 / preflight checks
 ├─ src/
 │  ├─ app/
-│  │  ├─ README.md                 # App Router routing notes
-│  │  ├─ login/
-│  │  │  ├─ actions.ts             # Email/password login action (Supabase password grant)
-│  │  │  └─ page.tsx               # Minimal login form
-│  │  └─ api/
-│  │     ├─ items/route.ts         # Items API (POST/GET, bearer auth)
-│  │     ├─ me/route.ts            # Minimal protected endpoint (Bearer token)
-│  │     └─ oauth/
-│  │        ├─ authorize/route.ts  # OAuth authorize endpoint
-│  │        └─ token/route.ts      # OAuth token endpoint
-│  │  ├─ me/route.ts               # /me alias to API handler
-│  │  ├─ items/route.ts            # /items alias to API handler
-│  │  └─ oauth/
-│  │     ├─ authorize/route.ts     # /oauth/authorize alias
-│  │     └─ token/route.ts         # /oauth/token alias
-│  ├─ components/                  # (empty, reserved for UI components)
-│  └─ server/
-│     ├─ README.md                 # Server-only boundary description
-│     ├─ auth/
-│     │  ├─ bearer.ts              # OAuth access-token parsing/verification
-│     │  ├─ next-path.ts           # Safe redirect path helper
-│     │  ├─ password-grant.ts      # Supabase password grant helper
-│     │  └─ supabase.ts            # Supabase user lookup + header bypass gate
-│     ├─ items/
-│     │  └─ store.ts               # Items create-or-touch + list store
-│     ├─ oauth/
-│     │  ├─ access-token.ts        # Access token issuance
-│     │  ├─ clients.ts             # Client allowlist parsing
-│     │  ├─ code-store.ts          # oauth_codes persistence helpers
-│     │  ├─ config.ts              # OAuth TTLs + env
-│     │  ├─ jwt.ts                 # JWT sign/verify helpers
-│     │  ├─ refresh-store.ts       # oauth_tokens persistence helpers
-│     │  └─ tokens.ts              # Random token + hash utils
-│     └─ supabase/
-│        └─ admin.ts               # Supabase admin fetch helper
-├─ supabase/
-│  ├─ README.md
-│  └─ migrations/
-│     ├─ 001_init.sql              # oauth_codes + oauth_tokens tables
-│     ├─ 002_items.sql             # items table (minimal fields + unique key)
-│     └─ 003_rls.sql               # RLS policies (items)
-└─ .gitignore
-```
-
-### 2.2 Gaps / 与目标差距（要补齐的结构件）
-
-- [ ] Implement share endpoints + share page (`/share`, `/s/{token}`)
+│  │  ├─ api/oauth/authorize/route.ts  # OAuth authorize / 授权码
+│  │  ├─ api/oauth/token/route.ts      # OAuth token exchange / 换 token
+│  │  ├─ oauth/authorize/route.ts      # Alias / 别名
+│  │  ├─ oauth/token/route.ts          # Alias / 别名
+│  │  ├─ api/me/route.ts               # /me handler (see MVP_SPEC) / /me 处理（以 MVP_SPEC 为准）
+│  │  ├─ api/items/route.ts            # /items handler (see MVP_SPEC) / /items 处理（以 MVP_SPEC 为准）
+│  │  └─ login/                        # /login (Supabase password grant) / 登录页
+│  ├─ server/
+│  │  ├─ auth/                         # bearer + supabase session / 认证层
+│  │  ├─ oauth/                        # OAuth helpers / OAuth 辅助逻辑
+│  │  └─ items/                        # Items storage / items 存储
+│  └─ supabase/                        # Admin fetch helper / 管理端请求封装
+└─ supabase/migrations/
+   ├─ 001_init.sql                     # oauth_codes/oauth_tokens
+   └─ 002_items.sql                    # items
+````
 
 ---
 
-## 3) How to Maintain This Doc / 如何维护
+## 3. OpenAPI 生成方式 / OpenAPI generation
 
-### 3.1 When you implement something…
-Update **Current Map**:
-- Add the new paths and describe *what exists now* (no assumptions).
-- Add “Evidence” links (path references) once code exists.
+CN：
 
-### 3.2 Keep Intended Map stable
-- Intended Map changes only when product scope/architecture decisions change.
-- If scope changes, update `docs/MVP_SPEC.md` first, then update Intended Map.
+* 来源：`actions/openapi.template.yaml`（包含 `__BASE_URL__`）
+* 输出：`public/openapi.yaml`
+* 生成命令：`npm run gen:openapi`（`npm run build` 会通过 `prebuild` 自动执行）
+* Base URL 解析：`scripts/gen-openapi.mjs` 使用 `BASE_URL` 或 Vercel 环境变量
+
+EN:
+
+* Source: `actions/openapi.template.yaml` (contains `__BASE_URL__`)
+* Output: `public/openapi.yaml`
+* Command: `npm run gen:openapi` (also runs via `prebuild` during `npm run build`)
+* Base URL resolution: `scripts/gen-openapi.mjs` uses `BASE_URL` or Vercel env vars
 
 ---
 
-## 4) MVP Implementation Order (suggested) / MVP落地顺序（建议）
+## 4. 维护规则（防止漂移）/ Maintenance rule (prevent drift)
 
-1. OAuth bridge + Supabase Auth providers (Google/Apple)
-2. Items API (POST/GET/PATCH/DELETE) with dedupe + fractional ranks
-3. Share API + /s/{token} noindex page
-4. URL normalize prompt versioning + OG fetch + audit logs
+CN：如果你改动了 routes / scripts / OpenAPI 产物路径，必须同步更新：
+
+* `docs/MVP_SPEC.md`（contract 与验收）
+* `docs/CHEATSHEET.md`（如何跑通与排障）
+* `docs/PROJECT_MAP.md`（入口与文件位置）
+
+EN: If you change routes/scripts/OpenAPI artifact paths, update:
+
+* `docs/MVP_SPEC.md` (contract & acceptance)
+* `docs/CHEATSHEET.md` (how-to-run & troubleshooting)
+* `docs/PROJECT_MAP.md` (entrypoints & file locations)
