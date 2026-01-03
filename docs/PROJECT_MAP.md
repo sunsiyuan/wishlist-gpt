@@ -118,6 +118,9 @@
 ├─ src/
 │  ├─ app/
 │  │  ├─ README.md                 # App Router routing notes
+│  │  ├─ login/
+│  │  │  ├─ actions.ts             # Email/password login action (Supabase password grant)
+│  │  │  └─ page.tsx               # Minimal login form
 │  │  └─ api/
 │  │     ├─ items/route.ts         # Items API (POST/GET, bearer auth)
 │  │     ├─ me/route.ts            # Minimal protected endpoint (Bearer token)
@@ -134,6 +137,8 @@
 │     ├─ README.md                 # Server-only boundary description
 │     ├─ auth/
 │     │  ├─ bearer.ts              # OAuth access-token parsing/verification
+│     │  ├─ next-path.ts           # Safe redirect path helper
+│     │  ├─ password-grant.ts      # Supabase password grant helper
 │     │  └─ supabase.ts            # Supabase user lookup + header bypass gate
 │     ├─ items/
 │     │  └─ store.ts               # Items create-or-touch + list store
