@@ -13,12 +13,9 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib/dotenv.sh"
 
 require_env() {
   local name="$1"
-  if [[ -z "${!name:-}" ]]; then
-    fail "Missing env: $name"
-  fi
+  [[ -n "${!name:-}" ]] || fail "Missing env: $name"
 }
 
-# json_get <json> <key>
 json_get() {
   local json="$1"
   local key="$2"
@@ -38,7 +35,6 @@ print(int(time.time()))
 PY
 }
 
-# extract code from a Location URL query string
 extract_code_from_url() {
   local url="$1"
   python -c 'import sys,urllib.parse
@@ -48,21 +44,42 @@ print(q.get("code",[""])[0])
 ' <<<"$url"
 }
 
-# ---- config (match smoke_oauth defaults) ----
+# ---- config ----
 BASE_URL="${BASE_URL:-http://localhost:3000}"
 BASE_URL="${BASE_URL%/}"
+
 CLIENT_ID="${CLIENT_ID:-wishlistgpt-dev}"
-REDIRECT_URI="${REDIRECT_URI:-http://localhost:3000/dev/callback}"
+REDIRECT_PATH="${OAUTH_REDIRECT_PATH:-/dev/callback}"
+REDIRECT_URI="${REDIRECT_URI:-${BASE_URL}${REDIRECT_PATH}}"
 STATE="${STATE:-state-123}"
 
 AUTHZ_URL="$BASE_URL/api/oauth/authorize"
 TOKEN_URL="$BASE_URL/oauth/token"
-ME_URL="$BASE_URL/me"
+
+derive_session_key() {
+  python - <<'PY'
+import os, re, urllib.parse
+u=os.environ.get("BASE_URL","http://localhost:3000")
+p=urllib.parse.urlparse(u)
+host=(p.hostname or "local").replace(".","_")
+port=f"_{p.port}" if p.port else ""
+s=re.sub(r"[^a-zA-Z0-9_]+","_", host+port)
+print(s or "local")
+PY
+}
+
+SESSION_KEY="${OAUTH_SESSION_KEY:-}"
+if [[ -z "$SESSION_KEY" ]]; then
+  SESSION_KEY="$(derive_session_key)"
+fi
 
 TMP_DIR="scripts/.tmp"
-SESSION_JSON="$TMP_DIR/oauth_session.json"
-SESSION_ENV="$TMP_DIR/oauth.env"
 mkdir -p "$TMP_DIR"
+
+SESSION_JSON="$TMP_DIR/oauth_session.${SESSION_KEY}.json"
+SESSION_ENV="$TMP_DIR/oauth.${SESSION_KEY}.env"
+COOKIE_JAR="$TMP_DIR/oauth_cookiejar.${SESSION_KEY}.txt"
+HEADERS_FILE="$TMP_DIR/oauth_headers.${SESSION_KEY}.txt"
 
 seed_cookie_jar() {
   local jar_path="$1"
@@ -100,11 +117,10 @@ PY
 write_session() {
   local access_token="$1"
   local refresh_token="$2"
-  local expires_in="$3"  # seconds (may be empty)
+  local expires_in="$3"
   local now; now="$(now_epoch)"
 
-  # safety skew: refresh a bit early
-  local exp; exp="$now"
+  local exp="$now"
   if [[ -n "$expires_in" ]]; then
     exp=$(( now + expires_in - 30 ))
   else
@@ -142,6 +158,7 @@ export REDIRECT_URI="${REDIRECT_URI}"
 export ACCESS_TOKEN="${access_token}"
 export REFRESH_TOKEN="${refresh_token}"
 EOF
+
   chmod 600 "$SESSION_JSON" "$SESSION_ENV" 2>/dev/null || true
 }
 
@@ -174,38 +191,31 @@ supabase_password_grant() {
 
   local sb
   sb="$(json_get "$supabase_json" "access_token")"
-  if [[ -z "$sb" ]]; then
-    echo "$supabase_json" >&2
-    fail "Failed to get Supabase access_token (check TEST_USER_EMAIL/PASSWORD)"
-  fi
+  [[ -n "$sb" ]] || { echo "$supabase_json" >&2; fail "Failed to get Supabase access_token"; }
   echo "$sb"
 }
 
 authorize_code_with_cookie() {
   local sb_access_token="$1"
-  local jar="$TMP_DIR/oauth_cookiejar.txt"
-  local headers="$TMP_DIR/oauth_headers_latest.txt"
-  rm -f "$jar" "$headers"
-  seed_cookie_jar "$jar" "$sb_access_token"
+  rm -f "$COOKIE_JAR" "$HEADERS_FILE"
+  seed_cookie_jar "$COOKIE_JAR" "$sb_access_token"
 
   local code="" location=""
   for _ in 1 2; do
-    curl -sS -D "$headers" -o /dev/null -c "$jar" -b "$jar" \
+    curl -sS -D "$HEADERS_FILE" -o /dev/null -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
       "$AUTHZ_URL?response_type=code&client_id=$CLIENT_ID&redirect_uri=$REDIRECT_URI&state=$STATE" \
       || true
-    location="$(grep -i '^location:' "$headers" | tail -n 1 | sed -E 's/^location:\s*//I' | tr -d '\r' || true)"
+
+    location="$(grep -i '^location:' "$HEADERS_FILE" | tail -n 1 | sed -E 's/^location:\s*//I' | tr -d '\r' || true)"
     if [[ -n "$location" ]]; then
       code="$(extract_code_from_url "$location")"
-      if [[ -n "$code" ]]; then
-        echo "$code"
-        return 0
-      fi
+      [[ -n "$code" ]] && { echo "$code"; return 0; }
     fi
   done
 
   echo "Last headers:" >&2
-  cat "$headers" >&2 || true
-  fail "Failed to obtain code from authorize redirect (check allowlist client_id/redirect_uri, and server sees sb-access-token cookie)"
+  cat "$HEADERS_FILE" >&2 || true
+  fail "Failed to obtain code from authorize redirect"
 }
 
 exchange_code_for_tokens() {
@@ -222,14 +232,8 @@ exchange_code_for_tokens() {
   refresh="$(json_get "$token_json" "refresh_token")"
   expires="$(json_get "$token_json" "expires_in")"
 
-  if [[ -z "$access" ]]; then
-    echo "$token_json" >&2
-    fail "Token exchange did not return access_token"
-  fi
-  if [[ -z "$refresh" ]]; then
-    echo "$token_json" >&2
-    fail "Token exchange did not return refresh_token (expected for this flow)"
-  fi
+  [[ -n "$access" ]] || { echo "$token_json" >&2; fail "Token exchange missing access_token"; }
+  [[ -n "$refresh" ]] || { echo "$token_json" >&2; fail "Token exchange missing refresh_token"; }
 
   write_session "$access" "$refresh" "${expires:-}"
   pass "Session updated via authorization_code"
@@ -248,24 +252,17 @@ refresh_access_token() {
   access="$(json_get "$refresh_json" "access_token")"
   expires="$(json_get "$refresh_json" "expires_in")"
 
-  if [[ -z "$access" ]]; then
-    echo "$refresh_json" >&2
-    return 1
-  fi
+  [[ -n "$access" ]] || { echo "$refresh_json" >&2; return 1; }
 
-  # refresh endpoint may or may not rotate refresh_token; keep existing if empty
   local new_refresh
   new_refresh="$(json_get "$refresh_json" "refresh_token")"
-  if [[ -z "$new_refresh" ]]; then
-    new_refresh="$refresh_token"
-  fi
+  [[ -n "$new_refresh" ]] || new_refresh="$refresh_token"
 
   write_session "$access" "$new_refresh" "${expires:-}"
   pass "Session refreshed"
 }
 
 ensure_session() {
-  # 0) server reachable (quick)
   curl -sS -o /dev/null "$BASE_URL/" || fail "Server not reachable at $BASE_URL"
 
   local access refresh exp now
@@ -274,19 +271,14 @@ ensure_session() {
   exp="$(read_session_field "access_expires_at")"
   now="$(now_epoch)"
 
-  # 1) if have access and not expiring within 60s, OK
-  if [[ -n "$access" && -n "$exp" ]]; then
-    if [[ "$exp" -gt $(( now + 60 )) ]]; then
-      return 0
-    fi
+  if [[ -n "$access" && -n "$exp" && "$exp" -gt $(( now + 60 )) ]]; then
+    return 0
   fi
 
-  # 2) try refresh if possible
   if [[ -n "$refresh" ]]; then
     refresh_access_token "$refresh" && return 0
   fi
 
-  # 3) full login: sb password grant -> authorize code -> exchange
   info "No valid session found; performing non-interactive login (Supabase password grant)"
   local sb code
   sb="$(supabase_password_grant)"
@@ -294,25 +286,20 @@ ensure_session() {
   exchange_code_for_tokens "$code"
 }
 
-cmd_ensure() {
-  local mode="${1:-}" # --print optional
-  if [[ "$mode" == "--print" ]]; then
-    LOG_FD=2  # logs -> stderr, stdout only exports
-  fi
-
+cmd_export() {
+  # stdout MUST be exports only
+  LOG_FD=2
   ensure_session
-
   local access refresh
   access="$(read_session_field "access_token")"
   refresh="$(read_session_field "refresh_token")"
-  [[ -n "$access" ]] || fail "ensure succeeded but no access_token in session"
-  [[ -n "$refresh" ]] || fail "ensure succeeded but no refresh_token in session"
+  [[ -n "$access" && -n "$refresh" ]] || fail "No token in session after ensure"
+  print_exports "$access" "$refresh"
+}
 
-  if [[ "$mode" == "--print" ]]; then
-    print_exports "$access" "$refresh"
-  else
-    pass "Session ready (files: $SESSION_JSON, $SESSION_ENV)"
-  fi
+cmd_ensure() {
+  ensure_session
+  pass "Session ready (key=$SESSION_KEY, files: $SESSION_JSON, $SESSION_ENV)"
 }
 
 cmd_print_env() {
@@ -321,19 +308,25 @@ cmd_print_env() {
 }
 
 cmd_clear() {
-  rm -f "$SESSION_JSON" "$SESSION_ENV"
-  pass "Cleared session files"
+  rm -f \
+    "$SESSION_JSON" \
+    "$SESSION_ENV" \
+    "$COOKIE_JAR" \
+    "$HEADERS_FILE"
+  pass "Cleared session files (key=$SESSION_KEY)"
 }
 
 case "${1:-}" in
-  ensure) cmd_ensure "${2:-}" ;;
+  export) cmd_export ;;
+  ensure) cmd_ensure ;;
   print-env) cmd_print_env ;;
   clear) cmd_clear ;;
   *)
     echo "Usage:"
-    echo "  $0 ensure [--print]   # ensure tokens; optionally print exports for eval"
-    echo "  $0 print-env          # print scripts/.tmp/oauth.env"
-    echo "  $0 clear              # remove persisted session files"
+    echo "  $0 export             # ensure tokens; print exports to stdout (for eval)"
+    echo "  $0 ensure             # ensure tokens; human-friendly logs"
+    echo "  $0 print-env          # print persisted env file"
+    echo "  $0 clear              # clear persisted session for this key"
     exit 2
     ;;
 esac
