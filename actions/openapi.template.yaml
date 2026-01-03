@@ -6,6 +6,7 @@ servers:
   - url: __BASE_URL__
 
 components:
+  schemas: {}
   securitySchemes:
     bearerAuth:
       type: http
