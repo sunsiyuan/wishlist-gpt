@@ -2,6 +2,8 @@
   "name": "wishlist-gpt",
   "private": true,
   "scripts": {
+    "gen:openapi": "node scripts/gen-openapi.mjs",
+    "prebuild": "npm run gen:openapi",
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
