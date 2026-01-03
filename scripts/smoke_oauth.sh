@@ -51,11 +51,17 @@ CLIENT_ID="${CLIENT_ID:-local-dev-client}"
 REDIRECT_URI="${REDIRECT_URI:-http://localhost:3000/dev/callback}"
 STATE="${STATE:-state-123}"
 EXPECT_SUPABASE_HEADER_BYPASS="${EXPECT_SUPABASE_HEADER_BYPASS:-skip}"
+OAUTH_ALLOW_AUTH_HEADER_LOGIN="${OAUTH_ALLOW_AUTH_HEADER_LOGIN:-}"
 
 info "BASE_URL=$BASE_URL"
 info "CLIENT_ID=$CLIENT_ID"
 info "REDIRECT_URI=$REDIRECT_URI"
 info "EXPECT_SUPABASE_HEADER_BYPASS=$EXPECT_SUPABASE_HEADER_BYPASS"
+if [[ -z "$OAUTH_ALLOW_AUTH_HEADER_LOGIN" ]]; then
+  info "OAUTH_ALLOW_AUTH_HEADER_LOGIN is unset (dev default: allow, prod default: deny)"
+else
+  info "OAUTH_ALLOW_AUTH_HEADER_LOGIN=$OAUTH_ALLOW_AUTH_HEADER_LOGIN"
+fi
 
 AUTHZ_URL="$BASE_URL/api/oauth/authorize"
 
@@ -144,7 +150,7 @@ if [[ "$EXPECT_SUPABASE_HEADER_BYPASS" != "skip" ]]; then
     if [[ -z "$BYPASS_CODE" ]]; then
       echo "Last headers:" >&2
       cat "$BYPASS_HEADERS_PATH" >&2 || true
-      fail "Expected header bypass to succeed, but no code was issued"
+      fail "Expected header bypass to succeed. Set OAUTH_ALLOW_AUTH_HEADER_LOGIN=true in .env.local, restart the dev server, then rerun."
     fi
     pass "Header bypass accepted (code issued)"
   elif [[ "$EXPECT_SUPABASE_HEADER_BYPASS" == "off" ]]; then
@@ -153,7 +159,10 @@ if [[ "$EXPECT_SUPABASE_HEADER_BYPASS" != "skip" ]]; then
     else
       echo "Last headers:" >&2
       cat "$BYPASS_HEADERS_PATH" >&2 || true
-      fail "Expected header bypass 401, got $BYPASS_STATUS"
+      if [[ -n "$BYPASS_CODE" ]]; then
+        fail "Header bypass appears enabled (code issued). Set OAUTH_ALLOW_AUTH_HEADER_LOGIN=false in .env.local, restart the dev server, then rerun."
+      fi
+      fail "Expected header bypass 401 (got $BYPASS_STATUS). Set OAUTH_ALLOW_AUTH_HEADER_LOGIN=false in .env.local, restart the dev server, then rerun."
     fi
   else
     fail "EXPECT_SUPABASE_HEADER_BYPASS must be on|off|skip"
