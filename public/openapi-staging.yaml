@@ -1,0 +1,38 @@
+openapi: 3.1.0
+info:
+  title: WishlistGPT Actions API
+  version: 0.1.0
+servers:
+  - url: https://wishlist-gpt-git-staging-sunsiyuans-projects.vercel.app
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+paths:
+  /me:
+    get:
+      operationId: getMe
+      summary: Validate the current user access token
+      description: Returns the user_id mapped from the OAuth access token.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                  client_id:
+                    type: string
+                required: [user_id, client_id]
+        "401":
+          description: Unauthorized
