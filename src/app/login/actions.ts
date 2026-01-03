@@ -8,11 +8,11 @@ import { passwordGrantLogin } from "../../server/auth/password-grant";
 const SUPABASE_ACCESS_TOKEN_COOKIE = "sb-access-token";
 const DEFAULT_REDIRECT = "/";
 
-function loginErrorRedirect(nextPath: string, reason: string) {
+function loginErrorRedirect(nextPath: string, reason: string): never {
   const url = new URL("/login", "http://localhost");
   url.searchParams.set("next", nextPath);
   url.searchParams.set("error", reason);
-  redirect(url.pathname + url.search);
+  return redirect(url.pathname + url.search);
 }
 
 export async function loginWithPassword(formData: FormData) {
@@ -21,12 +21,12 @@ export async function loginWithPassword(formData: FormData) {
   const next = sanitizeNextPath(String(formData.get("next") ?? ""), DEFAULT_REDIRECT);
 
   if (!email || !password) {
-    loginErrorRedirect(next, "missing");
+    return loginErrorRedirect(next, "missing");
   }
 
   const result = await passwordGrantLogin(email, password);
   if ("error" in result) {
-    loginErrorRedirect(next, "invalid");
+    return loginErrorRedirect(next, "invalid");
   }
 
   const maxAge = Number.isFinite(result.expiresIn) ? result.expiresIn : 3600;
@@ -38,5 +38,5 @@ export async function loginWithPassword(formData: FormData) {
     maxAge,
   });
 
-  redirect(next);
+  return redirect(next);
 }
