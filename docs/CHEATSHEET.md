@@ -157,11 +157,11 @@ CN：
 * OAuth：`src/app/api/oauth/authorize/route.ts`, `src/app/api/oauth/token/route.ts`（别名：`src/app/oauth/*`）
 * 认证：`src/server/auth/bearer.ts`, `src/server/auth/supabase.ts`
 * OpenAPI：`actions/openapi.template.yaml`, `scripts/gen-openapi.mjs`, `public/openapi.yaml`
-* Smoke：`scripts/preflight.sh`, `scripts/smoke_oauth.sh`, `scripts/smoke_items.sh`
+* Smoke：`scripts/preflight.sh`, `scripts/smoke_openapi.sh`, `scripts/smoke_oauth.sh`, `scripts/smoke_items.sh`
 
 EN:
 
 * OAuth: `src/app/api/oauth/authorize/route.ts`, `src/app/api/oauth/token/route.ts` (aliases: `src/app/oauth/*`)
 * Auth: `src/server/auth/bearer.ts`, `src/server/auth/supabase.ts`
 * OpenAPI: `actions/openapi.template.yaml`, `scripts/gen-openapi.mjs`, `public/openapi.yaml`
-* Smoke: `scripts/preflight.sh`, `scripts/smoke_oauth.sh`, `scripts/smoke_items.sh`
+* Smoke: `scripts/preflight.sh`, `scripts/smoke_openapi.sh`, `scripts/smoke_oauth.sh`, `scripts/smoke_items.sh`
