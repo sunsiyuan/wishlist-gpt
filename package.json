@@ -5,13 +5,14 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "smoke:all": "bash -lc './scripts/smoke_oauth.sh && ./scripts/smoke_items.sh'",
-    "smoke:staging": "bash -lc 'BASE_URL=\"$STAGING_BASE_URL\" OAUTH_SESSION_KEY=staging npm run smoke:all'",
-    "smoke:prod": "bash -lc 'BASE_URL=\"$PROD_BASE_URL\" OAUTH_SESSION_KEY=prod npm run smoke:all'",
+    "smoke:all": "bash -lc './scripts/preflight.sh &&./scripts/smoke_oauth.sh && ./scripts/smoke_items.sh'",
+    "smoke:staging": "bash -lc 'source scripts/lib/dotenv.sh; BASE_URL=\"$STAGING_BASE_URL\" OAUTH_SESSION_KEY=staging npm run smoke:all'",
+    "smoke:prod": "bash -lc 'source scripts/lib/dotenv.sh; BASE_URL=\"$PROD_BASE_URL\" OAUTH_SESSION_KEY=prod npm run smoke:all'",
     "smoke:oauth": "bash -lc 'export EXPECT_SUPABASE_HEADER_BYPASS=skip; ./scripts/smoke_oauth.sh'",
     "smoke:oauth:header:on": "bash -lc 'export OAUTH_ALLOW_AUTH_HEADER_LOGIN=true; export EXPECT_SUPABASE_HEADER_BYPASS=on; ./scripts/smoke_oauth.sh'",
     "smoke:oauth:header:off": "bash -lc 'export OAUTH_ALLOW_AUTH_HEADER_LOGIN=false; export EXPECT_SUPABASE_HEADER_BYPASS=off; ./scripts/smoke_oauth.sh'",
-    "smoke:items": "bash -lc './scripts/smoke_items.sh'"
+    "smoke:items": "bash -lc './scripts/smoke_items.sh'",
+    "smoke:preflight": "bash -lc './scripts/preflight.sh'"
   },
   "dependencies": {
     "next": "latest",
