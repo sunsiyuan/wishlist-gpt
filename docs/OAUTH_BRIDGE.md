@@ -26,7 +26,7 @@ This doc defines the **minimal OAuth bridge** required by the MVP spec, focusing
 
 1. GPT Actions opens:
    `GET /oauth/authorize?...&state=...`
-2. User signs in on our hosted login page (Google/Apple via Supabase Auth).
+2. User signs in on our hosted login page (Email+Password via Supabase Auth for MVP).
 3. Server validates `state`, issues a **one-time `code`** (TTL 5 min), then redirects:
    `redirect_uri?code=...&state=...`
 4. GPT exchanges code:
@@ -55,7 +55,8 @@ This doc defines the **minimal OAuth bridge** required by the MVP spec, focusing
 
 **Behavior**
 - Validate `redirect_uri` matches allowlist for `client_id`.
-- Require user login (Google/Apple via Supabase Auth).
+- Require user login (Email+Password via Supabase Auth for MVP).
+- When not logged in, redirect to `/login?next=<authorize path+query>` and resume after login.
 - **State cookie**: write `state` to an httpOnly secure cookie with ~5 min TTL on entry. If cookie is missing, server 302 redirects back to the same authorize URL once to ensure the cookie is present, then validates it matches before issuing a code.
 - Create `oauth_codes` row:
   - `code` (pk), `user_id`, `client_id`, `redirect_uri`, `expires_at`, `used_at=null`
@@ -139,6 +140,7 @@ Required env vars:
 - `OAUTH_ALLOWED_CLIENTS_JSON` → `client_id -> redirect_uris` allowlist
 - `OAUTH_SIGNING_SECRET` → HMAC secret used for access tokens
 - `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
 ---

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sanitizeNextPath } from "../../../../server/auth/next-path";
 import { getSupabaseUserId } from "../../../../server/auth/supabase";
 import { isRedirectUriAllowed } from "../../../../server/oauth/clients";
 import { CODE_TTL_SECONDS, OAUTH_STATE_COOKIE } from "../../../../server/oauth/config";
@@ -32,6 +33,9 @@ export async function GET(request: NextRequest) {
     return jsonError("redirect_uri is not allowed", 400);
   }
 
+  const nextPath = sanitizeNextPath(`${request.nextUrl.pathname}${request.nextUrl.search}`);
+  const userId = await getSupabaseUserId(request);
+
   const existingState = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
   if (existingState && existingState !== state) {
     const response = jsonError("state mismatch", 400);
@@ -39,6 +43,20 @@ export async function GET(request: NextRequest) {
     return response;
   }
   if (!existingState) {
+    if (!userId) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("next", nextPath);
+      const response = NextResponse.redirect(loginUrl, 302);
+      response.cookies.set(OAUTH_STATE_COOKIE, state, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        maxAge: CODE_TTL_SECONDS,
+        path: "/",
+      });
+      return response;
+    }
+
     const response = NextResponse.redirect(request.url);
     response.cookies.set(OAUTH_STATE_COOKIE, state, {
       httpOnly: true,
@@ -50,10 +68,10 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  const userId = await getSupabaseUserId(request);
   if (!userId) {
-    const response = jsonError("login required", 401);
-    return response;
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", nextPath);
+    return NextResponse.redirect(loginUrl, 302);
   }
 
   const code = generateOauthCode();
