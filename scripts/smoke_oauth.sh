@@ -50,10 +50,31 @@ BASE_URL="${BASE_URL%/}"
 CLIENT_ID="${CLIENT_ID:-local-dev-client}"
 REDIRECT_URI="${REDIRECT_URI:-http://localhost:3000/dev/callback}"
 STATE="${STATE:-state-123}"
+EXPECT_SUPABASE_HEADER_BYPASS="${EXPECT_SUPABASE_HEADER_BYPASS:-skip}"
 
 info "BASE_URL=$BASE_URL"
 info "CLIENT_ID=$CLIENT_ID"
 info "REDIRECT_URI=$REDIRECT_URI"
+info "EXPECT_SUPABASE_HEADER_BYPASS=$EXPECT_SUPABASE_HEADER_BYPASS"
+
+AUTHZ_URL="$BASE_URL/api/oauth/authorize"
+
+seed_cookie_jar() {
+  local jar_path="$1"
+  local token="$2"
+  python - "$jar_path" "$BASE_URL" "$token" <<'PY'
+import sys, urllib.parse
+jar_path = sys.argv[1]
+base_url = sys.argv[2]
+token = sys.argv[3]
+parsed = urllib.parse.urlparse(base_url)
+domain = parsed.hostname or "localhost"
+secure = "TRUE" if parsed.scheme == "https" else "FALSE"
+with open(jar_path, "w", encoding="utf-8") as fh:
+    fh.write("# Netscape HTTP Cookie File\n")
+    fh.write("\t".join([domain, "TRUE", "/", secure, "0", "sb-access-token", token]) + "\n")
+PY
+}
 
 # ---- 0) server reachable ----
 info "Check server reachable"
@@ -61,12 +82,12 @@ curl -sS -o /dev/null "$BASE_URL/" || fail "Server not reachable at $BASE_URL"
 pass "Server reachable"
 
 # ---- A) route existence sanity ----
-info "Sanity: /oauth/authorize exists (400 or 401)"
-status_authz=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-redirs 5 "$BASE_URL/oauth/authorize")
+info "Sanity: /api/oauth/authorize exists (400 or 401)"
+status_authz=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-redirs 5 "$AUTHZ_URL")
 if [[ "$status_authz" == "400" || "$status_authz" == "401" ]]; then
-  pass "/oauth/authorize exists ($status_authz)"
+  pass "/api/oauth/authorize exists ($status_authz)"
 else
-  fail "/oauth/authorize expected 400/401, got $status_authz"
+  fail "/api/oauth/authorize expected 400/401, got $status_authz"
 fi
 
 info "Sanity: /me returns 401 (protected)"
@@ -90,23 +111,69 @@ if [[ -z "$SUPABASE_ACCESS_TOKEN" ]]; then
 fi
 pass "Supabase user token OK"
 
+# ---- B2) Optional: header bypass on/off checks ----
+if [[ "$EXPECT_SUPABASE_HEADER_BYPASS" != "skip" ]]; then
+  info "Header bypass expectation: $EXPECT_SUPABASE_HEADER_BYPASS"
+  TMP_DIR="scripts/.tmp"
+  mkdir -p "$TMP_DIR"
+  BYPASS_COOKIES_PATH="$TMP_DIR/oauth_bypass_cookies.txt"
+  BYPASS_HEADERS_PATH="$TMP_DIR/oauth_bypass_headers.txt"
+  rm -f "$BYPASS_COOKIES_PATH" "$BYPASS_HEADERS_PATH"
+
+  BYPASS_CODE=""
+  BYPASS_STATUS=""
+  BYPASS_LOCATION=""
+
+  for _ in 1 2; do
+    BYPASS_STATUS=$(curl -sS -D "$BYPASS_HEADERS_PATH" -o /dev/null -w "%{http_code}" \
+      -c "$BYPASS_COOKIES_PATH" -b "$BYPASS_COOKIES_PATH" \
+      -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+      "$AUTHZ_URL?response_type=code&client_id=$CLIENT_ID&redirect_uri=$REDIRECT_URI&state=$STATE" \
+      || true)
+
+    BYPASS_LOCATION="$(grep -i '^location:' "$BYPASS_HEADERS_PATH" | tail -n 1 | sed -E 's/^location:\s*//I' | tr -d '\r' || true)"
+    if [[ -n "$BYPASS_LOCATION" ]]; then
+      BYPASS_CODE="$(extract_code_from_url "$BYPASS_LOCATION")"
+      if [[ -n "$BYPASS_CODE" ]]; then
+        break
+      fi
+    fi
+  done
+
+  if [[ "$EXPECT_SUPABASE_HEADER_BYPASS" == "on" ]]; then
+    if [[ -z "$BYPASS_CODE" ]]; then
+      echo "Last headers:" >&2
+      cat "$BYPASS_HEADERS_PATH" >&2 || true
+      fail "Expected header bypass to succeed, but no code was issued"
+    fi
+    pass "Header bypass accepted (code issued)"
+  elif [[ "$EXPECT_SUPABASE_HEADER_BYPASS" == "off" ]]; then
+    if [[ "$BYPASS_STATUS" == "401" ]]; then
+      pass "Header bypass rejected (401)"
+    else
+      echo "Last headers:" >&2
+      cat "$BYPASS_HEADERS_PATH" >&2 || true
+      fail "Expected header bypass 401, got $BYPASS_STATUS"
+    fi
+  else
+    fail "EXPECT_SUPABASE_HEADER_BYPASS must be on|off|skip"
+  fi
+fi
+
 # ---- C0) negative: authorize with disallowed redirect_uri must fail ----
-info "Negative: /oauth/authorize with disallowed redirect_uri must fail"
+info "Negative: /api/oauth/authorize with disallowed redirect_uri must fail"
 
 # Make a "bad" redirect that is guaranteed NOT to match allowlist
 BAD_REDIRECT_URI="${REDIRECT_URI}-bad"
 
 status_bad_redirect=$(curl -sS -o /dev/null -w "%{http_code}" \
-  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-  "$BASE_URL/oauth/authorize?response_type=code&client_id=$CLIENT_ID&redirect_uri=$BAD_REDIRECT_URI&state=$STATE" \
+  "$AUTHZ_URL?response_type=code&client_id=$CLIENT_ID&redirect_uri=$BAD_REDIRECT_URI&state=$STATE" \
   || true)
 
 if [[ "$status_bad_redirect" == "400" ]]; then
   pass "Disallowed redirect_uri rejected (400)"
-elif [[ "$status_bad_redirect" == "401" ]]; then
-  pass "Disallowed redirect_uri not reached because login required (401) — header login likely disabled in this env"
 else
-  fail "Disallowed redirect expected 400 (or 401 if login required), got $status_bad_redirect"
+  fail "Disallowed redirect expected 400, got $status_bad_redirect"
 fi
 
 # ---- C) /oauth/authorize -> code (one-shot or two-shot supported) ----
@@ -117,14 +184,14 @@ mkdir -p "$TMP_DIR"
 COOKIES_PATH="$TMP_DIR/oauth_cookies.txt"
 HEADERS_PATH="$TMP_DIR/oauth_headers.txt"
 rm -f "$COOKIES_PATH" "$HEADERS_PATH"
+seed_cookie_jar "$COOKIES_PATH" "$SUPABASE_ACCESS_TOKEN"
 
 CODE=""
 LOCATION=""
 
 for _ in 1 2; do
   curl -sS -D "$HEADERS_PATH" -o /dev/null -c "$COOKIES_PATH" -b "$COOKIES_PATH" \
-    -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
-    "$BASE_URL/oauth/authorize?response_type=code&client_id=$CLIENT_ID&redirect_uri=$REDIRECT_URI&state=$STATE" \
+    "$AUTHZ_URL?response_type=code&client_id=$CLIENT_ID&redirect_uri=$REDIRECT_URI&state=$STATE" \
     || true
 
   LOCATION="$(grep -i '^location:' "$HEADERS_PATH" | tail -n 1 | sed -E 's/^location:\s*//I' | tr -d '\r' || true)"

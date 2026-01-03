@@ -105,7 +105,21 @@ This doc defines the **minimal OAuth bridge** required by the MVP spec, focusing
 
 ---
 
-## 4) Token to User Mapping / token 与用户映射
+## 4) Token Types & Auth Resolution / Token 类型与解析顺序
+
+**Two token types must remain distinct:**
+- **OAuth `access_token`** (Actions/API): sent as `Authorization: Bearer <access_token>` and verified via `src/server/auth/bearer.ts`.
+- **Supabase user access token** (browser session): stored in cookie `sb-access-token`; an **optional header bypass** exists for local/dev.
+
+**Resolution order**
+- `/me` and any OAuth-protected API **must only** accept OAuth `access_token` bearer tokens.
+- Supabase session lookups must follow:
+  1) `sb-access-token` cookie (always allowed)
+  2) Authorization header **bypass** (only when `OAUTH_ALLOW_AUTH_HEADER_LOGIN=true`)
+
+---
+
+## 5) Token to User Mapping / token 与用户映射
 
 MVP requirement:
 - token must map uniquely to **Supabase `user.id`**.
@@ -119,7 +133,7 @@ Implementation notes (minimal):
 
 ---
 
-## 5) Config / 配置
+## 6) Config / 配置
 
 Required env vars:
 - `OAUTH_ALLOWED_CLIENTS_JSON` → `client_id -> redirect_uris` allowlist
@@ -129,7 +143,7 @@ Required env vars:
 
 ---
 
-## 6) Security Checklist / 安全检查清单（MVP）
+## 7) Security Checklist / 安全检查清单（MVP）
 
 - [x] Validate `state` strictly (CSRF)
 - [x] `redirect_uri` allowlist per `client_id`
