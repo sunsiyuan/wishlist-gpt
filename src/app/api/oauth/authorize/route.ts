@@ -10,6 +10,13 @@ function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: "invalid_request", error_description: message }, { status });
 }
 
+function shouldUseSecureCookie(request: NextRequest) {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const protocol = request.nextUrl.protocol ?? "";
+  const isHttps = forwardedProto === "https" || protocol === "https:";
+  return process.env.NODE_ENV === "production" || isHttps;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const responseType = searchParams.get("response_type");
@@ -35,6 +42,7 @@ export async function GET(request: NextRequest) {
 
   const nextPath = sanitizeNextPath(`${request.nextUrl.pathname}${request.nextUrl.search}`);
   const userId = await getSupabaseUserId(request);
+  const secureCookie = shouldUseSecureCookie(request);
 
   const existingState = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
   if (existingState && existingState !== state) {
@@ -49,7 +57,7 @@ export async function GET(request: NextRequest) {
       const response = NextResponse.redirect(loginUrl, 302);
       response.cookies.set(OAUTH_STATE_COOKIE, state, {
         httpOnly: true,
-        secure: true,
+        secure: secureCookie,
         sameSite: "lax",
         maxAge: CODE_TTL_SECONDS,
         path: "/",
@@ -57,15 +65,6 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    const response = NextResponse.redirect(request.url);
-    response.cookies.set(OAUTH_STATE_COOKIE, state, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      maxAge: CODE_TTL_SECONDS,
-      path: "/",
-    });
-    return response;
   }
 
   if (!userId) {
@@ -91,6 +90,16 @@ export async function GET(request: NextRequest) {
   redirectUrl.searchParams.set("state", state);
 
   const response = NextResponse.redirect(redirectUrl);
-  response.cookies.set(OAUTH_STATE_COOKIE, "", { maxAge: 0, path: "/" });
+  if (existingState) {
+    response.cookies.set(OAUTH_STATE_COOKIE, "", { maxAge: 0, path: "/" });
+  } else {
+    response.cookies.set(OAUTH_STATE_COOKIE, state, {
+      httpOnly: true,
+      secure: secureCookie,
+      sameSite: "lax",
+      maxAge: CODE_TTL_SECONDS,
+      path: "/",
+    });
+  }
   return response;
 }
