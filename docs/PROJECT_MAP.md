@@ -113,16 +113,19 @@
 │     └─ CHANGELOG.md
 ├─ scripts/
 │  ├─ README.md
+│  ├─ smoke_items.sh              # Items API smoke test (idempotent POST/GET)
 │  └─ smoke_oauth.sh              # OAuth bridge smoke test (cookie-seeded + bypass checks)
 ├─ src/
 │  ├─ app/
 │  │  ├─ README.md                 # App Router routing notes
 │  │  └─ api/
+│  │     ├─ items/route.ts         # Items API (POST/GET, bearer auth)
 │  │     ├─ me/route.ts            # Minimal protected endpoint (Bearer token)
 │  │     └─ oauth/
 │  │        ├─ authorize/route.ts  # OAuth authorize endpoint
 │  │        └─ token/route.ts      # OAuth token endpoint
 │  │  ├─ me/route.ts               # /me alias to API handler
+│  │  ├─ items/route.ts            # /items alias to API handler
 │  │  └─ oauth/
 │  │     ├─ authorize/route.ts     # /oauth/authorize alias
 │  │     └─ token/route.ts         # /oauth/token alias
@@ -132,6 +135,8 @@
 │     ├─ auth/
 │     │  ├─ bearer.ts              # OAuth access-token parsing/verification
 │     │  └─ supabase.ts            # Supabase user lookup + header bypass gate
+│     ├─ items/
+│     │  └─ store.ts               # Items create-or-touch + list store
 │     ├─ oauth/
 │     │  ├─ access-token.ts        # Access token issuance
 │     │  ├─ clients.ts             # Client allowlist parsing
@@ -145,14 +150,16 @@
 ├─ supabase/
 │  ├─ README.md
 │  └─ migrations/
-│     └─ 001_init.sql              # oauth_codes + oauth_tokens tables
+│     ├─ 001_init.sql              # oauth_codes + oauth_tokens tables
+│     ├─ 002_items.sql             # items table (minimal fields + unique key)
+│     └─ 003_rls.sql               # RLS policies (items)
 └─ .gitignore
 ```
 
 ### 2.2 Gaps / 与目标差距（要补齐的结构件）
 
 - [ ] Create `actions/openapi.yaml`
-- [ ] Add `supabase/migrations/002_rls.sql` for RLS policies
+- [ ] Implement share endpoints + share page (`/share`, `/s/{token}`)
 
 ---
 
