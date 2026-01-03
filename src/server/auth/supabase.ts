@@ -3,16 +3,14 @@ import { supabaseAdminFetch } from "../supabase/admin";
 const SUPABASE_ACCESS_TOKEN_COOKIE = "sb-access-token";
 
 /**
- * Scheme A:
- * - Keep Authorization: Bearer <supabase_user_access_token> login path,
- *   but gate it behind env var to avoid unintentionally enabling it in prod.
+ * Supabase session lookup only.
+ * - Cookie-based Supabase session is always allowed.
+ * - Authorization header bypass is gated for local/dev convenience only.
  *
- * Env:
- * - OAUTH_ALLOW_AUTH_HEADER_LOGIN=true|false
- *   - local/dev/CI: true
- *   - prod: false (default)
+ * IMPORTANT: OAuth access-token bearer auth is handled in src/server/auth/bearer.ts
+ * and must never be gated by OAUTH_ALLOW_AUTH_HEADER_LOGIN.
  */
-function allowAuthHeaderLogin(): boolean {
+function allowSupabaseAuthHeaderBypass(): boolean {
   const v = (process.env.OAUTH_ALLOW_AUTH_HEADER_LOGIN ?? "").toLowerCase().trim();
   if (v === "true" || v === "1" || v === "yes") return true;
   if (v === "false" || v === "0" || v === "no") return false;
@@ -21,16 +19,7 @@ function allowAuthHeaderLogin(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
-export function getSupabaseAccessTokenFromRequest(request: Request): string | null {
-  // 1) Authorization header (optional, gated)
-  if (allowAuthHeaderLogin()) {
-    const authHeader = request.headers.get("authorization");
-    if (authHeader?.toLowerCase().startsWith("bearer ")) {
-      return authHeader.slice(7).trim();
-    }
-  }
-
-  // 2) Cookie fallback
+function getSupabaseAccessTokenFromCookie(request: Request): string | null {
   const cookieHeader = request.headers.get("cookie");
   if (!cookieHeader) {
     return null;
@@ -43,8 +32,20 @@ export function getSupabaseAccessTokenFromRequest(request: Request): string | nu
   return decodeURIComponent(tokenCookie.split("=")[1] ?? "");
 }
 
+function getSupabaseAccessTokenFromHeaderBypass(request: Request): string | null {
+  if (!allowSupabaseAuthHeaderBypass()) {
+    return null;
+  }
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.toLowerCase().startsWith("bearer ")) {
+    return null;
+  }
+  return authHeader.slice(7).trim();
+}
+
 export async function getSupabaseUserId(request: Request): Promise<string | null> {
-  const accessToken = getSupabaseAccessTokenFromRequest(request);
+  const accessToken =
+    getSupabaseAccessTokenFromCookie(request) ?? getSupabaseAccessTokenFromHeaderBypass(request);
   if (!accessToken) {
     return null;
   }

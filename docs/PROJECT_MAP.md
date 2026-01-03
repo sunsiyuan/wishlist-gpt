@@ -112,7 +112,8 @@
 │     ├─ v1.md
 │     └─ CHANGELOG.md
 ├─ scripts/
-│  └─ README.md
+│  ├─ README.md
+│  └─ smoke_oauth.sh              # OAuth bridge smoke test (cookie-seeded + bypass checks)
 ├─ src/
 │  ├─ app/
 │  │  ├─ README.md                 # App Router routing notes
@@ -129,8 +130,8 @@
 │  └─ server/
 │     ├─ README.md                 # Server-only boundary description
 │     ├─ auth/
-│     │  ├─ bearer.ts              # Access-token parsing/verification
-│     │  └─ supabase.ts            # Supabase user lookup
+│     │  ├─ bearer.ts              # OAuth access-token parsing/verification
+│     │  └─ supabase.ts            # Supabase user lookup + header bypass gate
 │     ├─ oauth/
 │     │  ├─ access-token.ts        # Access token issuance
 │     │  ├─ clients.ts             # Client allowlist parsing

@@ -22,6 +22,9 @@ MVP simplification:
 - Supabase service role key (server only)
 - OAuth signing secret (server)
 - Allowed redirect URIs / client IDs
+- `OAUTH_ALLOW_AUTH_HEADER_LOGIN`
+  - **Preview/Dev**: optional `true` to allow Supabase Authorization-header bypass for smoke tests
+  - **Production**: `false` (OAuth access_token bearer must remain enabled regardless)
 
 ---
 

@@ -23,6 +23,10 @@ This doc lists the minimum guardrails required for an MVP that:
   - redirect_uri allowlist
   - one-time code + TTL
   - short access token TTL
+- Supabase header-login bypass:
+  - gated by `OAUTH_ALLOW_AUTH_HEADER_LOGIN`
+  - **dev/preview only**, default off in production
+  - never applies to OAuth access-token bearer auth
 - Share:
   - high entropy token
   - noindex enforced at header + meta + robots.txt
