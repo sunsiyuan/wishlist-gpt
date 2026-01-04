@@ -75,6 +75,7 @@ npm run dev
 ```bash
 npm run smoke:oauth
 npm run smoke:items
+npm run smoke:openapi
 npm run smoke:all
 ```
 
@@ -82,11 +83,15 @@ npm run smoke:all
 
 * `smoke:items`：验证 `/items`（POST + GET）
 
+* `smoke:openapi`：验证 `public/openapi.yaml` 产物和 `/openapi.yaml` 服务
+
 * `smoke:all`：依次跑完全部 smoke
 
 * `smoke:oauth`: validate OAuth bridge + `/me`
 
 * `smoke:items`: validate `/items` (POST + GET)
+
+* `smoke:openapi`: validate `public/openapi.yaml` and `GET /openapi.yaml`
 
 * `smoke:all`: run all smokes in sequence
 
