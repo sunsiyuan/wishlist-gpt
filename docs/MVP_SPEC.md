@@ -46,6 +46,9 @@ EN: The following are NOT part of MVP v0 (legacy docs/folders do not imply imple
   - `POST /items`（同一 URL 幂等 create/touch）
 - OpenAPI：
   - 从 `actions/openapi.template.yaml` 渲染为 `public/openapi.yaml`
+- Logout 测试工具（不属于 Actions contract）：
+  - `GET /logout`（清理 Supabase cookies 并跳转 `/login`）
+  - `POST /api/logout`（清理 Supabase cookies，返回 `{ ok: true }`）
 
 - OAuth bridge:
   - `GET /api/oauth/authorize` (alias `GET /oauth/authorize`) issues authorization codes (redirects to allowlisted `redirect_uri`)
@@ -56,6 +59,9 @@ EN: The following are NOT part of MVP v0 (legacy docs/folders do not imply imple
   - `POST /items` (idempotent create/touch for the same URL)
 - OpenAPI:
   - Render `actions/openapi.template.yaml` into `public/openapi.yaml`
+- Logout testing utility (not part of Actions contract):
+  - `GET /logout` (clears Supabase cookies and redirects to `/login`)
+  - `POST /api/logout` (clears Supabase cookies, returns `{ ok: true }`)
 
 ### 2.2 未实现 / Not implemented
 CN：任何不在“已实现”列表中的能力，都视为未实现。  
