@@ -158,6 +158,8 @@ CN：
 * 认证：`src/server/auth/bearer.ts`, `src/server/auth/supabase.ts`
 * OpenAPI：`actions/openapi.template.yaml`, `scripts/gen-openapi.mjs`, `public/openapi.yaml`
 * Smoke：`scripts/preflight.sh`, `scripts/smoke_openapi.sh`, `scripts/smoke_oauth.sh`, `scripts/smoke_items.sh`
+  * 本地可能会跳过：`BASE_URL=http://localhost:3000 npm run smoke:openapi` 在未生成 `public/openapi.yaml` 时会提示跳过
+  * 远端验证：`BASE_URL=https://<preview-or-prod-domain> npm run smoke:openapi`
 
 EN:
 
@@ -165,3 +167,5 @@ EN:
 * Auth: `src/server/auth/bearer.ts`, `src/server/auth/supabase.ts`
 * OpenAPI: `actions/openapi.template.yaml`, `scripts/gen-openapi.mjs`, `public/openapi.yaml`
 * Smoke: `scripts/preflight.sh`, `scripts/smoke_openapi.sh`, `scripts/smoke_oauth.sh`, `scripts/smoke_items.sh`
+  * Local may skip: `BASE_URL=http://localhost:3000 npm run smoke:openapi` can skip if `public/openapi.yaml` isn't generated
+  * Remote gate: `BASE_URL=https://<preview-or-prod-domain> npm run smoke:openapi`
