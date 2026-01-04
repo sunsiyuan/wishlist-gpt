@@ -58,6 +58,48 @@ EN:
 * Programmatic: `curl -X POST <BASE_URL>/api/logout` (returns `{ ok: true }`)
 * Note: this is a testing utility, not part of the Actions OpenAPI contract
 
+### 1.6 Logout & GPTs 使用注意事项（必读）/ Logout & GPTs runtime notes (important)
+
+#### 1) `/logout` 只清理“网站浏览器登录态”，不会清理 GPTs 登录态
+
+CN：
+
+* `/logout`（GET）与 `/api/logout`（POST）**仅用于测试**：清理当前网站（浏览器）里的 Supabase 登录态（cookies）。
+* ⚠️ 它们**不会**清理 GPTs / Actions 的 OAuth Connect 登录态。
+* 所以你在浏览器访问 `/logout` 后，GPTs 里仍显示“已登录 / 已 Connect”，是**预期行为**。
+
+EN:
+
+* `/logout` (GET) and `/api/logout` (POST) are **testing utilities**: they clear the website (browser) Supabase session (cookies).
+* ⚠️ They **do not** revoke/clear the GPTs / Actions OAuth connection.
+* It is expected that after visiting `/logout`, GPTs may still appear “connected”.
+
+#### 2) 如果要在 GPTs 里“登出 / 断开连接”，只能通过 Privacy setting
+
+CN：
+
+* 要在 GPTs / Actions 层面真正 logout（断开 OAuth 连接），请在 **GPT Builder → Actions → Privacy / Authentication settings** 中执行 **Disconnect / Remove connection**。
+* 这是目前 GPTs 唯一支持的 OAuth 登出方式。
+
+EN:
+
+* To truly log out at the GPTs / Actions layer, go to **GPT Builder → Actions → Privacy / Authentication settings** and **Disconnect / Remove connection**.
+* This is currently the only supported way to revoke a GPTs OAuth session.
+
+### 1.7 GPTs 当前不支持推理模型（thinking / reasoning mode）导致 Actions 异常（reminder）
+
+CN：
+
+* ⚠️ 当前 GPTs + Actions 在推理模型（thinking / reasoning mode）下可能会出错（例如工具调用失败、行为不一致）。
+* 如果线上体验遇到 Actions 异常：优先检查是否启用了推理模型；必要时切换到非推理模型再重试。
+* 这是平台侧限制/兼容性问题的常见来源之一。
+
+EN:
+
+* ⚠️ GPTs + Actions may fail or behave inconsistently under reasoning/thinking models.
+* If you see Action errors in production: first check whether a reasoning model is enabled; switch to a non-reasoning model and retry.
+* This is a common platform-level limitation / compatibility pitfall.
+
 ---
 
 ## 2) Actions 验收（从脚本到 GPT）/ Actions validation (from scripts to GPT)
