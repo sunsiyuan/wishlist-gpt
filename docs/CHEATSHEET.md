@@ -44,6 +44,20 @@ npm run smoke:oauth
 npm run smoke:items
 ```
 
+### 1.5 Logout（for testing）
+
+CN：
+
+* 浏览器：访问 `/logout`（清理 Supabase auth cookies 后 redirect 回 `/login`）
+* 程序：`curl -X POST <BASE_URL>/api/logout`（返回 `{ ok: true }`）
+* 说明：这是测试工具，不属于 Actions OpenAPI contract
+
+EN:
+
+* Browser: visit `/logout` (clears Supabase auth cookies and redirects to `/login`)
+* Programmatic: `curl -X POST <BASE_URL>/api/logout` (returns `{ ok: true }`)
+* Note: this is a testing utility, not part of the Actions OpenAPI contract
+
 ---
 
 ## 2) Actions 验收（从脚本到 GPT）/ Actions validation (from scripts to GPT)

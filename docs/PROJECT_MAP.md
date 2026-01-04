@@ -9,6 +9,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 ## 1. “我该去哪找？”索引 / “Where do I find…?” index
 - OAuth authorize 路由 / route: `src/app/api/oauth/authorize/route.ts`（别名 / alias: `src/app/oauth/authorize/route.ts`）
 - OAuth token 路由 / route: `src/app/api/oauth/token/route.ts`（别名 / alias: `src/app/oauth/token/route.ts`）
+- Logout 路由 / routes: `src/app/logout/route.ts`, `src/app/api/logout/route.ts`
 - Bearer 认证 / auth: `src/server/auth/bearer.ts`
 - Supabase session + header bypass / gating: `src/server/auth/supabase.ts`
 - Items 存储 / storage: `src/server/items/`
@@ -50,8 +51,10 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ api/oauth/token/route.ts      # OAuth token exchange / 换 token
 │  │  ├─ oauth/authorize/route.ts      # Alias / 别名
 │  │  ├─ oauth/token/route.ts          # Alias / 别名
+│  │  ├─ api/logout/route.ts           # POST /api/logout (clear Supabase cookies)
 │  │  ├─ api/me/route.ts               # /me handler (see MVP_SPEC) / /me 处理（以 MVP_SPEC 为准）
 │  │  ├─ api/items/route.ts            # /items handler (see MVP_SPEC) / /items 处理（以 MVP_SPEC 为准）
+│  │  ├─ logout/route.ts               # GET /logout (clear cookies + redirect)
 │  │  └─ login/                        # /login (Supabase password grant) / 登录页
 │  ├─ server/
 │  │  ├─ auth/                         # bearer + supabase session / 认证层
