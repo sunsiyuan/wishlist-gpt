@@ -19,6 +19,10 @@
     "smoke:preflight": "bash -lc './scripts/preflight.sh'"
   },
   "dependencies": {
+    "@supabase/auth-ui-react": "latest",
+    "@supabase/auth-ui-shared": "latest",
+    "@supabase/ssr": "latest",
+    "@supabase/supabase-js": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
