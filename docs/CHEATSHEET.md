@@ -49,7 +49,33 @@ npm run smoke:oauth
 npm run smoke:items
 ```
 
-### 1.5 Logout（for testing）
+### 1.5 Shares（cookie session）/ Shares (cookie session)
+
+CN：
+
+1. 浏览器登录后，复制 `sb-access-token`/`sb-refresh-token` cookies（DevTools → Application → Cookies）。
+2. 连续调用两次 `/api/shares`，第二次应复用同一个 `share_id`。
+
+```bash
+curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+```
+
+EN:
+
+1. After logging in via browser, copy the `sb-access-token`/`sb-refresh-token` cookies (DevTools → Application → Cookies).
+2. Call `/api/shares` twice; the second response should reuse the same `share_id`.
+
+```bash
+curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+```
+
+### 1.6 Logout（for testing）
 
 CN：
 
@@ -63,7 +89,7 @@ EN:
 * Programmatic: `curl -X POST <BASE_URL>/api/logout` (returns `{ ok: true }`)
 * Note: this is a testing utility, not part of the Actions OpenAPI contract
 
-### 1.6 Logout & GPTs 使用注意事项（必读）/ Logout & GPTs runtime notes (important)
+### 1.7 Logout & GPTs 使用注意事项（必读）/ Logout & GPTs runtime notes (important)
 
 #### 1) `/logout` 只清理“网站浏览器登录态”，不会清理 GPTs 登录态
 
@@ -91,7 +117,7 @@ EN:
 * To truly log out at the GPTs / Actions layer, go to **GPT Builder → Actions → Privacy / Authentication settings** and **Disconnect / Remove connection**.
 * This is currently the only supported way to revoke a GPTs OAuth session.
 
-### 1.7 GPTs 当前不支持推理模型（thinking / reasoning mode）导致 Actions 异常（reminder）
+### 1.8 GPTs 当前不支持推理模型（thinking / reasoning mode）导致 Actions 异常（reminder）
 
 CN：
 
