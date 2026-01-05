@@ -182,3 +182,5 @@ export async function revokeShareForUser(shareId: string, userId: string): Promi
   const data = (await response.json()) as ShareRecord[];
   return data.length > 0;
 }
+
+export { getPublicShareItems, isValidShareId, type PublicShareItem } from "./public";

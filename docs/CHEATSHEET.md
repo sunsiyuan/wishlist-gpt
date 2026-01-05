@@ -88,6 +88,32 @@ curl -X POST "<BASE_URL>/api/shares" \
   -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
 ```
 
+### 1.5.1 Share page 手动验收 / Share page manual validation
+
+CN：
+
+1. 通过 `/api/shares` 拿到 `share_id`（见上节）。
+2. 无痕窗口打开：`<BASE_URL>/s/<share_id>`，应看到只读列表（空列表也要有 empty state）。
+3. 检查 PII：在终端执行：
+
+```bash
+curl -sL "<BASE_URL>/s/<share_id>" | grep -E "user_id|@" && echo "PII LEAK" && exit 1 || echo "OK"
+```
+
+4. 调用 revoke：`POST /api/shares/<share_id>/revoke`（见上节），再次无痕打开同链接必须 404。
+
+EN:
+
+1. Get a `share_id` from `/api/shares` (see above).
+2. Open `<BASE_URL>/s/<share_id>` in an incognito window; you should see the read-only list (empty state is OK).
+3. Check PII in the response:
+
+```bash
+curl -sL "<BASE_URL>/s/<share_id>" | grep -E "user_id|@" && echo "PII LEAK" && exit 1 || echo "OK"
+```
+
+4. Revoke via `POST /api/shares/<share_id>/revoke` (see above), then the same URL must return 404 in incognito.
+
 ### 1.6 Logout（for testing）
 
 CN：

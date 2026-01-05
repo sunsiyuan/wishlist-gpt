@@ -15,8 +15,9 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Supabase session + header bypass / gating: `src/server/auth/supabase.ts`
 - Items 存储 / storage: `src/server/items/`
 - Shares 存储 / storage: `src/server/shares/`
+- Public share helper / 分享页查询: `src/server/shares/public.ts`
 - Shares API 路由 / routes: `src/app/api/shares/route.ts`, `src/app/api/shares/rotate/route.ts`, `src/app/api/shares/[id]/revoke/route.ts`
-- Public share page / 分享页: `src/app/s/[id]/page.tsx`
+- Public share page / 分享页: `src/app/s/[share_id]/page.tsx`
 - Shares migration: `supabase/migrations/004_shares.sql`
 - OpenAPI 模板与生成 / template & generator:
   - `actions/openapi.template.yaml`
@@ -66,12 +67,13 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ api/shares/[id]/revoke/route.ts # /shares/:id/revoke handler (see MVP_SPEC)
 │  │  ├─ logout/route.ts               # GET /logout (clear cookies + redirect)
 │  │  ├─ login/                        # /login (Supabase password grant) / 登录页
-│  │  └─ s/[id]/page.tsx               # /s/:id public share page
+│  │  └─ s/[share_id]/page.tsx         # /s/:share_id public share page
 │  ├─ server/
 │  │  ├─ auth/                         # bearer + supabase session / 认证层
 │  │  ├─ oauth/                        # OAuth helpers / OAuth 辅助逻辑
 │  │  ├─ items/                        # Items storage / items 存储
 │  │  └─ shares/                       # Shares storage / shares 存储
+│  │     └─ public.ts                  # Public share queries / 分享页查询
 │  └─ supabase/                        # Admin fetch helper / 管理端请求封装
 └─ supabase/migrations/
    ├─ 001_init.sql                     # oauth_codes/oauth_tokens
