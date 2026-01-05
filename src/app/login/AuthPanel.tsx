@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Auth } from "@supabase/auth-ui-react";
+import { Auth, Provider } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { createSupabaseBrowserClient } from "../../supabase/client";
 
-const PROVIDERS = [
+const PROVIDERS: Provider[] = [
   "google",
-  ...(process.env.NEXT_PUBLIC_ENABLE_APPLE_OAUTH === "true" ? ["apple"] : []),
+  ...(process.env.NEXT_PUBLIC_ENABLE_APPLE_OAUTH === "true" ? (["apple"] as Provider[]) : []),
 ];
 
 export default function AuthPanel() {
