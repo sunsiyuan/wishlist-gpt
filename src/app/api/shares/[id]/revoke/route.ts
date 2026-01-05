@@ -6,14 +6,18 @@ function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const userId = await getSupabaseUserId(request);
   if (!userId) {
     return jsonError(401, "unauthorized", "Supabase session required");
   }
 
   try {
-    const revoked = await revokeShareForUser(params.id, userId);
+    const { id } = await params;
+    const revoked = await revokeShareForUser(id, userId);
     if (!revoked) {
       return jsonError(404, "not_found", "Share not found");
     }
