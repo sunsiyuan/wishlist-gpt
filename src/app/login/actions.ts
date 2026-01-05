@@ -6,7 +6,7 @@ import { sanitizeNextPath } from "../../server/auth/next-path";
 import { passwordGrantLogin } from "../../server/auth/password-grant";
 
 const SUPABASE_ACCESS_TOKEN_COOKIE = "sb-access-token";
-const DEFAULT_REDIRECT = "/";
+const DEFAULT_REDIRECT = "/app";
 
 function loginErrorRedirect(nextPath: string, reason: string): never {
   const url = new URL("/login", "http://localhost");

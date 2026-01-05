@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getSupabaseUserId } from "../../server/auth/supabase";
+import { getSupabaseUser } from "../../server/auth/supabase";
 import { listItems } from "../../server/items/store";
 
 async function buildRequestFromHeaders() {
@@ -19,16 +19,22 @@ async function buildRequestFromHeaders() {
 
 export default async function AppPage() {
   const request = await buildRequestFromHeaders();
-  const userId = await getSupabaseUserId(request);
-  if (!userId) {
+  const user = await getSupabaseUser(request);
+  if (!user) {
     redirect("/login");
   }
 
-  const items = await listItems({ userId });
+  const items = await listItems({ userId: user.id });
 
   return (
     <main>
       <h1>Wishlist</h1>
+      <p>
+        Signed in as <strong>{user.email ?? user.id}</strong>
+      </p>
+      <p>
+        <a href="/logout">Log out</a>
+      </p>
       <ul>
         {items.map((item) => (
           <li key={item.id}>
