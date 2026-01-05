@@ -1,8 +1,8 @@
 # SECURITY
 
 ## 0) 安全边界一句话 / One-line security boundary
-CN：`/me` 与 `/items` 必须通过 **OAuth `Authorization: Bearer`** 访问；`/api/oauth/authorize` 的 Supabase session 校验可受 `OAUTH_ALLOW_AUTH_HEADER_LOGIN` 影响，但 Bearer 校验不受影响。  
-EN: `/me` and `/items` require **OAuth `Authorization: Bearer`**; Supabase session handling for `/api/oauth/authorize` can be affected by `OAUTH_ALLOW_AUTH_HEADER_LOGIN`, but Bearer verification is not.
+CN：`/me` 与 `/items` 必须通过 **OAuth `Authorization: Bearer`** 访问；`/api/shares` 仅允许 Supabase cookie session（非 Bearer）；`/api/oauth/authorize` 的 Supabase session 校验可受 `OAUTH_ALLOW_AUTH_HEADER_LOGIN` 影响，但 Bearer 校验不受影响。  
+EN: `/me` and `/items` require **OAuth `Authorization: Bearer`**; `/api/shares` only allows Supabase cookie sessions (no Bearer); Supabase session handling for `/api/oauth/authorize` can be affected by `OAUTH_ALLOW_AUTH_HEADER_LOGIN`, but Bearer verification is not.
 
 ---
 

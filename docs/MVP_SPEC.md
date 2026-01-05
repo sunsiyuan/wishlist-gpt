@@ -301,9 +301,9 @@ EN:
 Purpose: **exactly one active share per user** (active := `revoked_at is null`), supports revoke/rotate.
 
 Minimal schema:
-- `id` (uuid / token, unguessable)
-- `user_id` (uuid, FK)
-- `created_at` (timestamptz)
+- `id` (uuid v4, unguessable)
+- `user_id` (uuid, FK -> auth.users)
+- `created_at` (timestamptz, default now())
 - `revoked_at` (timestamptz, nullable)
 
 Indexes / Constraints:
@@ -357,12 +357,13 @@ v0.2 Web UI should call the same underlying storage layer / endpoint.
 
 
 - `POST /api/shares`
-  - Auth: cookie session required
+  - Auth: cookie session required (Supabase session cookie; not OAuth Bearer)
   - Behavior (locked):
     - If the user already has an **active** share (`revoked_at is null`), **return it** (reuse).
     - If no active share exists, **create a new share** and return it.
   - Response:
     - `{ share_id, share_url }`
+    - `share_url` uses request origin: `<origin>/s/<share_id>`
 
 - `POST /api/shares/rotate`  (or `POST /api/shares?rotate=1`)
   - Auth: cookie session required
@@ -524,4 +525,3 @@ D1/D7 retention (example logic):
 - [ ] More events: `create_share`, `revoke_share`, `login_success`
 
 ---
-

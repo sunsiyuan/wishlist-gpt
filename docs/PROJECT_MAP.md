@@ -14,6 +14,9 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Bearer 认证 / auth: `src/server/auth/bearer.ts`
 - Supabase session + header bypass / gating: `src/server/auth/supabase.ts`
 - Items 存储 / storage: `src/server/items/`
+- Shares 存储 / storage: `src/server/shares/`
+- Shares API 路由 / route: `src/app/api/shares/route.ts`
+- Shares migration: `supabase/migrations/004_shares.sql`
 - OpenAPI 模板与生成 / template & generator:
   - `actions/openapi.template.yaml`
   - `scripts/gen-openapi.mjs`
@@ -56,16 +59,20 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ api/logout/route.ts           # POST /api/logout (clear Supabase cookies)
 │  │  ├─ api/me/route.ts               # /me handler (see MVP_SPEC) / /me 处理（以 MVP_SPEC 为准）
 │  │  ├─ api/items/route.ts            # /items handler (see MVP_SPEC) / /items 处理（以 MVP_SPEC 为准）
+│  │  ├─ api/shares/route.ts           # /shares handler (see MVP_SPEC) / /shares 处理（以 MVP_SPEC 为准）
 │  │  ├─ logout/route.ts               # GET /logout (clear cookies + redirect)
 │  │  └─ login/                        # /login (Supabase password grant) / 登录页
 │  ├─ server/
 │  │  ├─ auth/                         # bearer + supabase session / 认证层
 │  │  ├─ oauth/                        # OAuth helpers / OAuth 辅助逻辑
-│  │  └─ items/                        # Items storage / items 存储
+│  │  ├─ items/                        # Items storage / items 存储
+│  │  └─ shares/                       # Shares storage / shares 存储
 │  └─ supabase/                        # Admin fetch helper / 管理端请求封装
 └─ supabase/migrations/
    ├─ 001_init.sql                     # oauth_codes/oauth_tokens
-   └─ 002_items.sql                    # items
+   ├─ 002_items.sql                    # items
+   ├─ 003_rls.sql                      # RLS policies
+   └─ 004_shares.sql                   # shares
 ````
 
 ---
