@@ -369,14 +369,18 @@ v0.2 Web UI should call the same underlying storage layer / endpoint.
   - Auth: cookie session required
   - Behavior:
     - Revoke current active share (if any), then create a new active share
+    - If create hits partial-unique race, retry once after re-revoking
   - Response:
     - `{ share_id, share_url }`
 
 - `POST /api/shares/:id/revoke`
   - Auth: cookie session required
   - Behavior:
-    - Only owner can revoke
+    - Only owner can revoke; if not owner or share missing, return 404 (no leakage)
+    - Idempotent: already-revoked shares still return success
     - After revoke, `GET /s/:id` must return 404
+  - Response:
+    - `{ ok: true }`
 
 ### 5.3 Tracking（埋点落点）
 原则：

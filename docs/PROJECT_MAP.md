@@ -15,7 +15,8 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Supabase session + header bypass / gating: `src/server/auth/supabase.ts`
 - Items 存储 / storage: `src/server/items/`
 - Shares 存储 / storage: `src/server/shares/`
-- Shares API 路由 / route: `src/app/api/shares/route.ts`
+- Shares API 路由 / routes: `src/app/api/shares/route.ts`, `src/app/api/shares/rotate/route.ts`, `src/app/api/shares/[id]/revoke/route.ts`
+- Public share page / 分享页: `src/app/s/[id]/page.tsx`
 - Shares migration: `supabase/migrations/004_shares.sql`
 - OpenAPI 模板与生成 / template & generator:
   - `actions/openapi.template.yaml`
@@ -25,6 +26,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
   - `scripts/preflight.sh`
   - `scripts/smoke_oauth.sh`
   - `scripts/smoke_items.sh`
+  - `scripts/smoke_shares.sh`
 
 ---
 
@@ -60,8 +62,11 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ api/me/route.ts               # /me handler (see MVP_SPEC) / /me 处理（以 MVP_SPEC 为准）
 │  │  ├─ api/items/route.ts            # /items handler (see MVP_SPEC) / /items 处理（以 MVP_SPEC 为准）
 │  │  ├─ api/shares/route.ts           # /shares handler (see MVP_SPEC) / /shares 处理（以 MVP_SPEC 为准）
+│  │  ├─ api/shares/rotate/route.ts    # /shares/rotate handler (see MVP_SPEC)
+│  │  ├─ api/shares/[id]/revoke/route.ts # /shares/:id/revoke handler (see MVP_SPEC)
 │  │  ├─ logout/route.ts               # GET /logout (clear cookies + redirect)
-│  │  └─ login/                        # /login (Supabase password grant) / 登录页
+│  │  ├─ login/                        # /login (Supabase password grant) / 登录页
+│  │  └─ s/[id]/page.tsx               # /s/:id public share page
 │  ├─ server/
 │  │  ├─ auth/                         # bearer + supabase session / 认证层
 │  │  ├─ oauth/                        # OAuth helpers / OAuth 辅助逻辑
