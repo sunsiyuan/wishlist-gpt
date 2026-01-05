@@ -12,11 +12,15 @@ const PROVIDERS: AuthProviders =
 
 export default function AuthPanel() {
   const supabaseClient = useMemo(() => createSupabaseBrowserClient(), []);
-  const [redirectTo, setRedirectTo] = useState<string | undefined>(undefined);
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
   useEffect(() => {
     setRedirectTo(`${window.location.origin}/auth/callback`);
   }, []);
+
+  if (!redirectTo) {
+    return <p>Loading sign-in options…</p>;
+  }
 
   return (
     <Auth
