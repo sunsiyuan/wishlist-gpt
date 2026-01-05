@@ -9,6 +9,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 ## 1. “我该去哪找？”索引 / “Where do I find…?” index
 - OAuth authorize 路由 / route: `src/app/api/oauth/authorize/route.ts`（别名 / alias: `src/app/oauth/authorize/route.ts`）
 - OAuth token 路由 / route: `src/app/api/oauth/token/route.ts`（别名 / alias: `src/app/oauth/token/route.ts`）
+- /app 路由 / route: `src/app/app/page.tsx`
 - Logout 路由 / routes: `src/app/logout/route.ts`, `src/app/api/logout/route.ts`
 - Bearer 认证 / auth: `src/server/auth/bearer.ts`
 - Supabase session + header bypass / gating: `src/server/auth/supabase.ts`
@@ -47,6 +48,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  └─ preflight.sh                   # 预检查 / preflight checks
 ├─ src/
 │  ├─ app/
+│  │  ├─ app/page.tsx                # /app minimal UI (auth-gated list)
 │  │  ├─ api/oauth/authorize/route.ts  # OAuth authorize / 授权码
 │  │  ├─ api/oauth/token/route.ts      # OAuth token exchange / 换 token
 │  │  ├─ oauth/authorize/route.ts      # Alias / 别名

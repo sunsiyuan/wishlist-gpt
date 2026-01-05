@@ -41,7 +41,7 @@ export async function createOrTouchItem(params: {
 export async function listItems(params: { userId: string }): Promise<ItemRecord[]> {
   const search = new URLSearchParams({
     user_id: `eq.${params.userId}`,
-    order: "created_at.desc",
+    order: "updated_at.desc,id.desc",
     select: "id,url_original,created_at,updated_at",
   });
   const response = await supabaseAdminFetch(`/rest/v1/items?${search.toString()}`);

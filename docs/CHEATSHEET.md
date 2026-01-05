@@ -29,6 +29,11 @@ npm install
 npm run dev
 ````
 
+CN：Login → visit `/app` to see a raw list of URLs (minimal UI)。  
+CN：Unauthed `/app` redirects to `/login` (expected)。  
+EN: Login → visit `/app` to see a raw list of URLs (minimal UI).  
+EN: Unauthed `/app` redirects to `/login` (expected).
+
 ### 1.3 生成 OpenAPI（需要时）/ Generate OpenAPI (when needed)
 
 ```bash
