@@ -213,6 +213,15 @@ EN: v0.2 (growth) builds on v0 (OAuth bridge + `/me` + `/items`) and adds **an a
 
 ---
 
+## 0.1 v0.2 (web-only) implemented
+- `GET /s/:share_id` public share page renders a read-only list (sorted by `updated_at desc, id desc`).
+- Revoked shares return 404 (same as not found).
+
+- `GET /s/:share_id` 公开分享页可读列表（排序 `updated_at desc, id desc`）。
+- revoke 后返回 404（与不存在一致）。
+
+---
+
 ## 1) 范围 / Scope
 
 ### 1.1 Goals（要达成什么）

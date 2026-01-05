@@ -19,10 +19,12 @@ EN: `/me` and `/items` require **OAuth `Authorization: Bearer`**; `/api/shares` 
 - 未授权访问：必须使用有效 OAuth bearer 访问 `/me` 与 `/items`。  
 - OAuth 重定向滥用：`redirect_uri` 必须在 `OAUTH_ALLOWED_CLIENTS_JSON` 允许列表内。  
 - 管理密钥泄露：`SUPABASE_SERVICE_ROLE_KEY` 必须仅在服务器端使用并妥善保管。  
+- 分享页数据边界：public share 使用 service role 读取数据时，只能返回非 PII 字段（不返回 `user_id` / email）。  
 
 - Unauthorized access: `/me` and `/items` require a valid OAuth bearer.  
 - OAuth redirect abuse: `redirect_uri` must be allow-listed via `OAUTH_ALLOWED_CLIENTS_JSON`.  
 - Admin key exposure: `SUPABASE_SERVICE_ROLE_KEY` must remain server-only and protected.  
+- Share page data boundary: when the public share page uses the service role to read data, return only non-PII fields (no `user_id` / email).  
 
 ---
 
