@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseUserId } from "../../../server/auth/supabase";
-import { buildShareUrl, createOrReuseShare } from "../../../server/shares";
+import { getSupabaseUserId } from "../../../../server/auth/supabase";
+import { rotateShareForUser } from "../../../../server/shares";
 
 function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -13,12 +13,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const share = await createOrReuseShare(userId);
-    return NextResponse.json({
-      share_id: share.id,
-      share_url: buildShareUrl(request.nextUrl.origin, share.id),
-    });
+    const share = await rotateShareForUser(userId, request.nextUrl.origin);
+    return NextResponse.json(share);
   } catch (error) {
-    return jsonError(500, "share_create_failed", "Failed to create share");
+    return jsonError(500, "share_rotate_failed", "Failed to rotate share");
   }
 }

@@ -47,6 +47,7 @@ npm run gen:openapi
 ```bash
 npm run smoke:oauth
 npm run smoke:items
+npm run smoke:shares
 ```
 
 ### 1.5 Shares（cookie session）/ Shares (cookie session)
@@ -55,9 +56,15 @@ CN：
 
 1. 浏览器登录后，复制 `sb-access-token`/`sb-refresh-token` cookies（DevTools → Application → Cookies）。
 2. 连续调用两次 `/api/shares`，第二次应复用同一个 `share_id`。
+3. 调用 `/api/shares/rotate` 应返回新的 `share_id`。
+4. 调用 `/api/shares/<id>/revoke` 后，再访问 `/s/<id>` 必须 404。
 
 ```bash
 curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares/rotate" \
+  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares/<SHARE_ID>/revoke" \
   -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
 curl -X POST "<BASE_URL>/api/shares" \
   -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
@@ -67,9 +74,15 @@ EN:
 
 1. After logging in via browser, copy the `sb-access-token`/`sb-refresh-token` cookies (DevTools → Application → Cookies).
 2. Call `/api/shares` twice; the second response should reuse the same `share_id`.
+3. Call `/api/shares/rotate` and expect a new `share_id`.
+4. Call `/api/shares/<id>/revoke`, then `/s/<id>` must 404.
 
 ```bash
 curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares/rotate" \
+  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares/<SHARE_ID>/revoke" \
   -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
 curl -X POST "<BASE_URL>/api/shares" \
   -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
