@@ -332,7 +332,7 @@ Minimal schema:
 - `user_id` (uuid, nullable)  // the *viewer/caller* user if authenticated
 - `share_id` (uuid/text, nullable)
 - `client_id` (text, nullable) `wishlistgpt-dev` | `wishlistgpt-staging` | `wishlistgpt-prod`  // for Actions (OAuth client)
-- `meta` (jsonb, nullable)
+- `meta` (jsonb, not null, default `{}`)
 
 Event naming convention (locked):
 - `web.app.*`   // authenticated web UI (/app)
@@ -348,6 +348,7 @@ Indexes:
 - `(user_id, occurred_at)`
 - `(share_id, occurred_at)`
 - `(client_id, occurred_at)` (optional)
+- Unique index for idempotency: `(event_name, meta->>'request_id')`
 
 Retention:
 - phase-1: keep all; phase-2: optional TTL / partitioning.
@@ -437,7 +438,7 @@ Write on **successful** responses:
 目标：防止 refresh/retry/prefetch/Actions 轮询导致 event 爆炸；不追求完美刻画 engagement。
 
 **Primary dedupe (idempotency via `meta.request_id`)**
-- skip inserting duplicates with same (`event_name`, `user_id`, `share_id`, `client_id`, `meta.request_id`)
+- skip inserting duplicates with same (`event_name`, `meta.request_id`) only
 No additional time-window dedupe in v0.2.
 
 
