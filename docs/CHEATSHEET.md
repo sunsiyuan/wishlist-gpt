@@ -13,8 +13,6 @@ EN: There is only one loop you must get working: **Actions Connect → getMe →
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_SUPABASE_URL` (for web login UI)
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (for web login UI)
 - `OAUTH_ALLOWED_CLIENTS_JSON`
 - `OAUTH_SIGNING_SECRET`
 
@@ -171,62 +169,6 @@ EN:
 * ⚠️ GPTs + Actions may fail or behave inconsistently under reasoning/thinking models.
 * If you see Action errors in production: first check whether a reasoning model is enabled; switch to a non-reasoning model and retry.
 * This is a common platform-level limitation / compatibility pitfall.
-
-### 1.9 Google OAuth（Supabase + GCP）配置清单 / Google OAuth (Supabase + GCP) checklist
-
-CN：
-
-**Supabase Dashboard**
-
-1. Authentication → Providers → Google：Enable，并填入 **Client ID / Client Secret**。
-2. Authentication → URL Configuration：
-   - Site URL：填写生产域名（prod）。
-   - Redirect URLs allow list：必须包含：
-     - 本地：`http://localhost:3000/auth/callback`
-     - Preview：`https://*.vercel.app/auth/callback`（或你的 preview 域名策略）
-     - Prod：`https://<prod-domain>/auth/callback`
-
-**Google Cloud Console**
-
-1. OAuth consent screen（如果还没建，先完成配置）。
-2. 创建 OAuth Client（Web application）。
-3. **Authorized redirect URI** 必须是 Supabase 回调地址：
-   - `https://<SUPABASE_PROJECT_REF>.supabase.co/auth/v1/callback`
-
-**验收（无痕窗口）**
-
-1. 访问 `/login` → 点击 “Continue with Google” → 登录完成后回到 `/app`。
-2. DevTools → Application → Cookies 中能看到有效 Supabase session cookies。
-3. 手动访问 `/app` 不会被踢回 `/login`。
-
-> 注意：**prod 需要重复同样流程**，但要使用 prod 的 Supabase project / prod 域名 / prod GCP OAuth client。
-
-EN:
-
-**Supabase Dashboard**
-
-1. Authentication → Providers → Google: enable and fill **Client ID / Client Secret**.
-2. Authentication → URL Configuration:
-   - Site URL: production domain (prod).
-   - Redirect URLs allow list must include:
-     - Local: `http://localhost:3000/auth/callback`
-     - Preview: `https://*.vercel.app/auth/callback` (or your preview domain strategy)
-     - Prod: `https://<prod-domain>/auth/callback`
-
-**Google Cloud Console**
-
-1. Configure OAuth consent screen (if not already done).
-2. Create an OAuth Client (Web application).
-3. **Authorized redirect URI** must be the Supabase callback:
-   - `https://<SUPABASE_PROJECT_REF>.supabase.co/auth/v1/callback`
-
-**Validation (incognito)**
-
-1. Visit `/login` → click “Continue with Google” → return to `/app`.
-2. DevTools → Application → Cookies shows valid Supabase session cookies.
-3. Manually hitting `/app` should not redirect back to `/login`.
-
-> Note: **repeat the same flow for prod** using the prod Supabase project, prod domain, and prod GCP OAuth client.
 
 ---
 
