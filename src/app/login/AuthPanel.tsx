@@ -10,23 +10,13 @@ type AuthProviders = ComponentProps<typeof Auth>["providers"];
 const PROVIDERS: AuthProviders =
   process.env.NEXT_PUBLIC_ENABLE_APPLE_OAUTH === "true" ? ["google", "apple"] : ["google"];
 
-type AuthPanelProps = {
-  nextPath?: string;
-};
-
-export default function AuthPanel({ nextPath }: AuthPanelProps) {
+export default function AuthPanel() {
   const supabaseClient = useMemo(() => createSupabaseBrowserClient(), []);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (nextPath) {
-      params.set("next", nextPath);
-    }
-    const query = params.toString();
-    const callbackUrl = `/auth/callback${query ? `?${query}` : ""}`;
-    setRedirectTo(`${window.location.origin}${callbackUrl}`);
-  }, [nextPath]);
+    setRedirectTo(`${window.location.origin}/auth/callback`);
+  }, []);
 
   if (!redirectTo) {
     return <p>Loading sign-in options…</p>;

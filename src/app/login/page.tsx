@@ -17,7 +17,6 @@ function getErrorMessage(error?: string) {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const resolvedParams = searchParams ? await searchParams : undefined;
   const errorMessage = getErrorMessage(resolvedParams?.error);
-  const nextPath = resolvedParams?.next;
 
   return (
     <main style={{ padding: "2rem", maxWidth: "420px", margin: "0 auto" }}>
@@ -28,7 +27,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {errorMessage}
         </p>
       ) : null}
-      <AuthPanel nextPath={nextPath} />
+      <AuthPanel />
     </main>
   );
 }
