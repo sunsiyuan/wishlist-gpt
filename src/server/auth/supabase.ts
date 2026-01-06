@@ -43,12 +43,9 @@ function getSupabaseAccessTokenFromHeaderBypass(request: Request): string | null
   return authHeader.slice(7).trim();
 }
 
-function getSupabaseAccessToken(request: Request): string | null {
-  return getSupabaseAccessTokenFromCookie(request) ?? getSupabaseAccessTokenFromHeaderBypass(request);
-}
-
 export async function getSupabaseUserId(request: Request): Promise<string | null> {
-  const accessToken = getSupabaseAccessToken(request);
+  const accessToken =
+    getSupabaseAccessTokenFromCookie(request) ?? getSupabaseAccessTokenFromHeaderBypass(request);
   if (!accessToken) {
     return null;
   }
@@ -65,29 +62,4 @@ export async function getSupabaseUserId(request: Request): Promise<string | null
 
   const data = (await response.json()) as { id?: string };
   return data?.id ?? null;
-}
-
-export async function getSupabaseUser(
-  request: Request,
-): Promise<{ id: string; email?: string | null } | null> {
-  const accessToken = getSupabaseAccessToken(request);
-  if (!accessToken) {
-    return null;
-  }
-
-  const response = await supabaseAdminFetch("/auth/v1/user", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const data = (await response.json()) as { id?: string; email?: string | null };
-  if (!data?.id) {
-    return null;
-  }
-  return { id: data.id, email: data.email };
 }
