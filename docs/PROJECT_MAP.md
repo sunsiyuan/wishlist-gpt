@@ -64,6 +64,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 ├─ src/
 │  ├─ app/
 │  │  ├─ app/page.tsx                # /app minimal UI (auth-gated list)
+│  │  ├─ app/ShareControls.tsx       # /app share/revoke controls (client)
 │  │  ├─ auth/callback/route.ts       # /auth/callback OAuth exchange
 │  │  ├─ auth/signout/route.ts        # /auth/signout POST
 │  │  ├─ api/oauth/authorize/route.ts  # OAuth authorize / 授权码

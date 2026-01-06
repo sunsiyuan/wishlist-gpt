@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "../../lib/supabase/server";
 import { listItems } from "../../server/items/store";
 import { getRequestMeta } from "../../server/tracking/requestMeta";
 import { trackEvent } from "../../server/tracking/trackEvent";
+import ShareControls from "./ShareControls";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function AppPage() {
       <form action="/auth/signout" method="post">
         <button type="submit">Sign out</button>
       </form>
+      <ShareControls />
       <h2 style={{ marginTop: "2rem" }}>Your wishlist</h2>
       <ul>
         {items.map((item) => (
