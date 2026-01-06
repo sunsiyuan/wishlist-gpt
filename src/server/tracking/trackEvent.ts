@@ -3,6 +3,9 @@ import "server-only";
 import { supabaseAdminFetch } from "../supabase/admin";
 import type { RequestMeta, TrackEventInput, TrackEventResult } from "./types";
 
+// Keep tracking best-effort and bounded; a short timeout avoids post-response hangs.
+export const TRACKING_TIMEOUT_MS = 400;
+
 function buildEventMeta(meta: RequestMeta): RequestMeta {
   return {
     request_id: meta.request_id || crypto.randomUUID(),
@@ -10,8 +13,16 @@ function buildEventMeta(meta: RequestMeta): RequestMeta {
   };
 }
 
-export async function trackEvent(params: TrackEventInput): Promise<TrackEventResult> {
+type TrackEventOptions = {
+  timeoutMs?: number;
+};
+
+export async function trackEvent(
+  params: TrackEventInput,
+  options: TrackEventOptions = {},
+): Promise<TrackEventResult> {
   const meta = buildEventMeta(params.meta);
+  const timeoutMs = options.timeoutMs ?? TRACKING_TIMEOUT_MS;
   const response = await supabaseAdminFetch("/rest/v1/events", {
     method: "POST",
     headers: {
@@ -25,6 +36,7 @@ export async function trackEvent(params: TrackEventInput): Promise<TrackEventRes
       client_id: params.client_id,
       meta,
     }),
+    timeoutMs,
   });
 
   if (response.ok) {

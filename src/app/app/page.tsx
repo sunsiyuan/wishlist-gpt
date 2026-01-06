@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
 import { listItems } from "../../server/items/store";
 import { getRequestMeta } from "../../server/tracking/requestMeta";
-import { trackEvent } from "../../server/tracking/trackEvent";
+import { trackBestEffort } from "../../server/tracking/trackBestEffort";
 import ShareControls from "./ShareControls";
 
 export const dynamic = "force-dynamic";
@@ -20,17 +20,13 @@ export default async function AppPage() {
   const requestMeta = getRequestMeta(requestHeaders);
   const email = claimsData?.claims?.email ?? "unknown";
   const items = await listItems({ userId });
-  try {
-    await trackEvent({
-      event_name: "web.app.items_list_load",
-      user_id: userId,
-      share_id: null,
-      client_id: null,
-      meta: requestMeta,
-    });
-  } catch {
-    // Intentionally ignore tracking failures to avoid breaking page loads.
-  }
+  trackBestEffort({
+    event_name: "web.app.items_list_load",
+    user_id: userId,
+    share_id: null,
+    client_id: null,
+    meta: requestMeta,
+  });
 
   return (
     <main style={{ padding: "2rem" }}>
