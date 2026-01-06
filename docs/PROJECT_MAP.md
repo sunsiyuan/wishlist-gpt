@@ -23,7 +23,10 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Public share helper / 分享页查询: `src/server/shares/public.ts`
 - Shares API 路由 / routes: `src/app/api/shares/route.ts`, `src/app/api/shares/rotate/route.ts`, `src/app/api/shares/[id]/revoke/route.ts`
 - Public share page / 分享页: `src/app/s/[share_id]/page.tsx`
+- Share view tracking route / 分享页埋点路由: `src/app/api/track/share-view/route.ts`
 - Shares migration: `supabase/migrations/004_shares.sql`
+- Events migration: `supabase/migrations/005_events.sql`
+- Tracking helpers / 埋点 helpers: `src/server/tracking/`
 - OpenAPI 模板与生成 / template & generator:
   - `actions/openapi.template.yaml`
   - `scripts/gen-openapi.mjs`
@@ -73,6 +76,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ api/shares/route.ts           # /shares handler (see MVP_SPEC) / /shares 处理（以 MVP_SPEC 为准）
 │  │  ├─ api/shares/rotate/route.ts    # /shares/rotate handler (see MVP_SPEC)
 │  │  ├─ api/shares/[id]/revoke/route.ts # /shares/:id/revoke handler (see MVP_SPEC)
+│  │  ├─ api/track/share-view/route.ts # share view tracking (public)
 │  │  ├─ logout/route.ts               # GET /logout (clear cookies + redirect)
 │  │  ├─ login/                        # /login (Supabase auth UI) / 登录页
 │  │  └─ s/[share_id]/page.tsx         # /s/:share_id public share page
@@ -82,15 +86,17 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ auth/                         # bearer + supabase session / 认证层
 │  │  ├─ oauth/                        # OAuth helpers / OAuth 辅助逻辑
 │  │  ├─ items/                        # Items storage / items 存储
-│  │  └─ shares/                       # Shares storage / shares 存储
-│  │     └─ public.ts                  # Public share queries / 分享页查询
+│  │  ├─ shares/                       # Shares storage / shares 存储
+│  │  │  └─ public.ts                  # Public share queries / 分享页查询
+│  │  └─ tracking/                     # Event tracking helpers / 埋点 helper
 │  └─ supabase/                        # Admin fetch helper / 管理端请求封装
 ├─ middleware.ts                      # SSR session refresh middleware
 └─ supabase/migrations/
    ├─ 001_init.sql                     # oauth_codes/oauth_tokens
    ├─ 002_items.sql                    # items
    ├─ 003_rls.sql                      # RLS policies
-   └─ 004_shares.sql                   # shares
+   ├─ 004_shares.sql                   # shares
+   └─ 005_events.sql                   # events
 ````
 
 ---

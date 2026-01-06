@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPublicShareItems, isValidShareId } from "../../../server/shares";
+import ShareViewTracker from "./ShareViewTracker";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function SharePage({ params }: { params: Promise<{ share_id
 
   return (
     <main style={{ padding: "2rem", fontFamily: "sans-serif" }}>
+      <ShareViewTracker shareId={shareId} />
       <h1>Shared Wishlist</h1>
       <p>This list is read-only.</p>
       {items.length === 0 ? (

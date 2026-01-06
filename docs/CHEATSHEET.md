@@ -149,6 +149,64 @@ curl -sL "<BASE_URL>/s/<share_id>" | grep -E "user_id|@" && echo "PII LEAK" && e
 
 4. Revoke via `POST /api/shares/<share_id>/revoke` (see above), then the same URL must return 404 in incognito.
 
+### 1.5.2 Tracking validation / 埋点验证
+
+CN：在浏览器访问 `/app` 与 `/s/<share_id>` 后，用 SQL 验证埋点是否写入：
+
+```sql
+select *
+from events
+where event_name = 'web.app.items_list_load'
+  and user_id = '<me>'
+order by occurred_at desc
+limit 5;
+```
+
+```sql
+select *
+from events
+where event_name = 'web.share.page_view'
+  and share_id = '<share_id>'
+order by occurred_at desc
+limit 5;
+```
+
+HEAD 不应写入事件：
+
+```bash
+curl -I "<BASE_URL>/s/<share_id>"
+```
+
+说明：`meta.request_id` 由服务器生成；`meta.x_vercel_id` 仅在 Vercel 环境可用。
+
+EN: After visiting `/app` and `/s/<share_id>`, validate the tracking writes with SQL:
+
+```sql
+select *
+from events
+where event_name = 'web.app.items_list_load'
+  and user_id = '<me>'
+order by occurred_at desc
+limit 5;
+```
+
+```sql
+select *
+from events
+where event_name = 'web.share.page_view'
+  and share_id = '<share_id>'
+order by occurred_at desc
+limit 5;
+```
+
+HEAD should not write events:
+
+```bash
+curl -I "<BASE_URL>/s/<share_id>"
+```
+
+Note: `meta.request_id` is server-generated; `meta.x_vercel_id` appears only on Vercel.
+
 ### 1.6 Logout（for testing）
 
 CN：
