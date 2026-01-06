@@ -15,7 +15,8 @@ export default async function AppPage() {
     redirect("/login");
   }
 
-  const requestMeta = getRequestMeta(headers());
+  const requestHeaders = await headers();
+  const requestMeta = getRequestMeta(requestHeaders);
   const email = claimsData?.claims?.email ?? "unknown";
   const items = await listItems({ userId });
   try {
