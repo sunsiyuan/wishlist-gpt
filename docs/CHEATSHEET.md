@@ -10,6 +10,8 @@ EN: There is only one loop you must get working: **Actions Connect → getMe →
 
 ### 1.1 设置环境变量 / Set env vars
 必需 / Required:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`（或 / or `NEXT_PUBLIC_SUPABASE_ANON_KEY`）
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
@@ -19,6 +21,7 @@ EN: There is only one loop you must get working: **Actions Connect → getMe →
 可选但常用 / Optional but common:
 - `OAUTH_ALLOW_AUTH_HEADER_LOGIN`
 - `BASE_URL`
+- `SUPABASE_SESSION_COOKIE_NAME`（smoke 脚本需要时覆盖 cookie 名称）
 
 > CN：改 `.env*` 后，务必重启终端并重启 `npm run dev`（旧进程最容易误导你）。  
 > EN: After changing `.env*`, restart your terminal and `npm run dev` (stale processes are the #1 confusion source).
@@ -29,10 +32,42 @@ npm install
 npm run dev
 ````
 
-CN：Login → visit `/app` to see a raw list of URLs (minimal UI)。  
-CN：Unauthed `/app` redirects to `/login` (expected)。  
-EN: Login → visit `/app` to see a raw list of URLs (minimal UI).  
+CN：访问 `/login` → Google 登录或邮箱登录 → 回到 `/app`（显示用户信息与列表）。  
+CN：未登录访问 `/app` 会跳转 `/login`（预期）。  
+EN: Visit `/login` → Google/email login → land on `/app` (shows user info + list).  
 EN: Unauthed `/app` redirects to `/login` (expected).
+
+### 1.2.1 Google OAuth (Supabase) setup checklist
+
+CN：
+
+* Supabase Auth → Providers → Google：启用并填好 Client ID/Secret
+* Supabase Auth → URL Configuration：
+  * Site URL: `http://localhost:3000`（本地）
+  * Redirect URLs: `http://localhost:3000/auth/callback`（以及 preview/prod 域名）
+* Google Cloud Console → OAuth consent screen 已发布并允许你的测试账号
+
+EN:
+
+* Supabase Auth → Providers → Google: enable + set Client ID/Secret
+* Supabase Auth → URL Configuration:
+  * Site URL: `http://localhost:3000` (local)
+  * Redirect URLs: `http://localhost:3000/auth/callback` (plus preview/prod domains)
+* Google Cloud Console → OAuth consent screen is published + your tester is allowed
+
+### 1.2.2 How to verify success
+
+CN：
+
+* 你会短暂看到 `/auth/callback?code=...`
+* DevTools → Application → Cookies 里有 `sb-...` cookies
+* `/app` 显示已登录邮箱，并能刷新保持登录
+
+EN:
+
+* You briefly hit `/auth/callback?code=...`
+* DevTools → Application → Cookies shows `sb-...` cookies
+* `/app` shows the logged-in email and stays logged in on refresh
 
 ### 1.3 生成 OpenAPI（需要时）/ Generate OpenAPI (when needed)
 
@@ -54,38 +89,38 @@ npm run smoke:shares
 
 CN：
 
-1. 浏览器登录后，复制 `sb-access-token`/`sb-refresh-token` cookies（DevTools → Application → Cookies）。
+1. 浏览器登录后，复制 `sb-...` cookies（DevTools → Application → Cookies）。
 2. 连续调用两次 `/api/shares`，第二次应复用同一个 `share_id`。
 3. 调用 `/api/shares/rotate` 应返回新的 `share_id`。
 4. 调用 `/api/shares/<id>/revoke` 后，再访问 `/s/<id>` 必须 404。
 
 ```bash
 curl -X POST "<BASE_URL>/api/shares" \
-  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 curl -X POST "<BASE_URL>/api/shares/rotate" \
-  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 curl -X POST "<BASE_URL>/api/shares/<SHARE_ID>/revoke" \
-  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 curl -X POST "<BASE_URL>/api/shares" \
-  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 ```
 
 EN:
 
-1. After logging in via browser, copy the `sb-access-token`/`sb-refresh-token` cookies (DevTools → Application → Cookies).
+1. After logging in via browser, copy the `sb-...` cookies (DevTools → Application → Cookies).
 2. Call `/api/shares` twice; the second response should reuse the same `share_id`.
 3. Call `/api/shares/rotate` and expect a new `share_id`.
 4. Call `/api/shares/<id>/revoke`, then `/s/<id>` must 404.
 
 ```bash
 curl -X POST "<BASE_URL>/api/shares" \
-  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 curl -X POST "<BASE_URL>/api/shares/rotate" \
-  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 curl -X POST "<BASE_URL>/api/shares/<SHARE_ID>/revoke" \
-  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 curl -X POST "<BASE_URL>/api/shares" \
-  -H "Cookie: sb-access-token=<ACCESS>; sb-refresh-token=<REFRESH>"
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 ```
 
 ### 1.5.1 Share page 手动验收 / Share page manual validation
@@ -118,13 +153,13 @@ curl -sL "<BASE_URL>/s/<share_id>" | grep -E "user_id|@" && echo "PII LEAK" && e
 
 CN：
 
-* 浏览器：访问 `/logout`（清理 Supabase auth cookies 后 redirect 回 `/login`）
+* 浏览器：访问 `/logout` 或在 `/app` 点击 **Sign out**（会 POST `/auth/signout`）
 * 程序：`curl -X POST <BASE_URL>/api/logout`（返回 `{ ok: true }`）
 * 说明：这是测试工具，不属于 Actions OpenAPI contract
 
 EN:
 
-* Browser: visit `/logout` (clears Supabase auth cookies and redirects to `/login`)
+* Browser: visit `/logout` or click **Sign out** on `/app` (POSTs to `/auth/signout`)
 * Programmatic: `curl -X POST <BASE_URL>/api/logout` (returns `{ ok: true }`)
 * Note: this is a testing utility, not part of the Actions OpenAPI contract
 
@@ -134,13 +169,13 @@ EN:
 
 CN：
 
-* `/logout`（GET）与 `/api/logout`（POST）**仅用于测试**：清理当前网站（浏览器）里的 Supabase 登录态（cookies）。
+* `/logout`（GET）、`/auth/signout`（POST）与 `/api/logout`（POST）**仅用于测试**：清理当前网站（浏览器）里的 Supabase 登录态（cookies）。
 * ⚠️ 它们**不会**清理 GPTs / Actions 的 OAuth Connect 登录态。
 * 所以你在浏览器访问 `/logout` 后，GPTs 里仍显示“已登录 / 已 Connect”，是**预期行为**。
 
 EN:
 
-* `/logout` (GET) and `/api/logout` (POST) are **testing utilities**: they clear the website (browser) Supabase session (cookies).
+* `/logout` (GET), `/auth/signout` (POST), and `/api/logout` (POST) are **testing utilities**: they clear the website (browser) Supabase session (cookies).
 * ⚠️ They **do not** revoke/clear the GPTs / Actions OAuth connection.
 * It is expected that after visiting `/logout`, GPTs may still appear “connected”.
 

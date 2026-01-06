@@ -40,10 +40,12 @@ require_env TEST_USER_PASSWORD
 
 BASE_URL="${BASE_URL:-http://localhost:3000}"
 BASE_URL="${BASE_URL%/}"
+SUPABASE_SESSION_COOKIE_NAME="${SUPABASE_SESSION_COOKIE_NAME:-sb-access-token}"
 
 info "BASE_URL=$BASE_URL"
+info "SUPABASE_SESSION_COOKIE_NAME=$SUPABASE_SESSION_COOKIE_NAME"
 
-info "Supabase password grant -> sb-access-token"
+info "Supabase password grant -> ${SUPABASE_SESSION_COOKIE_NAME}"
 supabase_json=$(curl -sS \
   -H "apikey: $SUPABASE_ANON_KEY" \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
@@ -55,7 +57,7 @@ SUPABASE_ACCESS_TOKEN="$(json_get "$supabase_json" "access_token")"
 [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "$supabase_json" >&2; fail "Failed to get Supabase access_token"; }
 pass "Supabase user token OK"
 
-cookie_header="sb-access-token=$SUPABASE_ACCESS_TOKEN"
+cookie_header="${SUPABASE_SESSION_COOKIE_NAME}=$SUPABASE_ACCESS_TOKEN"
 
 info "POST /api/shares (create/reuse)"
 create_json=$(curl -sS -X POST \

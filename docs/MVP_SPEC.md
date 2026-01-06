@@ -128,7 +128,7 @@ EN: Any capability not explicitly listed as “Implemented” is not implemented
 
 ### 4.1 已实现 / Current
 
-1. 用户通过 `/login` 使用 Supabase 密码登录获取 session（设置 `sb-access-token` cookie）
+1. 用户通过 `/login` 使用 Supabase Google/邮箱登录 → `/auth/callback` 交换 session（设置 `sb-*` cookies）
 
 2. Actions 调 `GET /api/oauth/authorize`（或别名 `/oauth/authorize`）进入授权码流程
 
@@ -136,7 +136,7 @@ EN: Any capability not explicitly listed as “Implemented” is not implemented
 
 4. Actions 使用 Bearer 调 `GET /me`、`POST /items`、`GET /items`
 
-5. User logs in via `/login` (Supabase password grant) to set `sb-access-token` cookie
+5. User logs in via `/login` (Supabase Google/email) → `/auth/callback` exchange to set `sb-*` cookies
 
 6. Actions calls `GET /api/oauth/authorize` (or alias `/oauth/authorize`)
 
