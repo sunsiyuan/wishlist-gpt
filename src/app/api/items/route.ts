@@ -1,30 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBearerToken, verifyAccessToken } from "../../../server/auth/bearer";
+import { getSupabaseUserId } from "../../../server/auth/supabase";
 import { createOrTouchItem, listItems } from "../../../server/items/store";
 
 function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
-function authenticate(request: NextRequest) {
+async function authenticate(request: NextRequest) {
+  const supabaseUserId = await getSupabaseUserId(request);
+  if (supabaseUserId) {
+    return { userId: supabaseUserId };
+  }
+
   const token = getBearerToken(request);
   if (!token) {
-    return { error: jsonError(401, "missing_bearer", "Missing bearer token") };
+    return { error: jsonError(401, "missing_auth", "Missing Supabase session or bearer token") };
   }
   const claims = verifyAccessToken(token);
   if (!claims) {
     return { error: jsonError(401, "invalid_token", "Invalid or expired token") };
   }
-  return { claims };
+  return { userId: claims.userId };
 }
 
 export async function GET(request: NextRequest) {
-  const auth = authenticate(request);
+  const auth = await authenticate(request);
   if (auth.error) {
     return auth.error;
   }
   try {
-    const items = await listItems({ userId: auth.claims.userId });
+    const items = await listItems({ userId: auth.userId });
     return NextResponse.json({
       items: items.map((item) => ({
         id: item.id,
@@ -39,7 +45,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = authenticate(request);
+  const auth = await authenticate(request);
   if (auth.error) {
     return auth.error;
   }
@@ -58,7 +64,7 @@ export async function POST(request: NextRequest) {
   }
   try {
     const item = await createOrTouchItem({
-      userId: auth.claims.userId,
+      userId: auth.userId,
       url: urlValue,
     });
     return NextResponse.json({

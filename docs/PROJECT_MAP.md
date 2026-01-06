@@ -10,9 +10,14 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - OAuth authorize 路由 / route: `src/app/api/oauth/authorize/route.ts`（别名 / alias: `src/app/oauth/authorize/route.ts`）
 - OAuth token 路由 / route: `src/app/api/oauth/token/route.ts`（别名 / alias: `src/app/oauth/token/route.ts`）
 - /app 路由 / route: `src/app/app/page.tsx`
+- /login 路由 / route: `src/app/login/page.tsx`, `src/app/login/LoginClient.tsx`
+- /auth/callback 路由 / route: `src/app/auth/callback/route.ts`
+- /auth/signout 路由 / route: `src/app/auth/signout/route.ts`
 - Logout 路由 / routes: `src/app/logout/route.ts`, `src/app/api/logout/route.ts`
 - Bearer 认证 / auth: `src/server/auth/bearer.ts`
 - Supabase session + header bypass / gating: `src/server/auth/supabase.ts`
+- Supabase SSR clients / SSR: `src/lib/supabase/{client,server,config}.ts`
+- Middleware session refresh / 中间件刷新: `middleware.ts`
 - Items 存储 / storage: `src/server/items/`
 - Shares 存储 / storage: `src/server/shares/`
 - Public share helper / 分享页查询: `src/server/shares/public.ts`
@@ -44,6 +49,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  ├─ MVP_SPEC.md                    # MVP 范围与验收 / MVP scope & acceptance
 │  ├─ PROJECT_MAP.md                 # 本文件 / this file
 │  ├─ CHEATSHEET.md                  # 速查与排障 / cheats & troubleshooting
+│  ├─ AUTH_WEB.md                    # Web auth flow / Web 登录流
 │  └─ SECURITY.md                    # 安全与生产默认 / security & prod defaults
 ├─ public/
 │  └─ openapi.yaml                   # 由模板生成（npm run gen:openapi）/ generated artifact
@@ -55,6 +61,8 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 ├─ src/
 │  ├─ app/
 │  │  ├─ app/page.tsx                # /app minimal UI (auth-gated list)
+│  │  ├─ auth/callback/route.ts       # /auth/callback OAuth exchange
+│  │  ├─ auth/signout/route.ts        # /auth/signout POST
 │  │  ├─ api/oauth/authorize/route.ts  # OAuth authorize / 授权码
 │  │  ├─ api/oauth/token/route.ts      # OAuth token exchange / 换 token
 │  │  ├─ oauth/authorize/route.ts      # Alias / 别名
@@ -66,8 +74,10 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ api/shares/rotate/route.ts    # /shares/rotate handler (see MVP_SPEC)
 │  │  ├─ api/shares/[id]/revoke/route.ts # /shares/:id/revoke handler (see MVP_SPEC)
 │  │  ├─ logout/route.ts               # GET /logout (clear cookies + redirect)
-│  │  ├─ login/                        # /login (Supabase password grant) / 登录页
+│  │  ├─ login/                        # /login (Supabase auth UI) / 登录页
 │  │  └─ s/[share_id]/page.tsx         # /s/:share_id public share page
+│  ├─ lib/
+│  │  └─ supabase/                     # Supabase SSR client setup
 │  ├─ server/
 │  │  ├─ auth/                         # bearer + supabase session / 认证层
 │  │  ├─ oauth/                        # OAuth helpers / OAuth 辅助逻辑
@@ -75,6 +85,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  └─ shares/                       # Shares storage / shares 存储
 │  │     └─ public.ts                  # Public share queries / 分享页查询
 │  └─ supabase/                        # Admin fetch helper / 管理端请求封装
+├─ middleware.ts                      # SSR session refresh middleware
 └─ supabase/migrations/
    ├─ 001_init.sql                     # oauth_codes/oauth_tokens
    ├─ 002_items.sql                    # items
