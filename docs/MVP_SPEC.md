@@ -226,13 +226,13 @@ EN: v0.2 (growth) builds on v0 (OAuth bridge + `/me` + `/items`) and adds **an a
 
 ### 1.1 Goals（要达成什么）
 CN：
-1. **登录后列表页**：用户登录后能稳定查看自己的 items（按最近更新排序），并能复制分享链接。
+1. **登录后列表页**：用户登录后能稳定查看自己的 items（按最近更新排序），并能在 `/app` 一键生成分享链接并复制（调用 `POST /api/shares`，复用 active share。
 2. **公开分享**：用户生成一个不透明分享链接 `/s/<share_id>`，任何人可打开只读列表；支持 revoke/rotate 让旧链接失效；分享页具备基础 OG 预览。
 3. **社交登录**：登录体验打通 Google + Apple（通过 Supabase Provider），降低新用户回流门槛。
 4. **最小埋点**：至少能度量「自己查看列表」与「分享页被打开」两类关键行为，并具备基本去重与隐私处理。
 
 EN:
-1. **Authenticated list UI**: after login, users can reliably view their items (sorted by recency) and copy a share link.
+1. **Authenticated list UI**: after login, users can reliably view their items (sorted by recency) and generate & copy a share link in `/app` (calls `POST /api/shares`, reuses active share).
 2. **Public share**: users can generate an opaque share URL `/s/<share_id>` that renders a read-only list for anyone; supports revoke/rotate; includes basic OG preview.
 3. **Social login**: enable Google + Apple login via Supabase providers.
 4. **Minimal tracking**: measure key behaviors (private list usage + share page opens) with basic dedupe and privacy handling.
@@ -289,7 +289,7 @@ EN:
   - sort: `updated_at DESC, id DESC`
 - Actions:
   - Copy URL (per item)
-  - Create share link (if none) / Copy share link
+  - Share button: call `POST /api/shares` (reuse if exists) → copy `share_url` to clipboard
   - Revoke share link (optional to place under “Share settings”)
 - Data:
   - load items via the same backend as GET /items (cookie session). Prefer instrumenting the shared listItems() server function.
@@ -465,7 +465,7 @@ No additional time-window dedupe in v0.2.
 
 ### 8.1 Manual E2E（人肉验收）
 1. Google/Apple 登录成功后进入 `/app`，能看到 items 列表（updated_at desc）。
-2. 在 `/app` 生成分享链接，复制得到 `/s/<share_id>`。
+2. 在 `/app` 点击 Share，调用成功后剪贴板得到 `/s/<share_id>`（即 `share_url`）。
 3. 无痕窗口打开 `/s/<share_id>`，能看到相同排序的列表（只读）。
 4. Revoke 后旧 `/s/<share_id>` 再访问必须失败（404）。
 5. 分享页在常见聊天工具里有基础预览（OG title/description 至少生效）。
