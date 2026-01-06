@@ -5,7 +5,7 @@ import { listItems } from "../../server/items/store";
 export const dynamic = "force-dynamic";
 
 export default async function AppPage() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
   if (!userId) {

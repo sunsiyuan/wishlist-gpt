@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseConfig } from "./config";
 
-export function createSupabaseServerClient() {
-  const cookieStore = cookies();
+export async function createSupabaseServerClient() {
+  const cookieStore = await cookies();
   const { url, key } = getSupabaseConfig();
 
   return createServerClient(url, key, {
