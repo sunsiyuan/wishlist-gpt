@@ -208,8 +208,8 @@ EN: Planned flows are not part of the current loop and are not acceptance criter
 # v0.2_SPEC (Growth MVP)
 
 ## 0) 一句话结论 / One-line summary
-CN：v0.2（增长视角）在 v0（OAuth bridge + `/me` + `/items`）闭环之上，新增 **登录后列表页（可用性）**、**公开分享页（可传播）**、**Google/Apple 登录（降摩擦）**，并补齐 **最小埋点（可度量）**。  
-EN: v0.2 (growth) builds on v0 (OAuth bridge + `/me` + `/items`) and adds **an authenticated list UI (usable)**, **a public share page (shareable)**, **Google/Apple login (lower friction)**, plus **minimal tracking (measurable)**.
+CN：v0.2（增长视角）在 v0（OAuth bridge + `/me` + `/items`）闭环之上，新增 **登录后列表页（/app）**、**公开分享页（/s/:share_id）**、**Google 登录（降摩擦；Apple/OG 暂缓）**，并补齐 **最小埋点（可度量且不阻塞渲染）**。
+EN: v0.2 (growth) builds on v0 (OAuth bridge + `/me` + `/items`) and adds an authenticated list UI (`/app`), a public share page (`/s/:share_id`), Google login (Apple/OG deferred), and minimal tracking that must be non-blocking.
 
 ---
 
@@ -226,16 +226,16 @@ EN: v0.2 (growth) builds on v0 (OAuth bridge + `/me` + `/items`) and adds **an a
 
 ### 1.1 Goals（要达成什么）
 CN：
-1. **登录后列表页**：用户登录后能稳定查看自己的 items（按最近更新排序），并能在 `/app` 一键生成分享链接并复制（调用 `POST /api/shares`，复用 active share。
-2. **公开分享**：用户生成一个不透明分享链接 `/s/<share_id>`，任何人可打开只读列表；支持 revoke/rotate 让旧链接失效；分享页具备基础 OG 预览。
-3. **社交登录**：登录体验打通 Google + Apple（通过 Supabase Provider），降低新用户回流门槛。
-4. **最小埋点**：至少能度量「自己查看列表」与「分享页被打开」两类关键行为，并具备基本去重与隐私处理。
+1. **登录后列表页**：用户登录后能稳定查看自己的 items（按最近更新排序）；在 `/app` 一键生成分享链接并复制（调用 `POST /api/shares`，复用 active share）。
+2. **公开分享**：用户生成一个不透明分享链接 `/s/<share_id>`，任何人可打开只读列表；支持 revoke/rotate 让旧链接失效。
+3. **社交登录（最小）**：打通 **Google** 登录（Supabase Provider），降低新用户回流门槛；Apple 暂缓（见 Parking Lot）。
+4. **最小埋点**：至少能度量「自己查看列表」与「分享页被打开」两类关键行为；埋点必须 **best-effort + 不阻塞渲染**，并具备基本去重与隐私处理。
 
 EN:
-1. **Authenticated list UI**: after login, users can reliably view their items (sorted by recency) and generate & copy a share link in `/app` (calls `POST /api/shares`, reuses active share).
-2. **Public share**: users can generate an opaque share URL `/s/<share_id>` that renders a read-only list for anyone; supports revoke/rotate; includes basic OG preview.
-3. **Social login**: enable Google + Apple login via Supabase providers.
-4. **Minimal tracking**: measure key behaviors (private list usage + share page opens) with basic dedupe and privacy handling.
+1. **Authenticated list UI**: after login, users can view their items reliably (sorted by recency) and generate & copy a share link in `/app` (calls `POST /api/shares`, reuses active share).
+2. **Public share**: users can generate an opaque share URL `/s/<share_id>` for anyone to view a read-only list; supports revoke/rotate to invalidate old links.
+3. **Social login (minimal)**: enable **Google** login via Supabase Provider; Apple is deferred (see Parking Lot).
+4. **Minimal tracking**: measure two key behaviors (private list usage + share page opens). Tracking must be **best-effort and non-blocking**, with basic dedupe and privacy handling.
 
 ### 1.2 Non-goals（明确不做）
 CN：
@@ -265,10 +265,10 @@ EN:
 ### 2.2 访客（Viewer）
 - 作为访客，我能打开 `/s/<share_id>` 并看到只读列表。
 - 我不会看到任何 owner 的敏感信息（user_id、邮箱等）。
-- 我能看到合理的链接预览（OG），方便在社交媒体传播。
+- （可传播的 OG 预览属于 future，见 Parking Lot。）
 
 ### 2.3 新用户回流（New user）
-- 作为从分享页来的新用户，我能用 Google/Apple 快速登录（未来可扩展“导入/收藏该列表”）。
+- 作为从分享页来的新用户，我能用 Google 快速登录（未来可扩展“导入/收藏该列表”；Apple 暂缓）。
 
 ---
 
@@ -277,10 +277,11 @@ EN:
 > 路由命名可按现有 Next.js 结构微调；下面是建议的最小集合。
 
 ### 3.1 `/login`
-- Buttons:
+- Buttons (minimal):
   - Continue with Google
-  - Continue with Apple
+  - Continue with Email (if enabled)
 - 登录成功后重定向到 `/app`
+- Apple 登录属于 future（见 Parking Lot）
 
 ### 3.2 `/app`（Authenticated list page）
 - Gate: requires Supabase session cookie
@@ -288,7 +289,6 @@ EN:
   - fields: `url_original`, `id`, `created_at`, `updated_at`
   - sort: `updated_at DESC, id DESC`
 - Actions:
-  - Copy URL (per item)
   - Share button: call `POST /api/shares` (reuse if exists) → copy `share_url` to clipboard
   - Revoke share link (optional to place under “Share settings”)
 - Data:
@@ -297,10 +297,7 @@ EN:
 ### 3.3 `/s/<share_id>`（Public share page）
 - Public, read-only
 - Same list sort as `/app`
-- OG meta:
-  - title: “Wishlist”
-  - description: “Shared wishlist”
-  - image: **static** `/og/share.png` (1200x630)
+- No OG requirements in v0.2 (moved to Parking Lot)
 
 ---
 
@@ -337,7 +334,7 @@ Minimal schema:
 Event naming convention (locked):
 - `web.app.*`   // authenticated web UI (/app)
 - `web.share.*` // public share page (/s/:share_id)
-- `actions.*`   // GPTs Actions calls (OAuth Bearer)
+- `actions.*`   // reserved for future (GPTs Actions calls; Parking Lot)
 
 Meta fields (locked):
 - `meta.request_id` (text) // generated UUID once per incoming request (reuse for all event writes within that request), used for idempotency.
@@ -407,6 +404,9 @@ All event writes MUST include:
 
 #### Required event writes (v0.2)
 
+**Principle (locked): tracking must never block.**  
+All tracking writes should be **best-effort** and must not delay user-facing page renders or API responses. Prefer a helper such as `trackBestEffort()` implemented with `after()` + hard timeout + error swallowing.
+
 A) Web App (`/app`)
 - when the list is successfully rendered / list data returned:
   - `event_name = "web.app.items_list_load"`
@@ -414,23 +414,13 @@ A) Web App (`/app`)
   - `client_id = null`, `share_id = null`
 
 B) Public Share (`/s/:share_id`)
-- on **public GET** of share page:
+- on page load, the client should fire-and-forget `POST /api/track/share-view` which writes:
   - `event_name = "web.share.page_view"`
   - `share_id = <share_id>`
   - `user_id = <viewer>` if viewer has a valid cookie session; otherwise null
 - Do NOT write events for `HEAD` requests.
 
-C) Actions (OAuth Bearer)
-Write on **successful** responses:
-- `GET /me`:
-  - `event_name = "actions.get_me"`
-  - `user_id = <owner>`, `client_id = <oauth client_id>`
-- `GET /items`:
-  - `event_name = "actions.list_items"`
-  - `user_id = <owner>`, `client_id = <oauth client_id>`
-- `POST /items`:
-  - `event_name = "actions.create_item"`
-  - `user_id = <owner>`, `client_id = <oauth client id>`
+(Deferred) Actions tracking (`actions.*`) is moved to Parking Lot.
 
 ## 6) 去重与风控 / Dedupe & abuse controls
 
@@ -464,11 +454,13 @@ No additional time-window dedupe in v0.2.
 ## 8) 验收标准 / Acceptance criteria
 
 ### 8.1 Manual E2E（人肉验收）
-1. Google/Apple 登录成功后进入 `/app`，能看到 items 列表（updated_at desc）。
+1. 使用 **Google** 登录成功后进入 `/app`，能看到 items 列表（`updated_at desc, id desc`）。
 2. 在 `/app` 点击 Share，调用成功后剪贴板得到 `/s/<share_id>`（即 `share_url`）。
 3. 无痕窗口打开 `/s/<share_id>`，能看到相同排序的列表（只读）。
-4. Revoke 后旧 `/s/<share_id>` 再访问必须失败（404）。
-5. 分享页在常见聊天工具里有基础预览（OG title/description 至少生效）。
+4. Owner revoke/rotate 后：无痕再开旧 `/s/<share_id>` 必须 404。
+5. 页面源代码/接口响应中不应出现 `user_id`、邮箱等敏感信息（public share）。
+
+> Apple 登录与 OG 预览属于 Parking Lot（future）。
 
 ### 8.2 Tracking 验收（SQL）
 - Owner 在 `/app` 查看列表后应至少出现一条事件：
@@ -476,19 +468,16 @@ No additional time-window dedupe in v0.2.
 - 访客打开分享页后应出现事件：
   - `events where event_name='web.share.page_view' and share_id=<share_id>`
 
-Actions-level tracking:
-- `events where event_name='actions.get_me' and user_id=<me> and client_id is not null`
-- `events where event_name='actions.list_items' and user_id=<me>`
-- `events where event_name='actions.create_item' and user_id=<me>`
+> Note: `actions.*` tracking is deferred (Parking Lot).
 
 Basic metrics examples:
-- Daily active users (core: app + actions):
+- Daily active users (core: web app only in v0.2):
   - ```sql
     select date_trunc('day', occurred_at) as d,
            count(distinct user_id) as dau
       from events
      where user_id is not null
-       and (event_name like 'web.app.%' or event_name like 'actions.%')
+       and event_name like 'web.app.%'
      group by 1
      order by 1;
     ```
@@ -502,40 +491,49 @@ Basic metrics examples:
      group by 1
      order by views desc;
     ```
-
-
 ### 8.3 Retention (definition)
 Core retention (recommended for v0.2):
 - A user is **active** on a day if they have ANY event with:
-  - `event_name like 'web.app.%'` OR `event_name like 'actions.%'`
+  - `event_name like 'web.app.%'`
   - and `user_id is not null`
 
-(Share page views can be analyzed separately via `web.share.*`.)
+(Share page views can be analyzed separately via `web.share.*`. Actions retention via `actions.*` is future / Parking Lot.)
 
 D1/D7 retention (example logic):
 - D1: users active on day D AND active on day D+1
 - D7: users active on day D AND active on day D+7
 
-
-
 ## 9) 任务拆解 / Work breakdown (P0/P1)
 
 ### P0（必须有）
-- [ ] `/login` Google + Apple provider wiring (Supabase config + redirect URIs)
+- [ ] `/login` Google login (Supabase provider) + redirect to `/app` (Email login optional if already enabled)
 - [ ] `/app` list page (auth gate + list render + recency sort)
-- [ ] `shares` table + create + revoke
-- [ ] `/s/:share_id` public share page
-- [ ] Add static OG image asset at public/og/share.png (1200x630)
-- [ ] `events` table + server-side writes (`web.app.items_list_load`, `web.share.page_view`, `actions.*`) + idempotency/dedupe
+- [ ] Share controls in `/app`: create/reuse share link (`POST /api/shares`) + revoke/rotate (as implemented)
+- [ ] `shares` table + constraints (one active share per user) + create/reuse + revoke/rotate APIs
+- [ ] `/s/:share_id` public share page (read-only; revoked → 404; no PII leak)
+- [ ] `events` table + best-effort writes:
+  - `web.app.items_list_load`
+  - `web.share.page_view` via fire-and-forget `POST /api/track/share-view`
+  - idempotency/dedupe via `(event_name, meta.request_id)`
 - [ ] Docs sync:
   - Update `PROJECT_MAP.md` entrypoints
-  - Update `CHEATSHEET.md` (logout notes, env vars)
-  - Update `SECURITY.md` if new security boundary is introduced
-  - Update `OAUTH_BRIDGE.md` if touched
+  - Update `CHEATSHEET.md` (env vars / local+prod setup notes)
+  - Update `SECURITY.md` if the security boundary changes
 
 ### P1（可后置）
 - [ ] Add CTA on share page (login / import)
-- [ ] Basic rate limit on share page
+- [ ] Basic rate limit on share page / tracking endpoint
 - [ ] More events: `create_share`, `revoke_share`, `login_success`
 
 ---
+
+## 10) Parking Lot（future / 暂缓项）
+These are intentionally out of v0.2 scope (documented for future work).
+
+- **Apple 登录**：Supabase Apple provider wiring（等待 D‑U‑N‑S / Apple Developer Program）。
+- **OG 预览**：share page OG meta（title/description）与静态图 `public/og/share.png`（1200x630）。
+- **Actions 埋点**：在 Actions endpoints 成功响应时写入 `actions.get_me / actions.list_items / actions.create_item`。
+- **单条 item Copy URL**（/app 内的 per-item copy）。
+
+---
+

@@ -55,7 +55,26 @@ EN:
   * Redirect URLs: `http://localhost:3000/auth/callback` (plus preview/prod domains)
 * Google Cloud Console → OAuth consent screen is published + your tester is allowed
 
-### 1.2.2 How to verify success
+### 1.2.2 Web auth flow (Supabase SSR)
+
+```text
+/login
+  └─ signInWithOAuth(provider=google, redirectTo=/auth/callback)
+      └─ Google consent
+          └─ /auth/callback?code=...
+              └─ exchangeCodeForSession
+                  └─ set sb-* cookies
+                      └─ /app
+```
+
+### 1.2.3 Callback behavior
+
+* `/auth/callback` expects `?code=...`.
+* Missing/invalid codes redirect to `/login?error=missing_code` or `/login?error=oauth_exchange_failed`.
+* Successful exchange sets `sb-*` cookies and redirects to `/app` (or `next=` when present).
+
+
+### 1.2.4 How to verify success
 
 CN：
 
