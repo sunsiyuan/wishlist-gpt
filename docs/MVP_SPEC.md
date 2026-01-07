@@ -537,3 +537,460 @@ These are intentionally out of v0.2 scope (documented for future work).
 
 ---
 
+# v0.3 核心功能 UIUX MVP SPEC（中英文双语）
+
+## 0) 一句话结论 / One-line Summary
+> WishlistGPT 是 **GPT-native** 产品，Web 仅作为 **展示与决策界面**。  
+> WishlistGPT is a **GPT-native** product with a web interface used for **viewing and decision-making**.  
+>
+> 用户在 ChatGPT 中添加/理解商品；Web 用于浏览、快速决策、编辑个人备注、删除、分享。  
+> Users add/understand items in ChatGPT; the web is for viewing, quick decisions, editing personal notes, deleting, and sharing.
+
+---
+
+### 0.1 非目标 / Non-goals (明确不做)
+- Web 不提供 Add item（不支持从 URL 添加、不支持 Web chat / NLP）。  
+  No “Add item” on web (no URL add, no web chat / NLP).
+- Web 不允许编辑商品展示字段（标题/封面/商家/价格）。  
+  No editing of product display fields (title/cover/merchant/price).
+- v0.3 不做独立 Settings 页面（账号管理不在本期 UI 范围）。  
+  No standalone Settings page in v0.3 (account management out of scope).
+- v0.3 不做多 List（但 UI 语义需可扩展到未来多 List）。  
+  No multi-list in v0.3 (but semantics should not block future multi-list).
+- v0.3 Share 不做 Poster 海报（仅做链接分享 + revoke/regenerate）。  
+  No poster generation in v0.3 share (link-only sharing + revoke/regenerate).
+- v0.3 **仅支持 Light theme**（不做 Dark mode 样式适配）。  
+  v0.3 is **light-theme only** (no explicit dark mode support).
+
+---
+
+## 1) 核心功能 / Core Features (v0.3)
+1) `/app` 私有主页面：单列卡片浏览清单（移动端优先）。  
+   `/app` private main page: single-column card list (mobile-first).
+2) 两种排序来回切换：按添加时间 Newest ↔ Oldest。  
+   Two-way sort toggle: Newest ↔ Oldest by added time.
+3) 卡片展示：封面（正方形）、标题、商家 logo（圆形）、价格（本地化）、个人备注预览。  
+   Card display: square cover, title, circular merchant logo, localized price, note preview.
+4) 点击卡片进入 **Decision Sheet**（轻量详情）用于快速决策与跳转商品页。  
+   Card click opens **Decision Sheet** for quick decision & external navigation.
+5) 仅支持编辑 `personal_note`（在 sheet 内 inline 编辑 + Save）。  
+   Only `personal_note` is editable (inline in sheet + Save).
+6) 删除：无二次确认 + Undo + Soft delete。  
+   Delete: no confirmation + Undo + soft delete.
+7) Cheatsheet：Header 常驻入口，轻浮层展示使用说明；含 `Got it / Back to GPT`。  
+   Cheatsheet: persistent header entry, lightweight overlay; includes `Got it / Back to GPT`.
+8) 分享：列表顶部一键进入 Share sheet；支持 copy link、系统 share（可用则显示）、revoke + regenerate。  
+   Share: one-click Share sheet from list top bar; copy link, system share if available, revoke + regenerate.
+9) 右下角悬浮：Return（GPT icon），下滑隐藏/上滑显示。  
+   Floating Return (GPT icon), hides on scroll down / shows on scroll up.
+
+---
+
+## 2) 页面与路由 / Routes & Pages
+
+### 2.1 `/app` — 私有清单主页面 / Private Wishlist Main
+**目标 / Goal**：浏览 → 点进 Decision Sheet → `View on website` 快速决策；同时支持快速编辑 note、快速删除、快速分享。  
+View → Decision Sheet → `View on website` for decisions; also quick note edit, delete, and share.
+
+### 2.2 `/s/:share_id` — 公共分享页（只读） / Public Share Page (Read-only)
+- public 可访问；只读渲染列表。  
+  Public accessible; read-only rendering.
+- 根据 share_id 找 owner，再取 owner 的 items（同排序规则）。  
+  Resolve owner by share_id, then fetch owner items (same sort rules).
+- 必须过滤 `deleted_at IS NULL`（已删除不展示）。  
+  Must filter `deleted_at IS NULL` (deleted items never show).
+- revoked 必须 404。  
+  Revoked must return 404.
+- 不泄露 PII（不输出 user_id/email 等）。  
+  No PII leakage (no user_id/email, etc.).
+- **public 页允许展示 `personal_note`**。  
+  Public page may display `personal_note`.
+- public 页应提供 `View on website`（使用 `source_url`）。  
+  Public page should offer `View on website` (using `source_url`).
+
+---
+
+## 3) 适配策略 / Responsive Strategy (Mobile-first + Desktop 自适配)
+### 3.1 移动端优先 / Mobile-first
+- 单列卡片 + bottom sheet 为主交互。  
+  Single-column cards + bottom sheet as primary interaction.
+- 触控热区充足（尤其 `⋯` 区域）。  
+  Touch targets must be large enough (especially `⋯`).
+
+### 3.2 桌面端自适配 / Desktop Adaptive (no desktop-exclusive UX)
+- 仍保持单列，但容器更宽（提高信息密度、减少换行）。  
+  Still single-column; wider container for better density.
+- `View on website` 默认新 tab 打开。  
+  Default open in new tab for `View on website`.
+- 不做 hover/快捷键等桌面专属功能。  
+  No hover shortcuts / desktop-only features.
+
+---
+
+## 4) `/app` 布局 / Layout Spec
+
+### 4.1 Header（不吸顶）/ Header (non-sticky)
+- 左 / Left：`WishlistGPT`  
+- 右 / Right：`Cheatsheet`（文字按钮，视觉更轻，可用淡色）  
+  `Cheatsheet` (text button; visually light, e.g., softer color)
+
+> 说明 / Note：避免 sticky header，减少移动端浏览器地址栏占位冲突。  
+> Avoid sticky header to reduce conflicts with mobile browser chrome.
+
+### 4.2 列表顶部工具栏（在内容区内）/ List Top Bar (inside content)
+- 左 / Left：排序切换（两态）  
+  Sort toggle (2-state): `Newest` / `Oldest`
+- 右 / Right：`Share`（一键可达；list-level action）  
+  `Share` (one-click; list-level action)
+
+### 4.3 列表 / List
+- 单列 / Single column
+- 卡片间距偏生活化（留白更舒服）  
+  Consumer-friendly spacing (comfortable whitespace)
+
+### 4.4 悬浮 Return 按钮 / Floating Return Button
+- 右下角悬浮按钮：仅 GPT icon（无文案）。  
+  Bottom-right floating button: GPT icon only (no label).
+- 无障碍 / A11y：需要 `aria-label="Return to ChatGPT"`；桌面可选 tooltip。  
+  Must include `aria-label="Return to ChatGPT"`; optional tooltip on desktop.
+- 滚动行为 / Scroll behavior：
+  - 向下滚动隐藏 / hide on scroll down
+  - 向上滚动显示 / show on scroll up
+  - 阈值 12–24px + throttle（业界标准）避免闪烁  
+    threshold 12–24px + throttling to avoid flicker
+- 列表容器必须有 bottom padding，避免按钮遮挡最后卡片：  
+  List container must include bottom padding to avoid covering last card:
+  - `padding-bottom >= buttonHeight + 16px + safe-area-inset-bottom`
+
+---
+
+## 5) Card 组件 / Item Card Component
+
+### 5.1 卡片内容 / Card Contents
+- **封面 / Cover**：正方形容器（1:1），`object-fit: cover`  
+  Square container (1:1), `object-fit: cover`
+- **标题 / Title**：最多 2 行截断  
+  Up to 2 lines (clamped)
+- **商家 logo / Merchant logo**：圆形容器（18–22px），放在标题旁边  
+  Circular container (18–22px), placed next to the title
+- **价格 / Price**：本地化展示（见 §10.1 规则），旁边一个 `?`  
+  Localized formatting (see §10.1 rules) + small `?` tooltip
+- **个人备注预览 / Note preview**：可选，1 行或 2 行预览  
+  Optional, 1–2 lines preview
+- **状态 / Status**：v0.3 不展示行内状态；未来可做封面 stamp（Reserved 等）。  
+  No inline status in v0.3; future: cover stamp (Reserved, etc.)
+
+### 5.2 图片加载 / Image Loading
+- 有 skeleton + 占位图 fallback  
+  Skeleton + placeholder fallback
+- 封面容器固定高度（1:1）防止列表跳动  
+  Fixed 1:1 container to avoid layout shift
+- v0.3 允许 hotlink；图片失败不得阻塞首屏；不得无限重试。  
+  v0.3 allows hotlink; image failures must not block above-the-fold; no infinite retries.
+
+### 5.3 交互 / Interactions
+- **整卡可点击**打开 Decision Sheet（除 `⋯` 区域外）。  
+  Entire card is clickable to open Decision Sheet (except `⋯` area).
+- `⋯` 独立热区（防 fat finger）：建议 40×40px 点击区域。  
+  Dedicated `⋯` hit area to prevent fat finger; recommend 40×40px.
+
+---
+
+## 6) `⋯` 菜单 / Overflow Menu (Popover)
+
+### 6.1 形态 / Form
+- 使用 **Popover**（轻量气泡菜单），贴近触发点。  
+  Use **Popover** anchored to the trigger.
+
+### 6.2 菜单项 / Items
+- `Edit note`
+- `Delete`（红色 / red）
+
+### 6.3 Delete 行为 / Delete Behavior（无确认 + Undo + Soft delete）
+**一致性要求 / Consistency requirement**：无论从卡片菜单或 Decision Sheet 触发 Delete，行为必须一致。  
+Delete behavior must be identical whether triggered from card menu or Decision Sheet.
+
+- 点击 Delete：无二次确认。  
+  No confirmation.
+- UI 反馈：可 **optimistic 立即移除卡片**；Toast 必须在 **删除成功后**出现。  
+  UI feedback: may optimistically remove the card immediately; toast must appear **only after delete succeeds**.
+- 删除失败：必须回滚 UI，并提示：`Couldn’t delete. Try again.`  
+  On failure: must roll back UI and show: `Couldn’t delete. Try again.`
+- 后端 soft delete：`deleted_at = now()`。  
+  Backend soft delete: set `deleted_at = now()`.
+- Toast（4s）：`Item deleted` + `Undo`  
+  Toast (4s): `Item deleted` + `Undo`
+- 点击 Undo：调用 restore endpoint，恢复原 item（id 与 created_at 保持不变）。  
+  Undo calls restore endpoint; item restored with same id & created_at.
+- 竞态/幂等（MVP）/ Race & idempotency (MVP):
+  - delete/restore 必须幂等（重复请求不应报错）。  
+    delete/restore must be idempotent.
+  - Toast/Undo 仅保证对“最近一次删除”有效（MVP 约束）。  
+    Undo is guaranteed only for the “most recent delete” (MVP constraint).
+
+---
+
+## 7) Decision Sheet（轻量详情）/ Decision Sheet (Bottom Sheet)
+
+### 7.1 打开方式 / Trigger
+- 点击卡片主体打开 bottom sheet。  
+  Tap card body to open bottom sheet.
+
+### 7.2 默认高度与轻重 / Default Height & Weight
+- 默认打开约占屏 ~70%，可上拉到更高（接近全屏）。  
+  Opens at ~70% height; can expand near full screen.
+
+### 7.3 内容结构（顺序）/ Content Structure (order)
+1) 封面大图（正方形）/ Large square cover  
+2) 标题 + 圆形 logo（同一块）/ Title + circular logo  
+3) 价格 + `?` tooltip / Price + `?` tooltip  
+4) `personal_note` inline 编辑区 + `Save` / Inline note editor + `Save`  
+5) 主按钮 / Primary CTA：`View on website`  
+6) 次按钮 / Secondary CTA：`Delete`（红色 / red）
+
+### 7.4 外跳策略 / External Navigation
+- v0.3 `View on website` 永远使用 `source_url`。  
+  In v0.3, `View on website` always uses `source_url`.
+- 若 `source_url` 为空：按钮置灰并显示提示 `Link unavailable`（或隐藏，需统一策略）。  
+  If `source_url` is empty: disable CTA and show `Link unavailable` (or hide; must be consistent).
+- 桌面：默认新 tab 打开。  
+  Desktop: opens in new tab by default.
+- 移动端（含 GPT 内置浏览器）：同 tab 打开。  
+  Mobile (incl. GPT in-app browser): same tab.
+
+### 7.5 Delete from Sheet
+- 若在 Decision Sheet 中触发 Delete：删除成功后 **自动关闭 sheet**。  
+  If delete is triggered from Decision Sheet: **close the sheet** after successful deletion.
+- Undo 成功后：仅恢复列表，不自动重新打开 sheet。  
+  After Undo: restore list only; do not auto-reopen the sheet.
+
+---
+
+## 8) Cheatsheet（轻浮层）/ Cheatsheet (Light Overlay)
+
+### 8.1 打开 / Trigger
+- Header 右侧 `Cheatsheet` 点击打开。  
+  Triggered by header `Cheatsheet`.
+
+### 8.2 形态 / Form
+- 轻量 modal / bottom sheet（一屏内容）。  
+  Lightweight modal/bottom sheet (single-screen).
+
+### 8.3 文案（英文优先；可附中文解释）/ Copy (English-first with optional CN)
+**定位句 / Positioning line**
+- EN: `Add items in ChatGPT. Manage & share them here.`
+- ZH: `在 ChatGPT 里添加商品；在这里浏览、决策、备注与分享。`
+
+**示例 / Examples**
+1. `Add these links to my wishlist: ...`
+2. `Add "Nike Air Force 1, white, size 42" to my wishlist`
+3. `Show my wishlist — I’ll clean it up on the web`
+
+**Actions**
+- `Got it`
+- `Back to GPT`（触发 Return 预期路径 / triggers Return expected path）
+
+> Return 预期路径（描述期望，不绑定实现）/ Return expected path (experience-level):
+> - 若从 ChatGPT app 内置浏览器打开：Return 应回到原 ChatGPT 会话。  
+>   If opened inside ChatGPT in-app browser: Return should go back to the originating ChatGPT conversation.
+> - 若从桌面浏览器新 tab 打开：Return 应尽力回到上一个页面或提示用户切回 ChatGPT tab。  
+>   If opened in a new desktop tab: Return should attempt to go back or prompt user to switch back to the ChatGPT tab.
+
+---
+
+## 9) Share（分享）/ Share (Link-only MVP)
+
+### 9.1 入口 / Entry
+- `/app` 列表顶部工具栏右侧 `Share` 一键打开。  
+  One-click from list top bar `Share`.
+
+### 9.2 Share Sheet 内容 / Share Sheet Contents
+- 标题 / Title：`Share list`
+- 链接短展示 + Copy（复制完整链接）  
+  Short link display + Copy (copies full URL)
+- `Share…`（仅当系统分享 API 可用时显示）  
+  `Share…` shown only if system share API is available
+- `Revoke link`（危险操作）  
+  `Revoke link` (danger)
+- revoke 后展示：  
+  After revoke:
+  - `This link is disabled.`
+  - `Generate new link`
+
+### 9.3 语义与约束 / Semantics & Constraints
+- Share sheet 打开时：若存在 active share → 展示；否则生成新的 active share 并展示。  
+  On open: if an active share exists, show it; otherwise generate and show a new active share.
+- 系统保证同一用户仅一个 active share（revoked 后才可生成新 active）。  
+  System guarantees only one active share per user (must revoke before generating a new active).
+- Revoke 后：`/s/:share_id` 必须立即 404。  
+  After revoke: `/s/:share_id` must return 404 immediately.
+
+### 9.4 降级策略 / Degradation
+- 系统分享不可用 → 不展示 `Share…`，仅保留 Copy。  
+  If system share is unavailable, hide `Share…`, keep Copy only.
+- v0.3 不展示 Poster（不留空位）。  
+  No poster in v0.3 (no placeholder UI).
+
+---
+
+## 10) 数据库字段设计 / Database Field Design (v0.3)
+
+> 原则 / Principle：Web 展示使用 “display snapshot” 字段；仅 `personal_note` 可由 Web 编辑。  
+> Web uses “display snapshot” fields; only `personal_note` is editable from web.
+
+### 10.1 `items` 表建议字段 / Suggested `items` columns
+
+**Owner / ownership**
+- `id` (uuid/bigint)
+- `user_id` (uuid)
+
+**Source**
+- `source_url` (text, nullable)
+
+**User editable**
+- `personal_note` (text, nullable)
+
+**Timestamps**
+- `created_at` (timestamptz) — **添加时间 / added time**
+- `updated_at` (timestamptz) — 更新记录用途，不参与排序 / not used for sorting
+
+**Sorting rule / 排序规则（防漂移）**
+- 排序仅使用 `created_at`（added time）。  
+  Sorting uses `created_at` only (added time).
+- 编辑 `personal_note` 不得影响 item 排序位置。  
+  Editing `personal_note` must not reorder items.
+
+**Soft delete**
+- `deleted_at` (timestamptz, nullable)
+
+**Display snapshot (written by GPT/backend refresh)**
+- `display_cover_image_url` (text, nullable)
+- `display_product_title` (text, nullable)
+- `display_merchant_logo_url` (text, nullable)
+- `display_merchant_domain` (text, nullable) — fallback if no logo
+- Fiat price fields:
+  - `display_price_amount_minor` (int, nullable) — e.g. $12.34 => 1234
+  - `display_currency` (text, nullable) — ISO 4217: USD/CNY/SGD...
+- Optional flexible price text (future-proof; can cover special formatting/crypto):
+  - `display_price_text` (text, nullable)
+- Optional price timestamp (for tooltip detail if needed):
+  - `display_price_updated_at` (timestamptz, nullable)
+
+**Query rule / 查询规则**
+- 所有列表读取必须过滤：`deleted_at IS NULL`  
+  All reads must filter: `deleted_at IS NULL`
+
+### 10.2 价格格式化规则 / Price Formatting Rules (v0.3)
+- 若 `display_price_text` 有值：优先展示该文本。  
+  If `display_price_text` exists: display it first (highest priority).
+- 否则使用 `display_price_amount_minor` + `display_currency` 通过 `Intl.NumberFormat` 本地化格式化：  
+  Otherwise format `display_price_amount_minor` + `display_currency` via `Intl.NumberFormat`:
+  - locale: `navigator.language`
+  - style: `currency`
+  - currency: `display_currency`
+- v0.3 默认认为 minor unit 为 2 位（amount_minor / 100）。  
+  v0.3 assumes 2 minor units for fiat (amount_minor / 100).
+
+### 10.3 `shares` 表（沿用 v0.2 能力）/ `shares` table (carry from v0.2)
+- `id` (share_id)
+- `user_id`
+- `created_at`
+- `revoked_at` (nullable)
+
+**Constraint**
+- One active share per user: unique(user_id) where revoked_at is null
+
+---
+
+## 11) API / 行为要求（最小集）/ API & Behavior Requirements (Minimal)
+
+### 11.1 Items
+- List items: returns only `deleted_at IS NULL`, includes display snapshot + note.  
+- Update note: only updates `personal_note`.  
+- Delete: soft delete sets `deleted_at`.  
+- Restore: clears `deleted_at` (dedicated restore endpoint).  
+- delete/restore 必须幂等。  
+  delete/restore must be idempotent.
+
+### 11.2 Share
+- Fetch/generate active share link for current user.  
+- Revoke active share.  
+- Public share page reads items for owner and filters deleted.
+
+### 11.3 Public response allowlist（防泄露）/ Public response allowlist (anti-leak)
+- `/s/:share_id` 只允许输出（建议白名单）：  
+  `/s/:share_id` should only output (suggested allowlist):
+  - `display_cover_image_url`
+  - `display_product_title`
+  - `display_merchant_logo_url`
+  - `display_merchant_domain`
+  - `display_price_amount_minor`, `display_currency`, `display_price_text`
+  - `personal_note`
+  - `source_url`
+- 明确禁止输出：`user_id`, `email`, 以及任何内部追踪/鉴权字段。  
+  Must not include: `user_id`, `email`, or any internal tracking/auth fields.
+
+---
+
+## 12) 文案选择（v0.3 英文为主）/ Microcopy (English-first v0.3)
+
+### 12.1 Empty State (空列表)
+- 中间大按钮 / Center large button:
+  - `Add items in ChatGPT. Tap here for Cheatsheet.`
+- 点击按钮：打开 Cheatsheet overlay（复用同一组件）。  
+  Tap opens Cheatsheet overlay (reuse the same component).
+
+### 12.2 Price tooltip
+- `Price tracking is best-effort.`
+
+### 12.3 Delete toast
+- `Item deleted` + `Undo`
+
+### 12.4 Decision Sheet CTA
+- Primary: `View on website`
+- Secondary: `Delete`
+- Note actions: `Save`
+- Link empty hint: `Link unavailable`
+
+### 12.5 Share sheet
+- `Share list`
+- `Copy link`
+- `Revoke link`
+- `Generate new link`
+- `This link is disabled.`
+
+---
+
+## 13) UI 风格 / UI Style（消费级生活化 + 极简）
+- 生活化（消费级）但极简：更大圆角、舒适留白、图片优先。  
+  Consumer-friendly but minimal: larger radius, comfortable spacing, image-first.
+- Logo 为圆形容器，放标题旁边（更像消费品列表）。  
+  Circular merchant logo next to title.
+- v0.3 light-theme only。  
+  v0.3 is light-theme only.
+
+---
+
+## 14) 验收标准 / Acceptance Criteria (v0.3)
+- `/app`：移动端优先单列卡片；桌面自适配不破版。  
+  `/app` renders single-column cards mobile-first; desktop adapts without breaking.
+- Sort：仅 Newest/Oldest 两态切换生效，且排序基于 `created_at`。  
+  Sort toggle works for Newest/Oldest only, based on `created_at`.
+- Card click 打开 Decision Sheet，包含 View on website / note inline edit+save / delete。  
+  Card click opens Decision Sheet with View on website / inline note edit+save / delete.
+- `⋯` popover 仅两项：Edit note（打开并聚焦）/ Delete（无确认）。  
+  `⋯` popover has only Edit note (opens+focus) and Delete (no confirm).
+- Delete：soft delete + toast Undo（4s）；Undo 恢复同 id；失败回滚 UI。  
+  Delete uses soft delete + Undo toast (4s); Undo restores same id; failures roll back UI.
+- Decision Sheet 中删除成功后会关闭 sheet；Undo 不自动重开 sheet。  
+  Deleting from sheet closes it on success; Undo does not auto-reopen.
+- Floating GPT icon：下滑隐藏、上滑显示；不遮挡最后卡片内容。  
+  Floating GPT icon hides on scroll down, shows on scroll up; never covers last card.
+- Cheatsheet：Header 常驻入口；overlay 轻；Got it/Back to GPT 可用；空态按钮复用同一 overlay。  
+  Cheatsheet is persistent; overlay is light; Got it/Back to GPT works; empty-state button reuses same overlay.
+- Share：一键打开；Copy link；系统 share 不可用时自动降级；revoke 后 404 生效且可 regenerate。  
+  Share is one-click; copy link works; system share degrades gracefully; revoke causes 404 and regenerate works.
+- `/s/:share_id`：只读，无 PII，过滤 deleted items，revoked 必须 404；包含 personal_note 与 View on website。  
+  `/s/:share_id` is read-only, no PII, filters deleted items, revoked returns 404; includes personal_note and View on website.
+
+---
