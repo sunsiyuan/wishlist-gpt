@@ -1,6 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  getCardTitle,
+  getCoverFallbackLabel,
+  getLogoFallbackText,
+  getNotePreview,
+  getPriceText,
+  getSourceUrl,
+  resolveDomain,
+  shouldRenderMerchantLogo,
+  shouldShowPriceRow,
+} from "../../lib/itemDisplay";
 
 export type AppItem = {
   id: string;
@@ -35,35 +46,12 @@ type ShareState = {
   isRevoked: boolean;
 };
 
-const NOTE_PLACEHOLDER = "Add a personal note";
 const PRICE_TOOLTIP = "Price may change";
 const RETURN_URL_FALLBACK = "https://chatgpt.com";
 const SCROLL_THRESHOLD = 16;
 const TOAST_DURATION_MS = 4000;
 
-function formatPrice(item: AppItem): string {
-  if (item.display_price_text) {
-    return item.display_price_text;
-  }
-  if (item.display_price_amount_minor !== null && item.display_currency) {
-    try {
-      const formatter = new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: item.display_currency,
-      });
-      const fractionDigits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
-      const amount = item.display_price_amount_minor / 10 ** fractionDigits;
-      return formatter.format(amount);
-    } catch (error) {
-      return `${item.display_price_amount_minor} ${item.display_currency}`;
-    }
-  }
-  return "Price unavailable";
-}
-
-function getItemTitle(item: AppItem): string {
-  return item.display_product_title ?? item.display_merchant_domain ?? "Wishlist item";
-}
+const NOTE_PLACEHOLDER = "Add a note…";
 
 function isMobileLike(): boolean {
   if (typeof navigator === "undefined") {
@@ -421,6 +409,7 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
             : item,
         ),
       );
+      setNoteDraft(data.item.personal_note ?? "");
       showToast({ message: "Note saved." });
     } catch (error) {
       showToast({ message: "Couldn’t save note. Try again.", tone: "error" });
@@ -508,6 +497,10 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
   }, []);
 
   const hasItems = items.length > 0;
+  const activeItemSourceUrl = activeItem ? getSourceUrl(activeItem) : null;
+  const activePriceText = activeItem ? getPriceText(activeItem, navigator?.language) : null;
+  const isNoteDirty =
+    activeItem !== null && noteDraft !== (activeItem.personal_note ?? "");
 
   return (
     <div
@@ -613,7 +606,13 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {sortedItems.map((item) => {
-              const title = getItemTitle(item);
+              const title = getCardTitle(item);
+              const priceText = getPriceText(item, navigator?.language);
+              const showPriceRow = shouldShowPriceRow(item) && priceText;
+              const notePreview = getNotePreview(item);
+              const logoFallback = getLogoFallbackText(item);
+              const domain = resolveDomain(item);
+              const shouldShowLogo = shouldRenderMerchantLogo(item);
               return (
                 <article
                   key={item.id}
@@ -642,13 +641,30 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
                         background: "#f0f0f0",
                         overflow: "hidden",
                         flexShrink: 0,
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
+                      <span style={{ color: "#b6b6b6", fontSize: "0.75rem" }}>
+                        {getCoverFallbackLabel(item)}
+                      </span>
                       {item.display_cover_image_url ? (
                         <img
                           src={item.display_cover_image_url}
                           alt={title}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            position: "absolute",
+                            inset: 0,
+                          }}
+                          onError={(event) => {
+                            event.currentTarget.onerror = null;
+                            event.currentTarget.style.display = "none";
+                          }}
                         />
                       ) : null}
                     </div>
@@ -663,18 +679,42 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
                       >
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            {item.display_merchant_logo_url ? (
-                              <img
-                                src={item.display_merchant_logo_url}
-                                alt={item.display_merchant_domain ?? "Merchant"}
+                            {shouldShowLogo ? (
+                              <div
                                 style={{
-                                  width: "24px",
-                                  height: "24px",
+                                  width: "22px",
+                                  height: "22px",
                                   borderRadius: "50%",
-                                  objectFit: "cover",
                                   border: "1px solid #eee",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: "0.65rem",
+                                  color: "#6b6b6b",
+                                  position: "relative",
+                                  background: "#fff",
+                                  overflow: "hidden",
+                                  flexShrink: 0,
                                 }}
-                              />
+                                aria-label={domain ?? "Merchant"}
+                              >
+                                <span>{logoFallback}</span>
+                                <img
+                                  src={item.display_merchant_logo_url ?? ""}
+                                  alt={domain ?? "Merchant"}
+                                  style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "contain",
+                                  }}
+                                  onError={(event) => {
+                                    event.currentTarget.onerror = null;
+                                    event.currentTarget.style.display = "none";
+                                  }}
+                                />
+                              </div>
                             ) : null}
                             <h2
                               style={{
@@ -688,15 +728,17 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
                               {title}
                             </h2>
                           </div>
-                          <div style={{ marginTop: "0.35rem", color: "#4a4a4a" }}>
-                            <span>{formatPrice(item)}</span>
-                            <span
-                              title={PRICE_TOOLTIP}
-                              style={{ marginLeft: "0.4rem", color: "#8b8b8b" }}
-                            >
-                              ?
-                            </span>
-                          </div>
+                          {showPriceRow ? (
+                            <div style={{ marginTop: "0.35rem", color: "#4a4a4a" }}>
+                              <span>{priceText}</span>
+                              <span
+                                title={PRICE_TOOLTIP}
+                                style={{ marginLeft: "0.4rem", color: "#8b8b8b" }}
+                              >
+                                ?
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
                         <div onClick={(event) => event.stopPropagation()}>
                           <OverflowMenuPopover
@@ -708,11 +750,11 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
                       <p
                         style={{
                           marginTop: "0.6rem",
-                          color: item.personal_note ? "#3d3d3d" : "#9a9a9a",
+                          color: notePreview.isPlaceholder ? "#9a9a9a" : "#3d3d3d",
                           fontSize: "0.9rem",
                         }}
                       >
-                        {item.personal_note || NOTE_PLACEHOLDER}
+                        {notePreview.text}
                       </p>
                     </div>
                   </div>
@@ -760,39 +802,82 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
                   background: "#f0f0f0",
                   overflow: "hidden",
                   flexShrink: 0,
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
+                <span style={{ color: "#b6b6b6", fontSize: "0.8rem" }}>
+                  {getCoverFallbackLabel(activeItem)}
+                </span>
                 {activeItem.display_cover_image_url ? (
                   <img
                     src={activeItem.display_cover_image_url}
-                    alt={getItemTitle(activeItem)}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    alt={getCardTitle(activeItem)}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      position: "absolute",
+                      inset: 0,
+                    }}
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.style.display = "none";
+                    }}
                   />
                 ) : null}
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  {activeItem.display_merchant_logo_url ? (
-                    <img
-                      src={activeItem.display_merchant_logo_url}
-                      alt={activeItem.display_merchant_domain ?? "Merchant"}
+                  {shouldRenderMerchantLogo(activeItem) ? (
+                    <div
                       style={{
-                        width: "28px",
-                        height: "28px",
+                        width: "24px",
+                        height: "24px",
                         borderRadius: "50%",
-                        objectFit: "cover",
                         border: "1px solid #eee",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "0.7rem",
+                        color: "#6b6b6b",
+                        position: "relative",
+                        background: "#fff",
+                        overflow: "hidden",
+                        flexShrink: 0,
                       }}
-                    />
+                      aria-label={resolveDomain(activeItem) ?? "Merchant"}
+                    >
+                      <span>{getLogoFallbackText(activeItem)}</span>
+                      <img
+                        src={activeItem.display_merchant_logo_url ?? ""}
+                        alt={resolveDomain(activeItem) ?? "Merchant"}
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                        }}
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                    </div>
                   ) : null}
-                  <h2 style={{ margin: 0, fontSize: "1.1rem" }}>{getItemTitle(activeItem)}</h2>
+                  <h2 style={{ margin: 0, fontSize: "1.1rem" }}>{getCardTitle(activeItem)}</h2>
                 </div>
-                <div style={{ marginTop: "0.4rem", color: "#4a4a4a" }}>
-                  <span>{formatPrice(activeItem)}</span>
-                  <span title={PRICE_TOOLTIP} style={{ marginLeft: "0.4rem", color: "#8b8b8b" }}>
-                    ?
-                  </span>
-                </div>
+                {shouldShowPriceRow(activeItem) && activePriceText ? (
+                  <div style={{ marginTop: "0.4rem", color: "#4a4a4a" }}>
+                    <span>{activePriceText}</span>
+                    <span title={PRICE_TOOLTIP} style={{ marginLeft: "0.4rem", color: "#8b8b8b" }}>
+                      ?
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </div>
             <label style={{ display: "block", fontSize: "0.9rem", color: "#6b6b6b" }}>
@@ -814,12 +899,32 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
                 fontFamily: "inherit",
               }}
             />
+            {isNoteDirty ? (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.75rem" }}>
+                <button
+                  type="button"
+                  onClick={handleSaveNote}
+                  style={{
+                    border: "1px solid #e3e3e3",
+                    background: "#fff",
+                    borderRadius: "999px",
+                    padding: "0.4rem 1rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    color: "#111",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            ) : null}
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
               <button
                 type="button"
                 onClick={() => {
-                  if (activeItem.url_original) {
-                    openSourceUrl(activeItem.url_original);
+                  if (activeItemSourceUrl) {
+                    openSourceUrl(activeItemSourceUrl);
                   }
                 }}
                 style={{
@@ -830,27 +935,12 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
                   borderRadius: "999px",
                   padding: "0.75rem",
                   fontWeight: 600,
-                  cursor: activeItem.url_original ? "pointer" : "not-allowed",
+                  cursor: activeItemSourceUrl ? "pointer" : "not-allowed",
+                  opacity: activeItemSourceUrl ? 1 : 0.6,
                 }}
-                disabled={!activeItem.url_original}
+                disabled={!activeItemSourceUrl}
               >
-                View on website
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveNote}
-                style={{
-                  flex: 1,
-                  border: "1px solid #e3e3e3",
-                  background: "#fff",
-                  borderRadius: "999px",
-                  padding: "0.75rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  color: "#111",
-                }}
-              >
-                Save
+                {activeItemSourceUrl ? "View on website" : "Link unavailable"}
               </button>
             </div>
             <button
@@ -860,11 +950,11 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
                 width: "100%",
                 marginTop: "0.75rem",
                 border: "none",
-                background: "#fce8ea",
+                background: "transparent",
                 color: "#b4232a",
-                borderRadius: "999px",
-                padding: "0.7rem",
+                padding: "0.4rem",
                 fontWeight: 600,
+                textDecoration: "underline",
                 cursor: "pointer",
               }}
             >

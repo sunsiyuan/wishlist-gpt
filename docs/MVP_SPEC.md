@@ -1034,10 +1034,12 @@ Delete behavior must be identical whether triggered from card menu or Decision S
   All reads must filter: `deleted_at IS NULL`
 
 ### 10.2 价格格式化规则 / Price Formatting Rules (v0.3)
-- 若 `display_price_text` 有值：优先展示该文本。  
-  If `display_price_text` exists: display it first (highest priority).
-- 否则使用 `display_price_amount_minor` + `display_currency` 通过 `Intl.NumberFormat` 本地化格式化：  
-  Otherwise format `display_price_amount_minor` + `display_currency` via `Intl.NumberFormat`:
+- 若 `display_price_amount_minor` + `display_currency` 同时存在：优先使用 `Intl.NumberFormat` 本地化格式化。  
+  If `display_price_amount_minor` + `display_currency` exist: prefer formatting via `Intl.NumberFormat`.
+- 若 `Intl` 格式化失败：回退到 `display_price_text`（若存在）。  
+  If `Intl` formatting fails: fall back to `display_price_text` (if present).
+- 否则使用 `display_price_text`。  
+  Otherwise display `display_price_text`.
   - locale: `navigator.language`
   - style: `currency`
   - currency: `display_currency`
