@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBearerToken, verifyAccessToken } from "../../../server/auth/bearer";
 import { getSupabaseUserId } from "../../../server/auth/supabase";
+import type { DisplayFieldUpdate } from "../../../server/items/store";
 import { createOrTouchItem, listItemsForUser, updateItemDisplayFields } from "../../../server/items/store";
 import { enrichItemBestEffort } from "../../../server/items/enrich";
 import {
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
     });
     const displayHints = extractDisplayHints(body as Record<string, unknown>);
     const derivedDefaults = deriveDisplayDefaults({ url: urlValue, existing: displayHints });
-    const updates = { ...displayHints, ...derivedDefaults };
+    const updates: DisplayFieldUpdate = { ...displayHints, ...derivedDefaults };
     const hasPriceUpdate =
       updates.display_price_amount_minor !== undefined ||
       updates.display_currency !== undefined ||
