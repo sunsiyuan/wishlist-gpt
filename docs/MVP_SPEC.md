@@ -1149,3 +1149,182 @@ Delete behavior must be identical whether triggered from card menu or Decision S
   `/s/:share_id` is read-only, no PII, filters deleted items, revoked returns 404; includes personal_note and View on website.
 
 ---
+
+# v0.4_SPEC (GPT Created Item Enrichment: display snapshot via GPT hints + server best-effort)
+
+---
+
+## 0. 一句话结论 / One-line summary
+
+- CN：v0.4 让 **GPT 通过 `POST /items` 创建 item 时即可写入/回显 `display_*` 展示字段（尽量丰富）**；服务端提供 **异步 best-effort enrichment 兜底（不阻塞）**，并同步更新 Actions OpenAPI 与 GPT Instructions，形成端到端闭环。
+- EN: v0.4 enables **writing/echoing `display_*` snapshot fields during `POST /items` (best-effort enrichment)**, with **non-blocking async server enrichment** as fallback, plus Actions OpenAPI + GPT Instructions updates for an end-to-end loop.
+
+---
+
+## 1. UI/UX Summary
+
+- v0.4 不新增页面与交互，沿用 v0.3 的 `/app` 与 `/s/:share_id` 信息架构与操作流。  
+  v0.4 introduces no new pages or interactions; it reuses v0.3 `/app` and `/s/:share_id`.
+- v0.4 的用户可感知变化：当 item 由 GPT 添加后，列表与分享页会更稳定地展示“商品卡片信息”（标题/商家优先；封面/价格 best-effort）。  
+  User-visible change: items created by GPT render as richer product-like cards (title/merchant prioritized; cover/price best-effort).
+- 渲染规则：当 `display_*` 字段存在时优先展示；缺失时继续沿用 v0.3 既有的渲染与兜底逻辑（不在本节重复定义）。  
+  Rendering rule: prefer `display_*` when present; otherwise reuse existing v0.3 rendering/fallback behavior (not redefined here).
+
+---
+
+## 2. 数据模型语义 / Data model semantics
+
+- v0.4 **不新增**数据表与字段；复用 v0.3 已存在的 `items.display_*` 展示快照字段。  
+  v0.4 **adds no new tables/columns**; it reuses v0.3 `items.display_*` snapshot fields.
+- 若在任一环境发现 `display_*` 字段缺失，视为 **v0.3 对齐缺陷修复**（不作为 v0.4 scope 扩展），补齐 migration 以恢复 v0.3 既定模型。  
+  If any `display_*` columns are missing in an environment, treat it as a **v0.3 alignment fix** (not a v0.4 scope expansion) and backfill via migration.
+
+- `display_*` 是 **展示快照（best-effort, non-authoritative）**：  
+  `display_*` is **best-effort display snapshot**:
+  - 允许为空 / may be null
+  - 不保证实时 / not guaranteed real-time
+  - 不作为幂等键或业务主键 / not used as identity keys
+
+- `display_price_updated_at` 的语义：**价格快照的更新时间**。  
+  Semantics: **last time the price snapshot was set/updated**.
+  - 仅当写入/更新 `display_price_amount_minor` / `display_currency` / `display_price_text` 时更新；否则保持不变或为空。  
+    update only when setting/updating price fields; otherwise unchanged or null.
+  - 不应被 create/touch、note 编辑、或仅补全 title/cover/merchant 等非价格变更“误更新”。  
+    must not be bumped by create/touch, note edits, or non-price enrichment.
+
+---
+
+## 3. v0.4 接口变更 / v0.4 endpoint changes
+
+### 3.1 `POST /items`（Create/touch）— 支持 GPT hints（同步回显）+ 异步 enrichment 兜底
+
+- Request body：
+  - `url`（required）
+  - `display_*`（optional，见 2. 数据模型；as GPT hints / prefill candidates）
+
+- 行为（Behavior, two-phase）：
+  1. **先完成 create/touch**（保持现有幂等与排序语义不变）  
+     create/touch first (preserve idempotency + ordering semantics)
+
+  2. 若请求包含 `display_*`：对这些字段做 **快速校验（no network）** 后写入（视为 **GPT hints**）  
+     if `display_*` provided: persist after **fast validation (no network)** as **GPT hints**
+     - 校验范围只包含：协议/长度/可解析性/显式 localhost 与私网 IP 字面量拦截等；不得做 DNS / fetch / redirect resolution  
+       validation must be local-only (protocol/length/parsing/explicit localhost & private-literal IP blocks); no DNS/fetch/redirect resolution
+     - 任意 `display_*` 字段不通过校验：**忽略该字段**，但 **不影响 item 创建成功**  
+       invalid hint fields must be ignored and must not fail the request
+
+  3.（可选但推荐）在同步阶段做“零网络”的确定性补全（不引入外部抓取）：  
+     (optional but recommended) deterministic no-network fills during sync phase:
+     - 若 `display_merchant_domain` 缺失：从 `url` 的 host 推断并写入  
+       if `display_merchant_domain` missing: derive from URL host and set
+     - 若 `display_merchant_logo_url` 缺失：基于 domain 拼 deterministic favicon service URL 并写入  
+       if `display_merchant_logo_url` missing: set via deterministic favicon service URL
+
+  4. 触发 **异步 best-effort enrichment**：对 `url` 抓取/解析以补全缺失的 `display_*`（不阻塞响应）  
+     trigger **async best-effort enrichment** to fetch/parse the URL and fill missing `display_*` (must not block response)
+     - 必须有 hard timeout / size limit / redirect limit / SSRF 防护  
+       must enforce hard timeout / size limit / redirect limit / SSRF protections
+     - 默认策略：**只补空字段，不覆盖已有字段**  
+       default policy: fill-only (no override)
+
+- Response：
+  - 返回 item（向后兼容），并 **包含 Phase 1 已写入/推断出的 `display_*`**  
+    return the item additively including `display_*` written/derived in Phase 1
+  - 不保证包含 Phase 2 异步 enrichment 的结果（需要后续 `GET /items` 才能看到）  
+    async enrichment results are not guaranteed in the same response; use `GET /items` to observe updates
+
+---
+
+### 3.2 `GET /items` — 返回 display_* 字段（加法）
+
+- 在现有返回结构基础上，**追加返回** `display_*` 字段（加法，不破坏旧客户端）。  
+  Additively returns `display_*` fields.
+
+- 过滤与排序 **必须严格沿用 v0.3 既有规则**：过滤 `deleted_at IS NULL`；排序仅基于 `created_at`。  
+  Filtering/sorting must strictly reuse v0.3 rules: filter `deleted_at IS NULL`; ordering uses `created_at` only.
+
+---
+
+## 4. Actions OpenAPI / GPT Instructions / Schema Sync（必须同步）
+
+- Actions OpenAPI（schema）必须更新：  
+  Actions schema must be updated (otherwise GPT cannot send/receive `display_*`).
+  - `POST /items` request body：新增可选 `display_*` 字段（GPT hints）  
+    add optional `display_*` fields in request body (as GPT hints)
+  - `POST /items` response：返回 item 时 **包含 `display_*`（Phase 1 同步写入/推断出的）**  
+    response must include `display_*` (sync written/derived in Phase 1)
+  - `GET /items` response：列表中每个 item **包含 `display_*`（含异步补全后结果）**  
+    list response must include `display_*` (including async enrichment updates)
+
+- OpenAPI 生成与发布（保持现有流程）：  
+  regenerate and publish OpenAPI per existing pipeline.
+  - 更新 `actions/openapi.template.yaml`（或项目里用于生成 OpenAPI 的模板）  
+    update the OpenAPI template used for generation
+  - 重新生成 `public/openapi.yaml`（并提交到 repo）  
+    regenerate `public/openapi.yaml` (commit it)
+
+- GPT Builder / Actions 必须重新导入：  
+  GPT Actions must re-import the updated schema.
+  - 在 GPT Builder → Actions 中 **重新导入/更新** OpenAPI，否则 GPT 仍按旧 schema 运行  
+    re-import/update OpenAPI in GPT Builder → Actions; otherwise GPT still uses old schema
+
+- GPT Instructions 必须更新（让它“会填”）：  
+  GPT Instructions must be updated so it actually populates fields.
+  - 加入规则：添加商品链接时，`createItem(POST /items)` **尽量填 `display_*`（能确定就填，不确定留空，不编造）**  
+    rule: when adding a product URL, best-effort fill `display_*` (fill if confident; otherwise omit; no fabrication)
+  - 强调：服务端会做异步兜底补全；同一次 `POST /items` 不保证拿到异步结果（可通过 `GET /items` 观察更新）  
+    server will async backfill; same POST response may not include async results; use `GET /items` to observe updates
+
+---
+
+## 5. Enrichment 兜底与安全 / Enrichment fallback & security
+
+- 定义：v0.4 enrichment 是 “link preview / metadata enrichment”（单 URL 的元数据补全），不是全站爬取；失败可容忍。  
+  v0.4 enrichment is link-preview/metadata enrichment for a single URL; failures are acceptable.
+
+- **非阻塞**：enrichment 必须异步触发；`POST /items` 不等待抓取完成；解析失败/超时不影响 200/OK。  
+  Non-blocking: enrichment must be async; `POST /items` must not wait; failures/timeouts must not break 200/OK.
+
+- **抓取约束**（服务端）：
+  - 仅允许 `http/https`  
+    allow http/https only
+  - SSRF 防护：拒绝 localhost/内网/metadata 网段（含 redirect 后的再次校验）  
+    SSRF protections: block localhost/private/metadata ranges (re-validate after redirects)
+  - 限制 redirect 次数（如 ≤ 3）  
+    redirect limit (e.g. ≤ 3)
+  - 限制响应体大小（如 ≤ 1MB）  
+    response size cap (e.g. ≤ 1MB)
+  - hard timeout（如 1–2s）  
+    hard timeout (e.g. 1–2s)
+  - 不携带用户态 cookie；不记录 HTML 正文  
+    no user cookies; do not log HTML bodies
+
+- **入参校验**（GPT hints）：
+  - 所有 URL 字段（`display_cover_image_url`, `display_merchant_logo_url`）也必须通过协议与网段校验  
+    all hint URL fields must pass protocol/range validation
+
+- **地区/币种本地化（明确不做）**：v0.4 不基于用户国家/地区做本地化抓取（当前也不存 preferred country）；价格字段仅为 best-effort 展示快照，可能随抓取位置/站点策略变化。  
+  No localization in v0.4: fetch is not localized by user country/region; price is best-effort snapshot and may vary.
+
+- **安全边界不扩权**：鉴权/授权与 PII 边界沿用项目既有约束（见 SECURITY.md）；v0.4 仅新增“服务端对外抓取”的受限能力，不引入新的访问路径或数据泄露面。  
+  Security boundary unchanged (see SECURITY.md); v0.4 only adds constrained outbound fetch capability.
+
+---
+
+## 6. 验收 / Acceptance
+
+- 端到端（End-to-end）：
+  1. GPT/Actions：调用 `createItem(POST /items)` 添加一个商品 URL  
+     Actions calls `createItem(POST /items)` with a product URL
+  2. `POST /items` 响应中：应包含 Phase 1 同步写入/推断出的 `display_*`（若请求提供了 hints 或可从 URL 推断）  
+     `POST /items` response includes `display_*` written/derived in Phase 1 (if hints provided or derivable)
+  3. `listItems(GET /items)`：返回该 item，且 `display_*` 字段为加法返回（异步补全后可变得更完整）  
+     `GET /items` returns the item with `display_*` additively (may become more complete after async enrichment)
+  4. `/app` 与 `/s/:share_id`：可正常渲染列表与卡片信息；不因 `display_*` 缺失而报错（沿用 v0.3 fallback）  
+     `/app` and `/s/:share_id` render without errors even when `display_*` is missing (reuse v0.3 fallback)
+  5. 异常场景：不可达 URL / 解析超时 → `POST /items` 仍成功、不 500、不阻塞；display 允许为空  
+     Failures/timeouts must not block or 500; display fields may remain null
+  6. 回归：不破坏 v0.1 Actions 闭环（`getMe → createItem → listItems`）  
+     Regression: v0.1 loop remains intact (`getMe → createItem → listItems`)
+
+---
