@@ -27,11 +27,15 @@ export async function PATCH(
     return jsonError(400, "invalid_body", "Request body must be a JSON object");
   }
   const rawNote = (body as { personal_note?: unknown }).personal_note;
-  const noteValue = rawNote === undefined ? null : rawNote;
-  if (noteValue !== null && typeof noteValue !== "string") {
+  let noteValue: string | null;
+  if (rawNote === undefined || rawNote === null) {
+    noteValue = null;
+  } else if (typeof rawNote === "string") {
+    noteValue = rawNote;
+  } else {
     return jsonError(400, "invalid_note", "personal_note must be a string or null");
   }
-  if (typeof noteValue === "string" && noteValue.length > MAX_NOTE_LENGTH) {
+  if (noteValue && noteValue.length > MAX_NOTE_LENGTH) {
     return jsonError(400, "note_too_long", "personal_note is too long");
   }
 
