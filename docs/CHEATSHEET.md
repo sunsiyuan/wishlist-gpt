@@ -37,6 +37,24 @@ CN：未登录访问 `/app` 会跳转 `/login`（预期）。
 EN: Visit `/login` → Google/email login → land on `/app` (shows user info + list).  
 EN: Unauthed `/app` redirects to `/login` (expected).
 
+### 1.2.5 v0.3 /app 使用说明 / Using /app in v0.3
+
+CN：
+- 顶栏 `Cheatsheet` 打开轻量弹层；空状态按钮也会打开同一弹层。
+- 列表顶栏可切换 `Newest/Oldest`（只按 `created_at` 排序）。
+- 点击卡片打开 Decision Sheet：编辑备注 + 保存、`View on website`、`Delete`。
+- 删除成功后显示 4 秒 Undo；仅保证最近一次删除可撤销。
+- Share 按钮打开 Share Sheet（复制链接、系统 Share、撤销/重建）。
+- v0.3 仅浅色主题。
+
+EN:
+- Tap `Cheatsheet` in the header to open the lightweight sheet; empty state button opens the same sheet.
+- Toggle `Newest/Oldest` in the list top bar (sorting uses `created_at` only).
+- Tap a card to open the Decision Sheet: edit note + save, `View on website`, `Delete`.
+- After delete succeeds, a 4s Undo toast appears; only the last delete is guaranteed.
+- Share button opens the Share Sheet (copy link, system Share when available, revoke/regenerate).
+- v0.3 is light-theme only.
+
 ### 1.2.1 Google OAuth (Supabase) setup checklist
 
 CN：

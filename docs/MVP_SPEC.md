@@ -2,6 +2,97 @@
 
 ---
 
+# v0.3_SPEC (Consumer minimal UI + Notes + Delete/Undo + Share Sheet)
+
+## 0. 一句话结论 / One-line summary
+CN：v0.3 在保持 v0.1 Actions 闭环不变的前提下，新增 `/app` 消费者 UI（轻量单列）、个人备注、软删除 + 撤销，以及分享页展示（只读）。  
+EN: v0.3 keeps the v0.1 Actions loop intact and adds the `/app` consumer UI (single column), personal notes, soft delete + undo, and public share display (read-only).
+
+---
+
+## 1. v0.3 UI/UX 摘要 / UI/UX summary
+
+CN：
+- `/app` 为移动优先单列列表：顶栏 `WishlistGPT` + `Cheatsheet`，列表顶栏 `Newest/Oldest`（按 `created_at`）+ `Share`。
+- 卡片显示：方形封面、标题 + 圆形商家 logo、价格（`?` 提示）、备注预览；点击卡片打开 Decision Sheet。
+- Decision Sheet：封面、标题/商家、价格、备注编辑 + 保存；主按钮 `View on website`（使用 `source_url`）；次按钮 `Delete`。
+- 删除不确认；删除成功后显示 4s Undo toast（只保证最近一次删除可撤销）。
+- Cheatsheet 作为轻量弹层，空状态按钮复用；Return 浮动按钮仅图标。
+- v0.3 仅浅色主题。
+
+EN:
+- `/app` is a mobile-first single column list: header `WishlistGPT` + `Cheatsheet`, list top bar `Newest/Oldest` (by `created_at`) + `Share`.
+- Cards show square cover, title + round merchant logo, price with `?` tooltip, note preview; tapping opens the Decision Sheet.
+- Decision Sheet includes cover, title/merchant, price, note editor + save; primary `View on website` (uses `source_url`); secondary `Delete`.
+- Delete has no confirmation; on success show 4s Undo toast (only last delete is guaranteed).
+- Cheatsheet is a lightweight sheet (empty state uses the same); floating Return button is icon-only.
+- v0.3 is light-theme only.
+
+---
+
+## 2. 数据模型变更 / Data model changes
+
+### items (新增字段 / new columns)
+
+* `personal_note` (text)
+* `deleted_at` (timestamptz)
+* `display_cover_image_url` (text)
+* `display_product_title` (text)
+* `display_merchant_logo_url` (text)
+* `display_merchant_domain` (text)
+* `display_price_amount_minor` (int)
+* `display_currency` (text)
+* `display_price_text` (text)
+* `display_price_updated_at` (timestamptz)
+
+CN：列表读取必须过滤 `deleted_at IS NULL`；排序仅基于 `created_at`。  
+EN: List reads must filter `deleted_at IS NULL`; ordering uses `created_at` only.
+
+---
+
+## 3. v0.3 新增接口 / New v0.3 endpoints
+
+### 3.1 `PATCH /api/items/:id/note`
+Request:
+```json
+{ "personal_note": "string|null" }
+```
+Response:
+```json
+{ "ok": true, "item": { "id": "uuid", "personal_note": "string|null", "updated_at": "timestamptz" } }
+```
+
+### 3.2 `POST /api/items/:id/delete`
+Response:
+```json
+{ "ok": true }
+```
+
+### 3.3 `POST /api/items/:id/restore`
+Response:
+```json
+{ "ok": true }
+```
+
+CN：以上接口仅支持 cookie session；保证幂等。  
+EN: These endpoints are cookie-session only and idempotent.
+
+---
+
+## 4. Public Share v0.3 行为 / Public share behavior
+
+CN：
+- `/s/:share_id` 只读展示，过滤 `deleted_at IS NULL`。
+- 响应严格 allowlist：`display_*`、`personal_note`、`source_url`，不包含 PII。
+- 仍保持 revoke 后立即 404。
+
+EN:
+- `/s/:share_id` is read-only and filters `deleted_at IS NULL`.
+- Response allowlist includes `display_*`, `personal_note`, `source_url` and excludes PII.
+- Revoked shares 404 immediately.
+
+---
+
 # v0.1_SPEC (GPT MVP)
 
 ## 0. 一句话结论 / One-line summary

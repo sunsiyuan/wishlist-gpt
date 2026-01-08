@@ -21,11 +21,13 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Items 存储 / storage: `src/server/items/`
 - Shares 存储 / storage: `src/server/shares/`
 - Public share helper / 分享页查询: `src/server/shares/public.ts`
+- Items note/delete/restore routes: `src/app/api/items/[id]/note/route.ts`, `src/app/api/items/[id]/delete/route.ts`, `src/app/api/items/[id]/restore/route.ts`
 - Shares API 路由 / routes: `src/app/api/shares/route.ts`, `src/app/api/shares/rotate/route.ts`, `src/app/api/shares/[id]/revoke/route.ts`
 - Public share page / 分享页: `src/app/s/[share_id]/page.tsx`
 - Share view tracking route / 分享页埋点路由: `src/app/api/track/share-view/route.ts`
 - Shares migration: `supabase/migrations/004_shares.sql`
 - Events migration: `supabase/migrations/005_events.sql`
+- Items v0.3 migration: `supabase/migrations/006_items_v03.sql`
 - Tracking helpers / 埋点 helpers: `src/server/tracking/`
 - OpenAPI 模板与生成 / template & generator:
   - `actions/openapi.template.yaml`
@@ -63,8 +65,9 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  └─ preflight.sh                   # 预检查 / preflight checks
 ├─ src/
 │  ├─ app/
-│  │  ├─ app/page.tsx                # /app minimal UI (auth-gated list)
-│  │  ├─ app/ShareControls.tsx       # /app share/revoke controls (client)
+│  │  ├─ app/page.tsx                # /app consumer UI (auth-gated list)
+│  │  ├─ app/AppClient.tsx           # /app client UI + sheets + toast
+│  │  ├─ app/ShareControls.tsx       # legacy share/revoke controls (client)
 │  │  ├─ auth/callback/route.ts       # /auth/callback OAuth exchange
 │  │  ├─ auth/signout/route.ts        # /auth/signout POST
 │  │  ├─ api/oauth/authorize/route.ts  # OAuth authorize / 授权码
@@ -74,6 +77,9 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ api/logout/route.ts           # POST /api/logout (clear Supabase cookies)
 │  │  ├─ api/me/route.ts               # /me handler (see MVP_SPEC) / /me 处理（以 MVP_SPEC 为准）
 │  │  ├─ api/items/route.ts            # /items handler (see MVP_SPEC) / /items 处理（以 MVP_SPEC 为准）
+│  │  ├─ api/items/[id]/note/route.ts  # /api/items/:id/note (see MVP_SPEC)
+│  │  ├─ api/items/[id]/delete/route.ts # /api/items/:id/delete (see MVP_SPEC)
+│  │  ├─ api/items/[id]/restore/route.ts # /api/items/:id/restore (see MVP_SPEC)
 │  │  ├─ api/shares/route.ts           # /shares handler (see MVP_SPEC) / /shares 处理（以 MVP_SPEC 为准）
 │  │  ├─ api/shares/rotate/route.ts    # /shares/rotate handler (see MVP_SPEC)
 │  │  ├─ api/shares/[id]/revoke/route.ts # /shares/:id/revoke handler (see MVP_SPEC)
