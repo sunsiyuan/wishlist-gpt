@@ -26,7 +26,8 @@ export async function PATCH(
   if (!body || typeof body !== "object") {
     return jsonError(400, "invalid_body", "Request body must be a JSON object");
   }
-  const noteValue = (body as { personal_note?: unknown }).personal_note;
+  const rawNote = (body as { personal_note?: unknown }).personal_note;
+  const noteValue = rawNote === undefined ? null : rawNote;
   if (noteValue !== null && typeof noteValue !== "string") {
     return jsonError(400, "invalid_note", "personal_note must be a string or null");
   }
@@ -39,7 +40,7 @@ export async function PATCH(
     const updated = await updatePersonalNote({
       userId,
       itemId: id,
-      note: noteValue ?? null,
+      note: noteValue,
     });
     if (!updated) {
       return jsonError(404, "not_found", "Item not found");
