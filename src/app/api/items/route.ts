@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBearerToken, verifyAccessToken } from "../../../server/auth/bearer";
 import { getSupabaseUserId } from "../../../server/auth/supabase";
-import { createOrTouchItem, listItems } from "../../../server/items/store";
+import { createOrTouchItem, listItemsForUser } from "../../../server/items/store";
 
 function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     return auth.error;
   }
   try {
-    const items = await listItems({ userId: auth.userId });
+    const items = await listItemsForUser({ userId: auth.userId });
     return NextResponse.json({
       items: items.map((item) => ({
         id: item.id,

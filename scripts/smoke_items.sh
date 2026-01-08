@@ -109,4 +109,55 @@ LIST_ITEM_ID="$(json_find_id_by_url "$list_json_2" "$ITEM_URL")"
 [[ "$LIST_ITEM_ID" == "$ITEM_ID_1" ]] || fail "Expected list item id to match posted id ($ITEM_ID_1), got $LIST_ITEM_ID"
 pass "GET list remains idempotent"
 
+require_env SUPABASE_URL
+require_env SUPABASE_ANON_KEY
+require_env TEST_USER_EMAIL
+require_env TEST_USER_PASSWORD
+
+SUPABASE_SESSION_COOKIE_NAME="${SUPABASE_SESSION_COOKIE_NAME:-sb-access-token}"
+
+info "Supabase password grant -> ${SUPABASE_SESSION_COOKIE_NAME}"
+supabase_json=$(curl -sS \
+  -H "apikey: $SUPABASE_ANON_KEY" \
+  -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$TEST_USER_EMAIL\",\"password\":\"$TEST_USER_PASSWORD\"}" \
+  "$SUPABASE_URL/auth/v1/token?grant_type=password")
+
+SUPABASE_ACCESS_TOKEN="$(json_get "$supabase_json" "access_token")"
+[[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "$supabase_json" >&2; fail "Failed to get Supabase access_token"; }
+pass "Supabase user token OK"
+
+cookie_header="${SUPABASE_SESSION_COOKIE_NAME}=$SUPABASE_ACCESS_TOKEN"
+
+info "POST /api/items/$ITEM_ID_1/delete"
+delete_json=$(curl -sS -X POST \
+  -H "Cookie: $cookie_header" \
+  "$BASE_URL/api/items/$ITEM_ID_1/delete")
+
+delete_ok="$(json_get "$delete_json" "ok")"
+[[ "$delete_ok" == "true" ]] || { echo "$delete_json" >&2; fail "Expected delete ok=true"; }
+pass "Delete ok"
+
+info "GET /api/items after delete"
+list_deleted_json=$(curl -sS -H "Cookie: $cookie_header" "$BASE_URL/api/items")
+count_url_deleted=$(json_count_url "$list_deleted_json" "$ITEM_URL")
+[[ "$count_url_deleted" == "0" ]] || { echo "$list_deleted_json" >&2; fail "Expected deleted item to be filtered out"; }
+pass "Deleted item removed from list"
+
+info "POST /api/items/$ITEM_ID_1/restore"
+restore_json=$(curl -sS -X POST \
+  -H "Cookie: $cookie_header" \
+  "$BASE_URL/api/items/$ITEM_ID_1/restore")
+
+restore_ok="$(json_get "$restore_json" "ok")"
+[[ "$restore_ok" == "true" ]] || { echo "$restore_json" >&2; fail "Expected restore ok=true"; }
+pass "Restore ok"
+
+info "GET /api/items after restore"
+list_restore_json=$(curl -sS -H "Cookie: $cookie_header" "$BASE_URL/api/items")
+count_url_restore=$(json_count_url "$list_restore_json" "$ITEM_URL")
+[[ "$count_url_restore" == "1" ]] || { echo "$list_restore_json" >&2; fail "Expected restored item in list"; }
+pass "Restored item appears in list"
+
 info "ITEMS SMOKE TESTS PASSED ✅"
