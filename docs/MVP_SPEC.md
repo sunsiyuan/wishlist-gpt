@@ -785,6 +785,59 @@ View → Decision Sheet → `View on website` for decisions; also quick note edi
 - `⋯` 独立热区（防 fat finger）：建议 40×40px 点击区域。  
   Dedicated `⋯` hit area to prevent fat finger; recommend 40×40px.
 
+### 5.4 兜底展示规则（Card）
+为避免列表出现重复的“坏状态文案”（如反复出现 Price unavailable），Card 必须遵循以下渲染规则：
+To avoid repetitive “error-like” UI (e.g., repeated “Price unavailable”), the card must follow these rules:
+
+#### 5.4.1. Cover（封面）
+- 永远渲染 1:1 正方形容器，避免 layout shift。
+  Always render a fixed 1:1 container to prevent layout shift.
+- 若 `display_cover_image_url` 存在：渲染图片（`object-fit: cover`）。
+  若图片加载失败：切换到 placeholder（不得无限重试）。
+  If `display_cover_image_url` exists: render image (`object-fit: cover`).
+  If image fails: switch to placeholder (no infinite retry).
+- 若 `display_cover_image_url` 不存在：直接渲染 placeholder。
+  If missing: render placeholder.
+
+#### 5.4.2. Merchant logo（商家 logo）
+- **默认不渲染 logo 容器**（避免无意义占位）。
+  **Do not render the logo container by default** (avoid meaningless placeholders).
+- 若 `display_merchant_logo_url` 存在：渲染圆形 logo（18–22px）并放在标题旁边。
+  If `display_merchant_logo_url` exists: render a circular logo (18–22px) next to the title.
+  - 若 logo 图片加载失败：使用 fallback（例如：domain 首字母或通用 icon）在圆形容器内展示。
+  If logo fails to load: fallback to domain initial or a generic icon inside the circle.
+- 若 `display_merchant_logo_url` 不存在：不显示 logo 容器。
+  If missing: do not show the logo container.
+
+#### 5.4.3. Domain 解析（用于标题兜底与 logo fallback）
+- `domain` 优先级 (priority): 
+  1. `display_merchant_domain`
+  2. parse host from `source_url` (strip `www.`)
+  3. otherwise null
+
+
+#### 5.4.4. Title（标题）
+- Use `display_product_title` when present.
+- Else if `domain` exists: fallback to **`From {domain}`** (never use “Wishlist item”).
+- Else: `Untitled item`.
+
+#### 5.4.5. Price 行（价格）
+- **仅当存在价格时才渲染价格行**；无价格时整行不出现，也不显示 `?` tooltip。
+  **Render the entire price row only when price exists**; otherwise omit the row and omit the `?` tooltip.
+- 价格存在条件（任一满足）：
+  * `display_price_text` 非空，或
+  * `display_price_amount_minor` 与 `display_currency` 同时存在
+- 价格展示优先级：
+  * 优选使用 `Intl.NumberFormat` 本地化格式化
+  * 否则 `display_price_text`
+
+
+#### 5.4.6. Personal note（备注）
+- 若 `personal_note` 非空：显示 1–2 行预览。
+  If present: show 1–2 line preview.
+- 若为空：显示 placeholder：`Add a note…`（轻色/次要）。
+  If empty: show placeholder `Add a note…` (secondary style).
+
 ---
 
 ## 6) `⋯` 菜单 / Overflow Menu (Popover)
@@ -832,12 +885,13 @@ Delete behavior must be identical whether triggered from card menu or Decision S
   Opens at ~70% height; can expand near full screen.
 
 ### 7.3 内容结构（顺序）/ Content Structure (order)
-1) 封面大图（正方形）/ Large square cover  
-2) 标题 + 圆形 logo（同一块）/ Title + circular logo  
-3) 价格 + `?` tooltip / Price + `?` tooltip  
-4) `personal_note` inline 编辑区 + `Save` / Inline note editor + `Save`  
-5) 主按钮 / Primary CTA：`View on website`  
-6) 次按钮 / Secondary CTA：`Delete`（红色 / red）
+- 封面大图（正方形）/ Large square cover  
+- 标题 + 圆形 logo（同一块）/ Title + circular logo  
+- 价格 + `?` tooltip / Price + `?` tooltip  
+- `personal_note` inline 编辑区 + `Save` / Inline note editor + `Save` 
+  * Note 的 `Save` 必须是 **Note 编辑区内的 inline 操作**（例如在输入框右侧或输入框下方小按钮），而不是主动作区的大按钮。 
+- 主按钮 / Primary CTA：`View on website`  
+- 次按钮 / Secondary CTA：`Delete`（改为隐式文字链接，见 §7.6）
 
 ### 7.4 外跳策略 / External Navigation
 - v0.3 `View on website` 永远使用 `source_url`。  
@@ -854,6 +908,14 @@ Delete behavior must be identical whether triggered from card menu or Decision S
   If delete is triggered from Decision Sheet: **close the sheet** after successful deletion.
 - Undo 成功后：仅恢复列表，不自动重新打开 sheet。  
   After Undo: restore list only; do not auto-reopen the sheet.
+
+#### 7.6 按钮与动作布局（新增）
+- `View on website`：主按钮（primary）。
+  `View on website`: primary button.
+- `Delete`：**隐式文字链接**（danger style），放在主按钮下方（或同区块底部），避免与主 CTA 争夺注意力。
+  `Delete`: **implicit text link** (danger style) placed under the primary CTA (or at the bottom of the CTA block) to reduce attention competition.
+- `Save`：仅在 note 进入编辑态时显示（inline），保存成功后退出编辑态并更新列表预览。
+  `Save`: shown only when the note is in editing state (inline). On success, exit edit mode and update the list preview.
 
 ---
 
