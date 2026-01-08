@@ -17,6 +17,8 @@ export default async function AppPage() {
   }
 
   const requestHeaders = await headers();
+  const acceptLanguage = requestHeaders.get("accept-language");
+  const locale = acceptLanguage?.split(",")[0]?.trim() || "en";
   const requestMeta = getRequestMeta(requestHeaders);
   const items = await listItemsForUser({ userId, sort: "created_at.desc" });
   trackBestEffort({
@@ -27,5 +29,5 @@ export default async function AppPage() {
     meta: requestMeta,
   });
 
-  return <AppClient items={items} />;
+  return <AppClient items={items} locale={locale} />;
 }

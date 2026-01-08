@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   getCardTitle,
@@ -19,6 +20,10 @@ export default async function SharePage({ params }: { params: Promise<{ share_id
   if (!isValidShareId(shareId)) {
     notFound();
   }
+
+  const requestHeaders = await headers();
+  const acceptLanguage = requestHeaders.get("accept-language");
+  const locale = acceptLanguage?.split(",")[0]?.trim() || "en";
 
   const items = await getPublicShareItems(shareId);
   if (!items) {
@@ -45,7 +50,7 @@ export default async function SharePage({ params }: { params: Promise<{ share_id
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {items.map((item) => {
               const title = getCardTitle(item);
-              const priceText = getPriceText(item);
+              const priceText = getPriceText(item, locale);
               const showPriceRow = shouldShowPriceRow(item) && priceText;
               const notePreview = getNotePreview(item);
               const shouldShowLogo = shouldRenderMerchantLogo(item);
