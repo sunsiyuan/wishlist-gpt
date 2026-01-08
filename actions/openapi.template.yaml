@@ -30,6 +30,31 @@ components:
         updated_at:
           type: string
           format: date-time
+        display_cover_image_url:
+          type: string
+          nullable: true
+        display_product_title:
+          type: string
+          nullable: true
+        display_merchant_logo_url:
+          type: string
+          nullable: true
+        display_merchant_domain:
+          type: string
+          nullable: true
+        display_price_amount_minor:
+          type: integer
+          nullable: true
+        display_currency:
+          type: string
+          nullable: true
+        display_price_text:
+          type: string
+          nullable: true
+        display_price_updated_at:
+          type: string
+          format: date-time
+          nullable: true
       required:
         - id
         - url_original
@@ -39,6 +64,20 @@ components:
       type: object
       properties:
         url:
+          type: string
+        display_cover_image_url:
+          type: string
+        display_product_title:
+          type: string
+        display_merchant_logo_url:
+          type: string
+        display_merchant_domain:
+          type: string
+        display_price_amount_minor:
+          type: integer
+        display_currency:
+          type: string
+        display_price_text:
           type: string
       required:
         - url

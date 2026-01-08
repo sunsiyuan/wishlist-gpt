@@ -19,6 +19,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Supabase SSR clients / SSR: `src/lib/supabase/{client,server,config}.ts`
 - Middleware session refresh / 中间件刷新: `middleware.ts`
 - Items 存储 / storage: `src/server/items/`
+- Items display hint validation / enrichment: `src/server/items/displayFields.ts`, `src/server/items/enrich.ts`
 - Shares 存储 / storage: `src/server/shares/`
 - Public share helper / 分享页查询: `src/server/shares/public.ts`
 - Items note/delete/restore routes: `src/app/api/items/[id]/note/route.ts`, `src/app/api/items/[id]/delete/route.ts`, `src/app/api/items/[id]/restore/route.ts`

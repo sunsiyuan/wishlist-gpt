@@ -182,7 +182,20 @@ EN: Any capability not explicitly listed as “Implemented” is not implemented
 ```json
 {
   "items": [
-    { "id": "uuid", "url_original": "string", "created_at": "timestamptz", "updated_at": "timestamptz" }
+    {
+      "id": "uuid",
+      "url_original": "string",
+      "created_at": "timestamptz",
+      "updated_at": "timestamptz",
+      "display_cover_image_url": "string|null",
+      "display_product_title": "string|null",
+      "display_merchant_logo_url": "string|null",
+      "display_merchant_domain": "string|null",
+      "display_price_amount_minor": 1234,
+      "display_currency": "USD",
+      "display_price_text": "string|null",
+      "display_price_updated_at": "timestamptz|null"
+    }
   ]
 }
 ```
@@ -192,14 +205,36 @@ EN: Any capability not explicitly listed as “Implemented” is not implemented
 * 请求 / Request:
 
 ```json
-{ "url": "string" }
+{
+  "url": "string",
+  "display_cover_image_url": "string (optional)",
+  "display_product_title": "string (optional)",
+  "display_merchant_logo_url": "string (optional)",
+  "display_merchant_domain": "string (optional)",
+  "display_price_amount_minor": 1234,
+  "display_currency": "USD",
+  "display_price_text": "string (optional)"
+}
 ```
 
 * 响应 / Response:
 
 ```json
 {
-  "item": { "id": "uuid", "url_original": "string", "created_at": "timestamptz", "updated_at": "timestamptz" }
+  "item": {
+    "id": "uuid",
+    "url_original": "string",
+    "created_at": "timestamptz",
+    "updated_at": "timestamptz",
+    "display_cover_image_url": "string|null",
+    "display_product_title": "string|null",
+    "display_merchant_logo_url": "string|null",
+    "display_merchant_domain": "string|null",
+    "display_price_amount_minor": 1234,
+    "display_currency": "USD",
+    "display_price_text": "string|null",
+    "display_price_updated_at": "timestamptz|null"
+  }
 }
 ```
 

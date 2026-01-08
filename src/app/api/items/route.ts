@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBearerToken, verifyAccessToken } from "../../../server/auth/bearer";
 import { getSupabaseUserId } from "../../../server/auth/supabase";
-import { createOrTouchItem, listItemsForUser } from "../../../server/items/store";
+import { createOrTouchItem, listItemsForUser, updateItemDisplayFields } from "../../../server/items/store";
+import { enrichItemBestEffort } from "../../../server/items/enrich";
+import {
+  deriveDisplayDefaults,
+  extractDisplayHints,
+} from "../../../server/items/displayFields";
 
 function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -37,6 +42,14 @@ export async function GET(request: NextRequest) {
         url_original: item.url_original,
         created_at: item.created_at,
         updated_at: item.updated_at,
+        display_cover_image_url: item.display_cover_image_url,
+        display_product_title: item.display_product_title,
+        display_merchant_logo_url: item.display_merchant_logo_url,
+        display_merchant_domain: item.display_merchant_domain,
+        display_price_amount_minor: item.display_price_amount_minor,
+        display_currency: item.display_currency,
+        display_price_text: item.display_price_text,
+        display_price_updated_at: item.display_price_updated_at,
       })),
     });
   } catch (error) {
@@ -67,12 +80,39 @@ export async function POST(request: NextRequest) {
       userId: auth.userId,
       url: urlValue,
     });
+    const displayHints = extractDisplayHints(body as Record<string, unknown>);
+    const derivedDefaults = deriveDisplayDefaults({ url: urlValue, existing: displayHints });
+    const updates = { ...displayHints, ...derivedDefaults };
+    const hasPriceUpdate =
+      updates.display_price_amount_minor !== undefined ||
+      updates.display_currency !== undefined ||
+      updates.display_price_text !== undefined;
+    if (hasPriceUpdate) {
+      updates.display_price_updated_at = new Date().toISOString();
+    }
+    const updatedItem =
+      Object.keys(updates).length > 0
+        ? await updateItemDisplayFields({
+            userId: auth.userId,
+            itemId: item.id,
+            updates,
+          })
+        : item;
+    enrichItemBestEffort({ userId: auth.userId, itemId: item.id, url: item.url_original });
     return NextResponse.json({
       item: {
-        id: item.id,
-        url_original: item.url_original,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
+        id: (updatedItem ?? item).id,
+        url_original: (updatedItem ?? item).url_original,
+        created_at: (updatedItem ?? item).created_at,
+        updated_at: (updatedItem ?? item).updated_at,
+        display_cover_image_url: (updatedItem ?? item).display_cover_image_url,
+        display_product_title: (updatedItem ?? item).display_product_title,
+        display_merchant_logo_url: (updatedItem ?? item).display_merchant_logo_url,
+        display_merchant_domain: (updatedItem ?? item).display_merchant_domain,
+        display_price_amount_minor: (updatedItem ?? item).display_price_amount_minor,
+        display_currency: (updatedItem ?? item).display_currency,
+        display_price_text: (updatedItem ?? item).display_price_text,
+        display_price_updated_at: (updatedItem ?? item).display_price_updated_at,
       },
     });
   } catch (error) {

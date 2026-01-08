@@ -18,6 +18,20 @@ export type ItemRecord = {
   display_price_updated_at: string | null;
 };
 
+export type DisplayFieldUpdate = Partial<
+  Pick<
+    ItemRecord,
+    | "display_cover_image_url"
+    | "display_product_title"
+    | "display_merchant_logo_url"
+    | "display_merchant_domain"
+    | "display_price_amount_minor"
+    | "display_currency"
+    | "display_price_text"
+    | "display_price_updated_at"
+  >
+>;
+
 export type ItemSort = "created_at.asc" | "created_at.desc";
 
 const ITEM_SELECT = [
@@ -88,6 +102,57 @@ export async function listItemsForUser(params: {
     throw new Error(`Failed to list items: ${response.status}`);
   }
   return (await response.json()) as ItemRecord[];
+}
+
+export async function getItemForUser(params: {
+  userId: string;
+  itemId: string;
+}): Promise<ItemRecord | null> {
+  const search = new URLSearchParams({
+    id: `eq.${params.itemId}`,
+    user_id: `eq.${params.userId}`,
+    select: ITEM_SELECT,
+  });
+  const response = await supabaseAdminFetch(`/rest/v1/items?${search.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch item: ${response.status}`);
+  }
+  const data = (await response.json()) as ItemRecord[];
+  return data[0] ?? null;
+}
+
+export async function updateItemDisplayFields(params: {
+  userId: string;
+  itemId: string;
+  updates: DisplayFieldUpdate;
+}): Promise<ItemRecord | null> {
+  const payload: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params.updates)) {
+    if (value !== undefined) {
+      payload[key] = value;
+    }
+  }
+  if (Object.keys(payload).length === 0) {
+    return await getItemForUser({ userId: params.userId, itemId: params.itemId });
+  }
+  payload.updated_at = new Date().toISOString();
+  const search = new URLSearchParams({
+    id: `eq.${params.itemId}`,
+    user_id: `eq.${params.userId}`,
+    select: ITEM_SELECT,
+  });
+  const response = await supabaseAdminFetch(`/rest/v1/items?${search.toString()}`, {
+    method: "PATCH",
+    headers: {
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to update item display fields: ${response.status}`);
+  }
+  const data = (await response.json()) as ItemRecord[];
+  return data[0] ?? null;
 }
 
 export async function updatePersonalNote(params: {

@@ -62,11 +62,30 @@ for it in items:
 ' "$url" <<<"$json"
 }
 
+json_find_field_by_url() {
+  local json="$1"
+  local url="$2"
+  local field="$3"
+  python -c 'import json,sys
+url=sys.argv[1]
+field=sys.argv[2]
+raw=sys.stdin.read().strip()
+items=json.loads(raw).get("items", []) if raw else []
+for it in items:
+  if it.get("url_original")==url:
+    value=it.get(field, "")
+    print("" if value is None else value)
+    break
+' "$url" "$field" <<<"$json"
+}
+
 require_env ACCESS_TOKEN
 
 BASE_URL="${BASE_URL:-http://localhost:3000}"
 BASE_URL="${BASE_URL%/}"
 ITEM_URL="${ITEM_URL:-https://example.com/p1}"
+DISPLAY_TITLE="${DISPLAY_TITLE:-Hinted Title}"
+DISPLAY_DOMAIN="${DISPLAY_DOMAIN:-example.com}"
 
 info "BASE_URL=$BASE_URL"
 info "ITEM_URL=$ITEM_URL"
@@ -75,18 +94,30 @@ info "POST /items (first submit)"
 post_json=$(curl -sS -X POST \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"url\":\"$ITEM_URL\"}" \
+  -d "{\"url\":\"$ITEM_URL\",\"display_product_title\":\"$DISPLAY_TITLE\",\"display_merchant_domain\":\"$DISPLAY_DOMAIN\"}" \
   "$BASE_URL/items")
 
 ITEM_ID_1="$(json_get "$post_json" "item.id")"
 [[ -n "$ITEM_ID_1" ]] || { echo "$post_json" >&2; fail "POST did not return item.id"; }
 pass "POST returned item.id=$ITEM_ID_1"
 
+POST_TITLE="$(json_get "$post_json" "item.display_product_title")"
+POST_DOMAIN="$(json_get "$post_json" "item.display_merchant_domain")"
+[[ "$POST_TITLE" == "$DISPLAY_TITLE" ]] || { echo "$post_json" >&2; fail "POST did not echo display_product_title"; }
+[[ "$POST_DOMAIN" == "$DISPLAY_DOMAIN" ]] || { echo "$post_json" >&2; fail "POST did not echo display_merchant_domain"; }
+pass "POST echoed display_* hints"
+
 info "GET /items after first submit"
 list_json=$(curl -sS -H "Authorization: Bearer $ACCESS_TOKEN" "$BASE_URL/items")
 count_url=$(json_count_url "$list_json" "$ITEM_URL")
 [[ "$count_url" == "1" ]] || { echo "$list_json" >&2; fail "Expected 1 item with url_original, got $count_url"; }
 pass "GET list contains 1 item for url_original"
+
+LIST_TITLE="$(json_find_field_by_url "$list_json" "$ITEM_URL" "display_product_title")"
+LIST_DOMAIN="$(json_find_field_by_url "$list_json" "$ITEM_URL" "display_merchant_domain")"
+[[ "$LIST_TITLE" == "$DISPLAY_TITLE" ]] || { echo "$list_json" >&2; fail "GET did not include display_product_title"; }
+[[ "$LIST_DOMAIN" == "$DISPLAY_DOMAIN" ]] || { echo "$list_json" >&2; fail "GET did not include display_merchant_domain"; }
+pass "GET list includes display_* fields"
 
 info "POST /items (same url, idempotent)"
 post_json_2=$(curl -sS -X POST \
