@@ -31,6 +31,7 @@ export type AppItem = {
 
 type AppClientProps = {
   items: AppItem[];
+  locale: string;
 };
 
 type ToastState = {
@@ -232,7 +233,7 @@ function OverflowMenuPopover({
   );
 }
 
-export default function AppClient({ items: initialItems }: AppClientProps) {
+export default function AppClient({ items: initialItems, locale }: AppClientProps) {
   const [items, setItems] = useState<AppItem[]>(initialItems);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -498,7 +499,7 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
 
   const hasItems = items.length > 0;
   const activeItemSourceUrl = activeItem ? getSourceUrl(activeItem) : null;
-  const activePriceText = activeItem ? getPriceText(activeItem, navigator?.language) : null;
+  const activePriceText = activeItem ? getPriceText(activeItem, locale) : null;
   const isNoteDirty =
     activeItem !== null && noteDraft !== (activeItem.personal_note ?? "");
 
@@ -607,7 +608,7 @@ export default function AppClient({ items: initialItems }: AppClientProps) {
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {sortedItems.map((item) => {
               const title = getCardTitle(item);
-              const priceText = getPriceText(item, navigator?.language);
+              const priceText = getPriceText(item, locale);
               const showPriceRow = shouldShowPriceRow(item) && priceText;
               const notePreview = getNotePreview(item);
               const logoFallback = getLogoFallbackText(item);

@@ -55,8 +55,9 @@ export function getPriceText(item: DisplayItem, locale?: string): string | null 
   const hasAmount = item.display_price_amount_minor !== null && !!item.display_currency;
   const priceText = item.display_price_text?.trim();
   if (hasAmount) {
+    const safeLocale = locale || "en";
     try {
-      const formatter = new Intl.NumberFormat(locale, {
+      const formatter = new Intl.NumberFormat(safeLocale, {
         style: "currency",
         currency: item.display_currency ?? "",
       });
