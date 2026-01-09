@@ -162,6 +162,7 @@ export type FetchResult = {
 
 export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchResult | null> {
   let currentUrl = urlValue;
+  let previousUrl: string | null = null;
   let timedOut = false;
   for (let redirectCount = 0; redirectCount <= REDIRECT_LIMIT; redirectCount += 1) {
     const url = safeParseUrl(currentUrl);
@@ -195,9 +196,9 @@ export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchRes
         // 第一次请求：模拟从 Google 搜索点击进入
         headers["Referer"] = "https://www.google.com/";
         headers["Sec-Fetch-Site"] = "cross-site";
-      } else {
+      } else if (previousUrl) {
         // 重定向后的请求：使用前一个 URL 作为 Referer
-        headers["Referer"] = currentUrl;
+        headers["Referer"] = previousUrl;
         headers["Sec-Fetch-Site"] = "same-site";
       }
 
@@ -223,6 +224,7 @@ export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchRes
       if (redirectCount >= REDIRECT_LIMIT) {
         return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
       }
+      previousUrl = currentUrl;
       const nextUrl = new URL(location, url);
       currentUrl = nextUrl.toString();
       continue;
