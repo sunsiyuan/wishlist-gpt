@@ -176,13 +176,35 @@ export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchRes
     }, FETCH_TIMEOUT_MS);
     let response: Response;
     try {
+      // 构建更真实的浏览器 headers，避免被识别为 bot
+      const headers: Record<string, string> = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+      };
+
+      // 根据是否是第一次请求设置不同的 headers
+      if (redirectCount === 0) {
+        // 第一次请求：模拟从 Google 搜索点击进入
+        headers["Referer"] = "https://www.google.com/";
+        headers["Sec-Fetch-Site"] = "cross-site";
+      } else {
+        // 重定向后的请求：使用前一个 URL 作为 Referer
+        headers["Referer"] = currentUrl;
+        headers["Sec-Fetch-Site"] = "same-site";
+      }
+
       response = await fetch(url.toString(), {
         redirect: "manual",
         signal: controller.signal,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
-        },
+        headers,
       });
     } catch (error) {
       clearTimeout(timeoutId);
