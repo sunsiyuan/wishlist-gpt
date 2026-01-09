@@ -14,7 +14,8 @@ import {
   sanitizePriceText,
 } from "./displayFields";
 
-const FETCH_TIMEOUT_MS = 1500;
+const ENRICH_DEBUG = process.env.ENRICH_DEBUG === "1";
+const FETCH_TIMEOUT_MS = Number.parseInt(process.env.ENRICH_FETCH_TIMEOUT_MS ?? "4000", 10);
 const REDIRECT_LIMIT = 3;
 const MAX_RESPONSE_BYTES = 1_000_000;
 
@@ -23,13 +24,25 @@ export function enrichItemBestEffort(params: {
   itemId: string;
   url: string;
 }): void {
+  if (ENRICH_DEBUG) {
+    console.log("[enrich] scheduled", {
+      item_id: params.itemId,
+      has_after: true,
+    });
+  }
   after(async () => {
+    if (ENRICH_DEBUG) {
+      console.log("[enrich] after_start", {
+        item_id: params.itemId,
+        step: "after_start",
+      });
+    }
     try {
       await enrichItem(params);
     } catch (error) {
       const errorName = error instanceof Error ? error.name : "UnknownError";
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.warn("Item enrichment failed", {
+      console.warn("[enrich] enrichment failed", {
         item_id: params.itemId,
         error_name: errorName,
         error_message: errorMessage,
@@ -45,21 +58,82 @@ async function enrichItem(params: {
 }): Promise<void> {
   const item = await getItemForUser({ userId: params.userId, itemId: params.itemId });
   if (!item) {
+    if (ENRICH_DEBUG) {
+      console.log("[enrich] return_item_not_found", {
+        item_id: params.itemId,
+        step: "return_item_not_found",
+      });
+    }
     return;
   }
 
-  const response = await fetchHtmlWithRedirects(params.url);
-  if (!response) {
+  const fetchResult = await fetchHtmlWithRedirects(params.url);
+  if (!fetchResult || !fetchResult.html) {
+    if (ENRICH_DEBUG) {
+      console.log("[enrich] return_fetch_failed", {
+        item_id: params.itemId,
+        step: "return_fetch_failed",
+        status: fetchResult?.status ?? null,
+        final_url: fetchResult?.finalUrl ?? null,
+        redirect_count: fetchResult?.redirectCount ?? null,
+        timed_out: fetchResult?.timedOut ?? null,
+      });
+    }
     return;
   }
 
-  const extracted = extractDisplayMetadata(response.html, response.finalUrl);
+  const extracted = extractDisplayMetadata(fetchResult.html, fetchResult.finalUrl);
   if (Object.keys(extracted).length === 0) {
+    if (ENRICH_DEBUG) {
+      console.log("[enrich] return_extracted_empty", {
+        item_id: params.itemId,
+        step: "return_extracted_empty",
+      });
+    }
     return;
   }
 
-  const updates = buildFillOnlyUpdates(item, extracted, response.finalUrl);
+  const updates = buildFillOnlyUpdates(item, extracted, fetchResult.finalUrl);
   if (Object.keys(updates).length === 0) {
+    if (ENRICH_DEBUG) {
+      const missingFields: string[] = [];
+      const extractedFields: string[] = [];
+      if (isMissingDisplayValue(item.display_product_title) && extracted.display_product_title) {
+        missingFields.push("display_product_title");
+      }
+      if (isMissingDisplayValue(item.display_cover_image_url) && extracted.display_cover_image_url) {
+        missingFields.push("display_cover_image_url");
+      }
+      if (isMissingDisplayValue(item.display_merchant_domain) && extracted.display_merchant_domain) {
+        missingFields.push("display_merchant_domain");
+      }
+      if (isMissingDisplayValue(item.display_merchant_logo_url) && extracted.display_merchant_logo_url) {
+        missingFields.push("display_merchant_logo_url");
+      }
+      if (item.display_price_amount_minor === null && extracted.display_price_amount_minor !== undefined) {
+        missingFields.push("display_price_amount_minor");
+      }
+      if (isMissingDisplayValue(item.display_currency) && extracted.display_currency) {
+        missingFields.push("display_currency");
+      }
+      if (isMissingDisplayValue(item.display_price_text) && extracted.display_price_text) {
+        missingFields.push("display_price_text");
+      }
+      if (extracted.display_product_title) extractedFields.push("display_product_title");
+      if (extracted.display_cover_image_url) extractedFields.push("display_cover_image_url");
+      if (extracted.display_merchant_domain) extractedFields.push("display_merchant_domain");
+      if (extracted.display_merchant_logo_url) extractedFields.push("display_merchant_logo_url");
+      if (extracted.display_price_amount_minor !== undefined) extractedFields.push("display_price_amount_minor");
+      if (extracted.display_currency) extractedFields.push("display_currency");
+      if (extracted.display_price_text) extractedFields.push("display_price_text");
+
+      console.log("[enrich] return_updates_empty", {
+        item_id: params.itemId,
+        step: "return_updates_empty",
+        missing_fields: missingFields,
+        extracted_fields: extractedFields,
+      });
+    }
     return;
   }
 
@@ -68,46 +142,64 @@ async function enrichItem(params: {
     itemId: params.itemId,
     updates,
   });
+
+  if (ENRICH_DEBUG) {
+    console.log("[enrich] updated", {
+      item_id: params.itemId,
+      step: "updated",
+      keys: Object.keys(updates),
+    });
+  }
 }
 
-type FetchResult = {
+export type FetchResult = {
   finalUrl: string;
   html: string;
+  status?: number;
+  redirectCount?: number;
+  timedOut?: boolean;
 };
 
-async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchResult | null> {
+export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchResult | null> {
   let currentUrl = urlValue;
+  let timedOut = false;
   for (let redirectCount = 0; redirectCount <= REDIRECT_LIMIT; redirectCount += 1) {
     const url = safeParseUrl(currentUrl);
     if (!url) {
-      return null;
+      return { finalUrl: urlValue, html: "", status: 0, redirectCount, timedOut: false };
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      timedOut = true;
+    }, FETCH_TIMEOUT_MS);
     let response: Response;
     try {
       response = await fetch(url.toString(), {
         redirect: "manual",
         signal: controller.signal,
         headers: {
-          "User-Agent": "WishlistGPT/0.4",
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
           Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
         },
       });
     } catch (error) {
       clearTimeout(timeoutId);
-      return null;
+      if (error instanceof Error && error.name === "AbortError") {
+        return { finalUrl: currentUrl, html: "", status: 0, redirectCount, timedOut: true };
+      }
+      return { finalUrl: currentUrl, html: "", status: 0, redirectCount, timedOut: false };
     }
     clearTimeout(timeoutId);
 
     if (isRedirectResponse(response)) {
       const location = response.headers.get("location");
       if (!location) {
-        return null;
+        return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
       }
       if (redirectCount >= REDIRECT_LIMIT) {
-        return null;
+        return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
       }
       const nextUrl = new URL(location, url);
       currentUrl = nextUrl.toString();
@@ -115,17 +207,17 @@ async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchResult | n
     }
 
     if (!response.ok) {
-      return null;
+      return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
     }
 
     const html = await readResponseText(response);
     if (!html) {
-      return null;
+      return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
     }
 
-    return { finalUrl: url.toString(), html };
+    return { finalUrl: url.toString(), html, status: response.status, redirectCount, timedOut: false };
   }
-  return null;
+  return { finalUrl: currentUrl, html: "", status: 0, redirectCount: REDIRECT_LIMIT + 1, timedOut: false };
 }
 
 function isRedirectResponse(response: Response): boolean {
@@ -149,37 +241,42 @@ function safeParseUrl(value: string): URL | null {
 }
 
 async function readResponseText(response: Response): Promise<string | null> {
-  if (!response.body) {
+  if (response.body) {
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value) {
+        received += value.length;
+        if (received > MAX_RESPONSE_BYTES) {
+          return null;
+        }
+        chunks.push(value);
+      }
+    }
+
+    const buffer = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+    return buffer.toString("utf-8");
+  }
+
+  // Fallback: if body is null, try text() method
+  try {
     const text = await response.text();
     if (text.length > MAX_RESPONSE_BYTES) {
       return null;
     }
     return text;
+  } catch {
+    return null;
   }
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-    if (value) {
-      received += value.length;
-      if (received > MAX_RESPONSE_BYTES) {
-        return null;
-      }
-      chunks.push(value);
-    }
-  }
-
-  const buffer = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
-  return buffer.toString("utf-8");
 }
 
-type ExtractedMetadata = {
+export type ExtractedMetadata = {
   display_cover_image_url?: string;
   display_product_title?: string;
   display_price_amount_minor?: number;
@@ -189,7 +286,7 @@ type ExtractedMetadata = {
   display_merchant_logo_url?: string;
 };
 
-function extractDisplayMetadata(html: string, finalUrl: string): ExtractedMetadata {
+export function extractDisplayMetadata(html: string, finalUrl: string): ExtractedMetadata {
   const metadata = parseMetaTags(html);
   const jsonLd = parseJsonLd(html);
 
@@ -198,9 +295,14 @@ function extractDisplayMetadata(html: string, finalUrl: string): ExtractedMetada
   const titleTag = sanitizeDisplayTitle(extractTitleTag(html));
   const displayTitle = ogTitle ?? jsonLdTitle ?? titleTag ?? undefined;
 
-  const ogImage = metadata["og:image"] ?? metadata["twitter:image"];
+  // Priority: og:image:secure_url > og:image > twitter:image > twitter:image:src > jsonLd.image
+  const ogImageSecure = metadata["og:image:secure_url"];
+  const ogImage = metadata["og:image"];
+  const twitterImage = metadata["twitter:image"];
+  const twitterImageSrc = metadata["twitter:image:src"];
   const jsonLdImage = jsonLd?.image ?? undefined;
-  const displayImage = resolveImageUrl(ogImage ?? jsonLdImage ?? undefined, finalUrl);
+  const imageCandidate = ogImageSecure ?? ogImage ?? twitterImage ?? twitterImageSrc ?? jsonLdImage;
+  const displayImage = resolveImageUrl(imageCandidate ?? undefined, finalUrl);
 
   const priceAmountMinor = sanitizePriceAmountMinor(jsonLd?.priceAmountMinor ?? null);
   const priceCurrency = sanitizeCurrency(jsonLd?.priceCurrency ?? null);
@@ -416,7 +518,7 @@ function extractJsonLdPrice(value: unknown): ExtractedPrice {
   };
 }
 
-function buildFillOnlyUpdates(
+export function buildFillOnlyUpdates(
   item: ItemRecord,
   extracted: ExtractedMetadata,
   finalUrl: string,
