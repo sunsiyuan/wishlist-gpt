@@ -34,6 +34,10 @@ validate_openapi_file() {
   if ! grep -q "/items" "$file"; then
     fail "$label missing /items; check build/deploy"
   fi
+
+  if ! grep -q "/feedback" "$file"; then
+    fail "$label missing /feedback; check build/deploy"
+  fi
 }
 
 info "Fetching $BASE_URL/openapi.yaml"

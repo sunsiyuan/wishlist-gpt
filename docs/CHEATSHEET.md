@@ -55,6 +55,34 @@ EN:
 - Share button opens the Share Sheet (copy link, system Share when available, revoke/regenerate).
 - v0.3 is light-theme only.
 
+### 1.2.6 v0.5 反馈入口 / Feedback entrypoints (v0.5)
+
+CN：
+- `/app` 打开 Cheatsheet → `Send feedback` 弹层 → 提交成功 toast “Thanks — received.”
+- `/s/<share_id>` 底部 `Feedback` 按钮：
+  - 已登录：打开反馈弹层。
+  - 未登录：跳转 `/login?next=/s/<share_id>?intent=feedback`，登录后自动打开弹层。
+- DB 验证：Supabase Table Editor 查看 `feedback` 表，或 SQL：
+  ```sql
+  select * from feedback where user_id = '<me>' order by created_at desc limit 5;
+  ```
+- 速验：
+  - 连续提交两次，第二次返回 429（1 分钟内限流）。
+  - message > 1000 字符返回 400。
+
+EN:
+- `/app` → Cheatsheet → `Send feedback` modal → success toast “Thanks — received.”
+- `/s/<share_id>` footer `Feedback` button:
+  - Logged in: opens modal.
+  - Logged out: redirects to `/login?next=/s/<share_id>?intent=feedback`, auto-opens after login.
+- DB check: use Supabase Table Editor for `feedback`, or SQL:
+  ```sql
+  select * from feedback where user_id = '<me>' order by created_at desc limit 5;
+  ```
+- Quick checks:
+  - Submit twice quickly; second returns 429 (1/min rate limit).
+  - message > 1000 chars returns 400.
+
 ### 1.2.1 Google OAuth (Supabase) setup checklist
 
 CN：
@@ -120,6 +148,7 @@ npm run gen:openapi
 npm run smoke:oauth
 npm run smoke:items
 npm run smoke:shares
+npm run smoke:feedback
 ```
 
 ### 1.5 Shares（cookie session）/ Shares (cookie session)
