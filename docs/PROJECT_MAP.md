@@ -29,6 +29,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Shares migration: `supabase/migrations/004_shares.sql`
 - Events migration: `supabase/migrations/005_events.sql`
 - Items v0.3 migration: `supabase/migrations/006_items_v03.sql`
+- Item enrich runs migration: `supabase/migrations/007_item_enrich_runs.sql`
 - Tracking helpers / 埋点 helpers: `src/server/tracking/`
 - OpenAPI 模板与生成 / template & generator:
   - `actions/openapi.template.yaml`
@@ -104,7 +105,9 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
    ├─ 002_items.sql                    # items
    ├─ 003_rls.sql                      # RLS policies
    ├─ 004_shares.sql                   # shares
-   └─ 005_events.sql                   # events
+   ├─ 005_events.sql                   # events
+   ├─ 006_items_v03.sql                # items v0.3
+   └─ 007_item_enrich_runs.sql         # item_enrich_runs
 ````
 
 ---

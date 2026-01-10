@@ -261,3 +261,81 @@ export async function restoreItem(params: {
   }
   return await getItemStatus({ userId: params.userId, itemId: params.itemId });
 }
+
+/**
+ * Safely serialize JSON for database storage, truncating if too large.
+ * @param value Value to serialize
+ * @param options Options including maxBytes (default 65536 = 64KB)
+ * @returns Serialized object safe for DB storage
+ */
+export function safeJsonForDb(
+  value: unknown,
+  options: { maxBytes?: number } = {},
+): unknown {
+  const maxBytes = options.maxBytes ?? 65536;
+  try {
+    const serialized = JSON.stringify(value);
+    const sizeBytes = Buffer.byteLength(serialized, "utf8");
+    if (sizeBytes <= maxBytes) {
+      return value;
+    }
+    // Truncate: store preview of first ~1000 chars
+    const preview = serialized.substring(0, 1000);
+    return {
+      truncated: true,
+      approx_bytes: sizeBytes,
+      preview,
+      note: "too_large",
+    };
+  } catch (error) {
+    return {
+      error: "json_serialize_failed",
+      message: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Insert an item enrich run log (best effort, errors are swallowed).
+ */
+export async function insertItemEnrichRun(params: {
+  userId: string;
+  itemId: string;
+  sourceUrl: string;
+  attempts: unknown;
+  finalApplied: boolean;
+  finalUpdates: unknown;
+}): Promise<void> {
+  try {
+    const attemptsSafe = safeJsonForDb(params.attempts);
+    const finalUpdatesSafe = safeJsonForDb(params.finalUpdates);
+
+    const response = await supabaseAdminFetch("/rest/v1/item_enrich_runs", {
+      method: "POST",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        user_id: params.userId,
+        item_id: params.itemId,
+        source_url: params.sourceUrl,
+        final_applied: params.finalApplied,
+        final_updates: finalUpdatesSafe,
+        attempts: attemptsSafe,
+      }),
+    });
+    if (!response.ok) {
+      // Silently fail - this is best effort
+      console.warn("[enrich] Failed to log enrich run", {
+        item_id: params.itemId,
+        status: response.status,
+      });
+    }
+  } catch (error) {
+    // Silently fail - this is best effort
+    console.warn("[enrich] Error logging enrich run", {
+      item_id: params.itemId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}

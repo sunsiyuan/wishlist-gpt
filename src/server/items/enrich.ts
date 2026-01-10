@@ -2,7 +2,12 @@ import "server-only";
 
 import { after } from "next/server";
 import type { DisplayFieldUpdate, ItemRecord } from "./store";
-import { getItemForUser, updateItemDisplayFields } from "./store";
+import {
+  getItemForUser,
+  updateItemDisplayFields,
+  insertItemEnrichRun,
+  safeJsonForDb,
+} from "./store";
 import {
   buildFaviconUrl,
   deriveMerchantDomainFromUrl,
@@ -14,22 +19,72 @@ import {
   sanitizePriceText,
 } from "./displayFields";
 
-const FETCH_TIMEOUT_MS = 1500;
+const ENRICH_DEBUG = process.env.ENRICH_DEBUG === "1";
+const FETCH_TIMEOUT_MS = Number.parseInt(process.env.ENRICH_FETCH_TIMEOUT_MS ?? "4000", 10);
+const OPENGRAPH_IO_TIMEOUT_MS = 2000;
 const REDIRECT_LIMIT = 3;
 const MAX_RESPONSE_BYTES = 1_000_000;
+const OPENGRAPH_IO_APP_ID = process.env.OPENGRAPH_IO_APP_ID;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+// Get Accept-Language header value (future: read from user.preferred_language)
+function getAcceptLanguage(): string {
+  // For now, default to en-US,en;q=0.9
+  // TODO: Replace with user.preferred_language when available
+  return "en-US,en;q=0.9";
+}
+
+// Enrich attempt type for logging
+export type EnrichAttempt = {
+  strategy: "gpts_input" | "shopify_js" | "html" | "opengraph_io";
+  started_at: string;
+  duration_ms: number;
+  request?: {
+    url?: string;
+    headers?: Record<string, string>;
+    source?: string;
+    path?: string;
+  };
+  fetch?: {
+    ok: boolean;
+    status?: number;
+    redirects?: number;
+    timed_out?: boolean;
+    final_url?: string;
+  };
+  details?: Record<string, unknown>;
+  raw?: unknown;
+  computed_updates?: DisplayFieldUpdate;
+  error?: string;
+};
 
 export function enrichItemBestEffort(params: {
   userId: string;
   itemId: string;
   url: string;
 }): void {
+  if (ENRICH_DEBUG) {
+    console.log("[enrich] scheduled", {
+      item_id: params.itemId,
+      has_after: true,
+    });
+  }
   after(async () => {
+    if (ENRICH_DEBUG) {
+      console.log("[enrich] after_start", {
+        item_id: params.itemId,
+        step: "after_start",
+      });
+    }
     try {
       await enrichItem(params);
     } catch (error) {
       const errorName = error instanceof Error ? error.name : "UnknownError";
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.warn("Item enrichment failed", {
+      console.warn("[enrich] enrichment failed", {
         item_id: params.itemId,
         error_name: errorName,
         error_message: errorMessage,
@@ -45,87 +100,342 @@ async function enrichItem(params: {
 }): Promise<void> {
   const item = await getItemForUser({ userId: params.userId, itemId: params.itemId });
   if (!item) {
+    if (ENRICH_DEBUG) {
+      console.log("[enrich] return_item_not_found", {
+        item_id: params.itemId,
+        step: "return_item_not_found",
+      });
+    }
     return;
   }
 
-  const response = await fetchHtmlWithRedirects(params.url);
-  if (!response) {
-    return;
+  const attempts: EnrichAttempt[] = [];
+  // Working item view: start from DB item, apply updates in memory after each attempt
+  let workingItem = { ...item };
+
+  // Attempt 1: Shopify Product JS
+  const shopifyInfo = isProbablyShopifyProductUrl(params.url);
+  if (shopifyInfo) {
+    const startedAt = new Date().toISOString();
+    const attempt: EnrichAttempt = {
+      strategy: "shopify_js",
+      started_at: startedAt,
+      duration_ms: 0,
+      request: {
+        url: `${shopifyInfo.origin}${shopifyInfo.localePrefix ? `/${shopifyInfo.localePrefix}` : ""}/products/${shopifyInfo.handle}.js`,
+      },
+    };
+
+    try {
+      const fetchResult = await fetchShopifyProductJs(
+        shopifyInfo.origin,
+        shopifyInfo.localePrefix,
+        shopifyInfo.handle,
+      );
+      const duration = Date.now() - new Date(startedAt).getTime();
+      attempt.duration_ms = duration;
+
+      if (fetchResult) {
+        attempt.fetch = {
+          ok: true,
+          final_url: fetchResult.finalUrl,
+        };
+        const extracted = extractFromShopifyProductJs(fetchResult.json, fetchResult.finalUrl);
+        attempt.details = extracted.details;
+        attempt.raw = extracted.raw;
+
+        const updates = buildFillOnlyUpdates(workingItem, extracted.extractedFields, fetchResult.finalUrl);
+        attempt.computed_updates = updates;
+        if (Object.keys(updates).length > 0) {
+          // Apply to working item
+          Object.assign(workingItem, updates);
+        }
+      } else {
+        attempt.fetch = { ok: false };
+        attempt.error = "fetch_failed_or_not_found";
+      }
+    } catch (error) {
+      const duration = Date.now() - new Date(startedAt).getTime();
+      attempt.duration_ms = duration;
+      attempt.error = error instanceof Error ? error.message : "Unknown error";
+    }
+
+    attempts.push(attempt);
   }
 
-  const extracted = extractDisplayMetadata(response.html, response.finalUrl);
-  if (Object.keys(extracted).length === 0) {
-    return;
+  // Attempt 2: HTML (always try)
+  const htmlStartedAt = new Date().toISOString();
+  const htmlAttempt: EnrichAttempt = {
+    strategy: "html",
+    started_at: htmlStartedAt,
+    duration_ms: 0,
+    request: {
+      url: params.url,
+      headers: {
+        "Accept-Language": getAcceptLanguage(),
+      },
+    },
+  };
+
+  try {
+    const fetchResult = await fetchHtmlWithRedirects(params.url);
+    const duration = Date.now() - new Date(htmlStartedAt).getTime();
+    htmlAttempt.duration_ms = duration;
+
+    if (fetchResult && fetchResult.html) {
+      htmlAttempt.fetch = {
+        ok: true,
+        status: fetchResult.status,
+        redirects: fetchResult.redirectCount,
+        timed_out: fetchResult.timedOut ?? false,
+        final_url: fetchResult.finalUrl,
+      };
+
+      const extracted = extractDisplayMetadata(fetchResult.html, fetchResult.finalUrl);
+      htmlAttempt.details = extracted.details;
+      // Do not store raw HTML, only parsed structures
+
+      const updates = buildFillOnlyUpdates(workingItem, extracted.extractedFields, fetchResult.finalUrl);
+      htmlAttempt.computed_updates = updates;
+      if (Object.keys(updates).length > 0) {
+        Object.assign(workingItem, updates);
+      }
+    } else {
+      htmlAttempt.fetch = {
+        ok: false,
+        status: fetchResult?.status ?? undefined,
+        redirects: fetchResult?.redirectCount ?? undefined,
+        timed_out: fetchResult?.timedOut ?? false,
+        final_url: fetchResult?.finalUrl ?? params.url,
+      };
+      htmlAttempt.error = "fetch_failed";
+    }
+  } catch (error) {
+    const duration = Date.now() - new Date(htmlStartedAt).getTime();
+    htmlAttempt.duration_ms = duration;
+    htmlAttempt.error = error instanceof Error ? error.message : "Unknown error";
   }
 
-  const updates = buildFillOnlyUpdates(item, extracted, response.finalUrl);
-  if (Object.keys(updates).length === 0) {
-    return;
+  attempts.push(htmlAttempt);
+
+  // Determine if both attempts failed
+  // Shopify failed if: not a shopify URL, fetch failed, or extracted no useful fields
+  const shopifyAttempt = attempts.find((a) => a.strategy === "shopify_js");
+  const shopifyExtracted = shopifyAttempt?.details?.shopify;
+  const shopifyExtractedRecord = isRecord(shopifyExtracted) ? shopifyExtracted : null;
+  const hasShopifyUsefulFields =
+    shopifyExtractedRecord !== null &&
+    (shopifyExtractedRecord.title ||
+      shopifyExtractedRecord.image ||
+      shopifyExtractedRecord.variants_sample);
+  const shopifyFailed =
+    !shopifyInfo ||
+    shopifyAttempt?.error !== undefined ||
+    !shopifyAttempt?.fetch?.ok ||
+    !hasShopifyUsefulFields;
+
+  // HTML failed if: fetch not ok OR extracted no fields
+  const htmlExtracted = htmlAttempt.details;
+  const hasHtmlUsefulFields = htmlExtracted && Object.keys(htmlExtracted).length > 0;
+  const htmlFailed = htmlAttempt.error !== undefined || !htmlAttempt.fetch?.ok || !hasHtmlUsefulFields;
+
+  // Attempt 3: opengraph.io (only if both failed)
+  if (shopifyFailed && htmlFailed && OPENGRAPH_IO_APP_ID) {
+    const ogStartedAt = new Date().toISOString();
+    const ogAttempt: EnrichAttempt = {
+      strategy: "opengraph_io",
+      started_at: ogStartedAt,
+      duration_ms: 0,
+      request: {
+        url: params.url,
+      },
+    };
+
+    try {
+      const fetchResult = await fetchOpenGraphIo(params.url);
+      const duration = Date.now() - new Date(ogStartedAt).getTime();
+      ogAttempt.duration_ms = duration;
+
+      if (fetchResult) {
+        ogAttempt.fetch = { ok: true };
+        const extracted = extractFromOpenGraphIo(fetchResult.json, params.url);
+        ogAttempt.details = extracted.details;
+        ogAttempt.raw = extracted.raw;
+
+        const updates = buildFillOnlyUpdates(workingItem, extracted.extractedFields, params.url);
+        ogAttempt.computed_updates = updates;
+        if (Object.keys(updates).length > 0) {
+          Object.assign(workingItem, updates);
+        }
+      } else {
+        ogAttempt.fetch = { ok: false };
+        ogAttempt.error = "fetch_failed";
+      }
+    } catch (error) {
+      const duration = Date.now() - new Date(ogStartedAt).getTime();
+      ogAttempt.duration_ms = duration;
+      ogAttempt.error = error instanceof Error ? error.message : "Unknown error";
+    }
+
+    attempts.push(ogAttempt);
   }
 
-  await updateItemDisplayFields({
+  // Compute final updates (delta from original item to working item)
+  const finalUpdates: DisplayFieldUpdate = {};
+  if (workingItem.display_product_title !== item.display_product_title) {
+    finalUpdates.display_product_title = workingItem.display_product_title;
+  }
+  if (workingItem.display_cover_image_url !== item.display_cover_image_url) {
+    finalUpdates.display_cover_image_url = workingItem.display_cover_image_url;
+  }
+  if (workingItem.display_merchant_domain !== item.display_merchant_domain) {
+    finalUpdates.display_merchant_domain = workingItem.display_merchant_domain;
+  }
+  if (workingItem.display_merchant_logo_url !== item.display_merchant_logo_url) {
+    finalUpdates.display_merchant_logo_url = workingItem.display_merchant_logo_url;
+  }
+  if (workingItem.display_price_amount_minor !== item.display_price_amount_minor) {
+    finalUpdates.display_price_amount_minor = workingItem.display_price_amount_minor;
+  }
+  if (workingItem.display_currency !== item.display_currency) {
+    finalUpdates.display_currency = workingItem.display_currency;
+  }
+  if (workingItem.display_price_text !== item.display_price_text) {
+    finalUpdates.display_price_text = workingItem.display_price_text;
+  }
+  if (workingItem.display_price_updated_at !== item.display_price_updated_at) {
+    finalUpdates.display_price_updated_at = workingItem.display_price_updated_at;
+  }
+
+  // Apply updates if any
+  let finalApplied = false;
+  if (Object.keys(finalUpdates).length > 0) {
+    try {
+      await updateItemDisplayFields({
+        userId: params.userId,
+        itemId: params.itemId,
+        updates: finalUpdates,
+      });
+      finalApplied = true;
+
+      if (ENRICH_DEBUG) {
+        console.log("[enrich] updated", {
+          item_id: params.itemId,
+          step: "updated",
+          keys: Object.keys(finalUpdates),
+        });
+      }
+    } catch (error) {
+      if (ENRICH_DEBUG) {
+        console.warn("[enrich] update failed", {
+          item_id: params.itemId,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+  }
+
+  // Log enrich run (best effort, errors swallowed in insertItemEnrichRun)
+  await insertItemEnrichRun({
     userId: params.userId,
     itemId: params.itemId,
-    updates,
+    sourceUrl: params.url,
+    attempts,
+    finalApplied,
+    finalUpdates,
   });
 }
 
-type FetchResult = {
+export type FetchResult = {
   finalUrl: string;
   html: string;
+  status?: number;
+  redirectCount?: number;
+  timedOut?: boolean;
 };
 
-async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchResult | null> {
+export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchResult | null> {
   let currentUrl = urlValue;
+  let previousUrl: string | null = null;
+  let timedOut = false;
   for (let redirectCount = 0; redirectCount <= REDIRECT_LIMIT; redirectCount += 1) {
     const url = safeParseUrl(currentUrl);
     if (!url) {
-      return null;
+      return { finalUrl: urlValue, html: "", status: 0, redirectCount, timedOut: false };
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      timedOut = true;
+    }, FETCH_TIMEOUT_MS);
     let response: Response;
     try {
+      // 构建更真实的浏览器 headers，避免被识别为 bot
+      const headers: Record<string, string> = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": getAcceptLanguage(),
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+      };
+
+      // 根据是否是第一次请求设置不同的 headers
+      if (redirectCount === 0) {
+        // 第一次请求：模拟从 Google 搜索点击进入
+        headers["Referer"] = "https://www.google.com/";
+        headers["Sec-Fetch-Site"] = "cross-site";
+      } else if (previousUrl) {
+        // 重定向后的请求：使用前一个 URL 作为 Referer
+        headers["Referer"] = previousUrl;
+        headers["Sec-Fetch-Site"] = "same-site";
+      }
+
       response = await fetch(url.toString(), {
         redirect: "manual",
         signal: controller.signal,
-        headers: {
-          "User-Agent": "WishlistGPT/0.4",
-          Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
-        },
+        headers,
       });
     } catch (error) {
       clearTimeout(timeoutId);
-      return null;
+      if (error instanceof Error && error.name === "AbortError") {
+        return { finalUrl: currentUrl, html: "", status: 0, redirectCount, timedOut: true };
+      }
+      return { finalUrl: currentUrl, html: "", status: 0, redirectCount, timedOut: false };
     }
     clearTimeout(timeoutId);
 
     if (isRedirectResponse(response)) {
       const location = response.headers.get("location");
       if (!location) {
-        return null;
+        return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
       }
       if (redirectCount >= REDIRECT_LIMIT) {
-        return null;
+        return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
       }
+      previousUrl = currentUrl;
       const nextUrl = new URL(location, url);
       currentUrl = nextUrl.toString();
       continue;
     }
 
     if (!response.ok) {
-      return null;
+      return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
     }
 
     const html = await readResponseText(response);
     if (!html) {
-      return null;
+      return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
     }
 
-    return { finalUrl: url.toString(), html };
+    return { finalUrl: url.toString(), html, status: response.status, redirectCount, timedOut: false };
   }
-  return null;
+  return { finalUrl: currentUrl, html: "", status: 0, redirectCount: REDIRECT_LIMIT + 1, timedOut: false };
 }
 
 function isRedirectResponse(response: Response): boolean {
@@ -148,38 +458,256 @@ function safeParseUrl(value: string): URL | null {
   return url;
 }
 
+// Shopify Product JS detection and fetching
+function isProbablyShopifyProductUrl(url: string): {
+  origin: string;
+  localePrefix: string | null;
+  handle: string;
+} | null {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+
+    // Match patterns like:
+    // /products/<handle>
+    // /en-sg/products/<handle>
+    // /en/products/<handle>
+    const shopifyPattern = /^\/([a-z]{2}(-[a-z]{2})?\/)?products\/([^\/]+)(\/.*)?$/i;
+    const match = pathname.match(shopifyPattern);
+    if (!match) {
+      return null;
+    }
+
+    const localePrefix = match[1] ? match[1].replace(/\/$/, "") : null;
+    const handle = match[3];
+
+    return {
+      origin: `${urlObj.protocol}//${urlObj.host}`,
+      localePrefix,
+      handle,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchShopifyProductJs(
+  origin: string,
+  localePrefix: string | null,
+  handle: string,
+): Promise<{ finalUrl: string; json: unknown } | null> {
+  const endpoints = [
+    localePrefix ? `${origin}/${localePrefix}/products/${handle}.js` : null,
+    `${origin}/products/${handle}.js`,
+  ].filter(Boolean) as string[];
+
+  for (const endpoint of endpoints) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(endpoint, {
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          Accept: "application/json,text/plain,*/*",
+          "User-Agent": "WishlistGPT/0.4",
+        },
+      });
+      clearTimeout(timeoutId);
+
+      if (isRedirectResponse(response)) {
+        const location = response.headers.get("location");
+        if (location) {
+          const nextUrl = new URL(location, endpoint);
+          // Try redirect URL once
+          const redirectResponse = await fetch(nextUrl.toString(), {
+            redirect: "manual",
+            headers: {
+              Accept: "application/json,text/plain,*/*",
+              "User-Agent": "WishlistGPT/0.4",
+            },
+          });
+          if (redirectResponse.ok) {
+            const json = await redirectResponse.json();
+            return { finalUrl: nextUrl.toString(), json };
+          }
+        }
+        continue;
+      }
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const json = await response.json();
+      return { finalUrl: endpoint, json };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === "AbortError") {
+        continue;
+      }
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function extractFromShopifyProductJs(
+  json: unknown,
+  finalUrl: string,
+): {
+  extractedFields: ExtractedMetadata;
+  details: Record<string, unknown>;
+  raw: unknown;
+} {
+  const extractedFields: ExtractedMetadata = {};
+  const details: Record<string, unknown> = {};
+
+  if (!isRecord(json)) {
+    return { extractedFields, details, raw: json };
+  }
+
+  const product = json;
+  const shopifyDetails: Record<string, unknown> = {};
+
+  // Extract title
+  if (typeof product.title === "string") {
+    const title = sanitizeDisplayTitle(product.title);
+    if (title) {
+      extractedFields.display_product_title = title;
+      shopifyDetails.title = product.title;
+    }
+  }
+
+  // Extract image
+  if (isRecord(product.image)) {
+    const image = product.image;
+    if (typeof image.src === "string") {
+      const imageUrl = resolveImageUrl(image.src, finalUrl);
+      if (imageUrl) {
+        extractedFields.display_cover_image_url = imageUrl;
+        shopifyDetails.image = image.src;
+      }
+    }
+  } else if (Array.isArray(product.images) && product.images.length > 0) {
+    const firstImage = product.images[0];
+    if (isRecord(firstImage)) {
+      const image = firstImage;
+      if (typeof image.src === "string") {
+        const imageUrl = resolveImageUrl(image.src, finalUrl);
+        if (imageUrl) {
+          extractedFields.display_cover_image_url = imageUrl;
+          shopifyDetails.image = image.src;
+        }
+      }
+    } else if (typeof firstImage === "string") {
+      const imageUrl = resolveImageUrl(firstImage, finalUrl);
+      if (imageUrl) {
+        extractedFields.display_cover_image_url = imageUrl;
+        shopifyDetails.image = firstImage;
+      }
+    }
+  }
+
+  // Extract price from first variant
+  if (Array.isArray(product.variants) && product.variants.length > 0) {
+    const firstVariant = product.variants[0];
+    if (isRecord(firstVariant)) {
+      shopifyDetails.variants_sample = [
+        {
+          id: firstVariant.id,
+          price: firstVariant.price,
+          available: firstVariant.available,
+        },
+      ];
+
+      if (typeof firstVariant.price === "string") {
+        const priceFloat = parseFloat(firstVariant.price);
+        if (Number.isFinite(priceFloat)) {
+          extractedFields.display_price_amount_minor = Math.round(priceFloat * 100);
+        } else {
+          const priceText = sanitizePriceText(firstVariant.price);
+          if (priceText) {
+            extractedFields.display_price_text = priceText;
+          }
+        }
+      }
+
+      if (typeof firstVariant.price_currency === "string") {
+        const currency = sanitizeCurrency(firstVariant.price_currency);
+        if (currency) {
+          extractedFields.display_currency = currency;
+        }
+      }
+    }
+  }
+
+  // Extract merchant domain
+  const domain = deriveMerchantDomainFromUrl(finalUrl);
+  if (domain) {
+    extractedFields.display_merchant_domain = domain;
+  }
+
+  shopifyDetails.id = product.id;
+  shopifyDetails.handle = product.handle;
+  if (Array.isArray(product.images)) {
+    shopifyDetails.images_sample = product.images
+      .slice(0, 3)
+      .map((img: unknown) => {
+        if (typeof img === "string") return img;
+        if (isRecord(img)) {
+          return img.src ?? img;
+        }
+        return img;
+      });
+  }
+
+  details.shopify = shopifyDetails;
+
+  // Cap raw JSON for DB storage
+  const raw = safeJsonForDb(product);
+
+  return { extractedFields, details, raw };
+}
+
 async function readResponseText(response: Response): Promise<string | null> {
-  if (!response.body) {
+  if (response.body) {
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value) {
+        received += value.length;
+        if (received > MAX_RESPONSE_BYTES) {
+          return null;
+        }
+        chunks.push(value);
+      }
+    }
+
+    const buffer = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+    return buffer.toString("utf-8");
+  }
+
+  // Fallback: if body is null, try text() method
+  try {
     const text = await response.text();
     if (text.length > MAX_RESPONSE_BYTES) {
       return null;
     }
     return text;
+  } catch {
+    return null;
   }
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-    if (value) {
-      received += value.length;
-      if (received > MAX_RESPONSE_BYTES) {
-        return null;
-      }
-      chunks.push(value);
-    }
-  }
-
-  const buffer = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
-  return buffer.toString("utf-8");
 }
 
-type ExtractedMetadata = {
+export type ExtractedMetadata = {
   display_cover_image_url?: string;
   display_product_title?: string;
   display_price_amount_minor?: number;
@@ -189,46 +717,102 @@ type ExtractedMetadata = {
   display_merchant_logo_url?: string;
 };
 
-function extractDisplayMetadata(html: string, finalUrl: string): ExtractedMetadata {
+export function extractDisplayMetadata(
+  html: string,
+  finalUrl: string,
+): {
+  extractedFields: ExtractedMetadata;
+  details: Record<string, unknown>;
+} {
   const metadata = parseMetaTags(html);
   const jsonLd = parseJsonLd(html);
+  const icons = parseIconLinks(html, finalUrl);
 
+  // Group metadata for details
+  const og: Record<string, string> = {};
+  const twitter: Record<string, string> = {};
+  const meta: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(metadata)) {
+    if (key.startsWith("og:")) {
+      og[key] = value;
+    } else if (key.startsWith("twitter:")) {
+      twitter[key] = value;
+    } else {
+      meta[key] = value;
+    }
+  }
+
+  const titleTag = extractTitleTag(html);
+  if (titleTag) {
+    meta.title_tag = titleTag;
+  }
+
+  const canonical = extractCanonicalUrl(html);
+  if (canonical) {
+    meta.canonical = canonical;
+  }
+
+  if (metadata.description) {
+    meta.description = metadata.description;
+  }
+
+  const extractedFields: ExtractedMetadata = {};
+
+  // Extract title
   const ogTitle = sanitizeDisplayTitle(metadata["og:title"] ?? metadata["twitter:title"]);
-  const jsonLdTitle = sanitizeDisplayTitle(jsonLd?.name ?? undefined);
-  const titleTag = sanitizeDisplayTitle(extractTitleTag(html));
-  const displayTitle = ogTitle ?? jsonLdTitle ?? titleTag ?? undefined;
-
-  const ogImage = metadata["og:image"] ?? metadata["twitter:image"];
-  const jsonLdImage = jsonLd?.image ?? undefined;
-  const displayImage = resolveImageUrl(ogImage ?? jsonLdImage ?? undefined, finalUrl);
-
-  const priceAmountMinor = sanitizePriceAmountMinor(jsonLd?.priceAmountMinor ?? null);
-  const priceCurrency = sanitizeCurrency(jsonLd?.priceCurrency ?? null);
-  const priceText = sanitizePriceText(jsonLd?.priceText ?? null);
-
-  const domain = deriveMerchantDomainFromUrl(finalUrl) ?? undefined;
-
-  const updates: ExtractedMetadata = {};
+  const jsonLdTitle = sanitizeDisplayTitle(jsonLd.product?.name ?? undefined);
+  const displayTitle = ogTitle ?? jsonLdTitle ?? sanitizeDisplayTitle(titleTag ?? undefined);
   if (displayTitle) {
-    updates.display_product_title = displayTitle;
+    extractedFields.display_product_title = displayTitle;
   }
+
+  // Extract image (Priority: og:image:secure_url > og:image > twitter:image > twitter:image:src > jsonLd.image)
+  const ogImageSecure = metadata["og:image:secure_url"];
+  const ogImage = metadata["og:image"];
+  const twitterImage = metadata["twitter:image"];
+  const twitterImageSrc = metadata["twitter:image:src"];
+  const jsonLdImage = jsonLd.product?.image ?? undefined;
+  const imageCandidate = ogImageSecure ?? ogImage ?? twitterImage ?? twitterImageSrc ?? jsonLdImage;
+  const displayImage = resolveImageUrl(imageCandidate ?? undefined, finalUrl);
   if (displayImage) {
-    updates.display_cover_image_url = displayImage;
+    extractedFields.display_cover_image_url = displayImage;
   }
+
+  // Extract price from JSON-LD
+  const priceAmountMinor = sanitizePriceAmountMinor(jsonLd.product?.priceAmountMinor ?? null);
+  const priceCurrency = sanitizeCurrency(jsonLd.product?.priceCurrency ?? null);
+  const priceText = sanitizePriceText(jsonLd.product?.priceText ?? null);
   if (priceAmountMinor !== null) {
-    updates.display_price_amount_minor = priceAmountMinor;
+    extractedFields.display_price_amount_minor = priceAmountMinor;
   }
   if (priceCurrency) {
-    updates.display_currency = priceCurrency;
+    extractedFields.display_currency = priceCurrency;
   }
   if (priceText) {
-    updates.display_price_text = priceText;
+    extractedFields.display_price_text = priceText;
   }
+
+  // Extract domain
+  const domain = deriveMerchantDomainFromUrl(finalUrl) ?? undefined;
   if (domain) {
-    updates.display_merchant_domain = domain;
-    updates.display_merchant_logo_url = buildFaviconUrl(domain);
+    extractedFields.display_merchant_domain = domain;
   }
-  return updates;
+
+  // Extract icon (best icon from HTML, no fallback here)
+  if (icons.bestIconUrl) {
+    extractedFields.display_merchant_logo_url = icons.bestIconUrl;
+  }
+
+  const details: Record<string, unknown> = {
+    og,
+    twitter,
+    meta,
+    json_ld: jsonLd.all,
+    icons: icons.candidates,
+  };
+
+  return { extractedFields, details };
 }
 
 function resolveImageUrl(value: string | undefined, baseUrl: string): string | null {
@@ -279,6 +863,92 @@ function extractTitleTag(html: string): string | null {
   return match[1].replace(/\s+/g, " ").trim();
 }
 
+function extractCanonicalUrl(html: string): string | null {
+  const match = /<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["']/i.exec(html);
+  if (!match) {
+    return null;
+  }
+  return match[1].trim();
+}
+
+type IconCandidate = {
+  rel: string;
+  href: string;
+  sizes?: string;
+};
+
+function parseIconLinks(html: string, baseUrl: string): {
+  candidates: IconCandidate[];
+  bestIconUrl: string | null;
+} {
+  const candidates: IconCandidate[] = [];
+  const linkRegex = /<link[^>]*>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkRegex.exec(html))) {
+    const tag = match[0];
+    const relMatch = /rel=["']([^"']+)["']/i.exec(tag);
+    const hrefMatch = /href=["']([^"']+)["']/i.exec(tag);
+    const sizesMatch = /sizes=["']([^"']+)["']/i.exec(tag);
+
+    if (!relMatch || !hrefMatch) continue;
+
+    const rel = relMatch[1].toLowerCase();
+    const href = hrefMatch[1];
+
+    if (
+      rel.includes("apple-touch-icon") ||
+      rel === "icon" ||
+      rel === "shortcut icon"
+    ) {
+      let resolved: string;
+      try {
+        resolved = new URL(href, baseUrl).toString();
+      } catch {
+        continue;
+      }
+
+      const sanitized = sanitizeDisplayUrl(resolved);
+      if (!sanitized) continue;
+
+      candidates.push({
+        rel,
+        href: sanitized,
+        sizes: sizesMatch ? sizesMatch[1] : undefined,
+      });
+    }
+  }
+
+  // Priority: apple-touch-icon > icon (prefer larger sizes) > shortcut icon
+  let bestIconUrl: string | null = null;
+
+  // First try apple-touch-icon
+  const appleTouchIcon = candidates.find((c) => c.rel.includes("apple-touch-icon"));
+  if (appleTouchIcon) {
+    bestIconUrl = appleTouchIcon.href;
+  } else {
+    // Then try regular icon, prefer larger sizes
+    const icons = candidates.filter((c) => c.rel === "icon");
+    if (icons.length > 0) {
+      // Sort by size (extract number from sizes like "32x32" or "192x192")
+      icons.sort((a, b) => {
+        const aSize = a.sizes ? parseInt(a.sizes.match(/(\d+)/)?.[1] ?? "0", 10) : 0;
+        const bSize = b.sizes ? parseInt(b.sizes.match(/(\d+)/)?.[1] ?? "0", 10) : 0;
+        return bSize - aSize;
+      });
+      bestIconUrl = icons[0].href;
+    } else {
+      // Fallback to shortcut icon
+      const shortcutIcon = candidates.find((c) => c.rel === "shortcut icon");
+      if (shortcutIcon) {
+        bestIconUrl = shortcutIcon.href;
+      }
+    }
+  }
+
+  return { candidates, bestIconUrl };
+}
+
 type JsonLdProduct = {
   name?: string | null;
   image?: string | null;
@@ -287,8 +957,14 @@ type JsonLdProduct = {
   priceText?: string | null;
 };
 
-function parseJsonLd(html: string): JsonLdProduct | null {
+function parseJsonLd(html: string): {
+  product: JsonLdProduct | null;
+  all: unknown[];
+} {
   const scriptRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const all: unknown[] = [];
+  let product: JsonLdProduct | null = null;
+
   let match: RegExpExecArray | null;
   while ((match = scriptRegex.exec(html))) {
     const raw = match[1].trim();
@@ -301,12 +977,38 @@ function parseJsonLd(html: string): JsonLdProduct | null {
     } catch (error) {
       continue;
     }
-    const product = findProductInJsonLd(data);
-    if (product) {
-      return product;
+
+    // Collect all parsed JSON-LD nodes
+    const nodes = collectJsonLdNodes(data);
+    for (const node of nodes) {
+      // Cap individual node size for storage
+      const nodeStr = JSON.stringify(node);
+      if (nodeStr.length > 10000) {
+        // Truncate large nodes
+        all.push({
+          truncated: true,
+          preview: nodeStr.substring(0, 500),
+        });
+      } else {
+        all.push(node);
+      }
+    }
+
+    // Also try to find Product for backward compatibility
+    if (!product) {
+      product = findProductInJsonLd(data);
     }
   }
-  return null;
+
+  // Cap total array size
+  if (all.length > 50) {
+    return {
+      product,
+      all: all.slice(0, 50).concat([{ note: "truncated", total_count: all.length }]),
+    };
+  }
+
+  return { product, all };
 }
 
 function findProductInJsonLd(data: unknown): JsonLdProduct | null {
@@ -341,8 +1043,8 @@ function collectJsonLdNodes(data: unknown): Record<string, unknown>[] {
   if (Array.isArray(data)) {
     return data.flatMap((entry) => collectJsonLdNodes(entry));
   }
-  if (typeof data === "object") {
-    const record = data as Record<string, unknown>;
+  if (isRecord(data)) {
+    const record = data;
     const graph = record["@graph"];
     if (Array.isArray(graph)) {
       return graph.flatMap((entry) => collectJsonLdNodes(entry));
@@ -360,8 +1062,8 @@ function extractJsonLdImage(value: unknown): string | null {
     const first = value.find((entry) => typeof entry === "string");
     return typeof first === "string" ? first : null;
   }
-  if (value && typeof value === "object") {
-    const obj = value as Record<string, unknown>;
+  if (isRecord(value)) {
+    const obj = value;
     if (typeof obj.url === "string") {
       return obj.url;
     }
@@ -376,10 +1078,10 @@ type ExtractedPrice = {
 };
 
 function extractJsonLdPrice(value: unknown): ExtractedPrice {
-  if (!value || typeof value !== "object") {
+  if (!isRecord(value)) {
     return { amountMinor: null, currency: null, text: null };
   }
-  const record = value as Record<string, unknown>;
+  const record = value;
   const priceValue = record.price ?? record.lowPrice ?? record.highPrice ?? null;
   const currencyValue = record.priceCurrency ?? null;
   const priceSpecification = record.priceSpecification;
@@ -397,8 +1099,8 @@ function extractJsonLdPrice(value: unknown): ExtractedPrice {
     }
   }
 
-  if (priceSpecification && typeof priceSpecification === "object") {
-    const spec = priceSpecification as Record<string, unknown>;
+  if (isRecord(priceSpecification)) {
+    const spec = priceSpecification;
     const specPrice = spec.price ?? null;
     if (amountMinor === null && typeof specPrice === "number") {
       amountMinor = Math.round(specPrice * 100);
@@ -416,7 +1118,147 @@ function extractJsonLdPrice(value: unknown): ExtractedPrice {
   };
 }
 
-function buildFillOnlyUpdates(
+async function fetchOpenGraphIo(url: string): Promise<{ json: unknown } | null> {
+  if (!OPENGRAPH_IO_APP_ID) {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OPENGRAPH_IO_TIMEOUT_MS);
+
+  try {
+    const apiUrl = `https://opengraph.io/api/1.1/site/${encodeURIComponent(url)}?app_id=${OPENGRAPH_IO_APP_ID}&auto_proxy=true`;
+    const response = await fetch(apiUrl, {
+      signal: controller.signal,
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const json = await response.json();
+    return { json };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === "AbortError") {
+      return null;
+    }
+    return null;
+  }
+}
+
+function extractFromOpenGraphIo(json: unknown, finalUrl: string): {
+  extractedFields: ExtractedMetadata;
+  details: Record<string, unknown>;
+  raw: unknown;
+} {
+  const extractedFields: ExtractedMetadata = {};
+  const details: Record<string, unknown> = {};
+
+  if (!isRecord(json)) {
+    return { extractedFields, details, raw: json };
+  }
+
+  const response = json;
+  const hybridGraph = isRecord(response.hybridGraph) ? response.hybridGraph : undefined;
+  const openGraph = isRecord(response.openGraph) ? response.openGraph : undefined;
+  const requestInfo = isRecord(response.requestInfo) ? response.requestInfo : undefined;
+
+  const opengraphDetails: Record<string, unknown> = {};
+
+  // Extract title
+  if (hybridGraph?.title && typeof hybridGraph.title === "string") {
+    const title = sanitizeDisplayTitle(hybridGraph.title);
+    if (title) {
+      extractedFields.display_product_title = title;
+      opengraphDetails.hybridGraph_title = hybridGraph.title;
+    }
+  } else if (openGraph?.title && typeof openGraph.title === "string") {
+    const title = sanitizeDisplayTitle(openGraph.title);
+    if (title) {
+      extractedFields.display_product_title = title;
+      opengraphDetails.openGraph_title = openGraph.title;
+    }
+  }
+
+  // Extract image (prefer secure)
+  if (hybridGraph?.imageSecureUrl && typeof hybridGraph.imageSecureUrl === "string") {
+    const imageUrl = resolveImageUrl(hybridGraph.imageSecureUrl, finalUrl);
+    if (imageUrl) {
+      extractedFields.display_cover_image_url = imageUrl;
+      opengraphDetails.hybridGraph_image = hybridGraph.imageSecureUrl;
+    }
+  } else if (openGraph?.image) {
+    if (typeof openGraph.image === "string") {
+      const imageUrl = resolveImageUrl(openGraph.image, finalUrl);
+      if (imageUrl) {
+        extractedFields.display_cover_image_url = imageUrl;
+        opengraphDetails.openGraph_image = openGraph.image;
+      }
+    } else if (isRecord(openGraph.image)) {
+      const imageObj = openGraph.image;
+      const secureUrl = imageObj.secure_url ?? imageObj.url;
+      if (typeof secureUrl === "string") {
+        const imageUrl = resolveImageUrl(secureUrl, finalUrl);
+        if (imageUrl) {
+          extractedFields.display_cover_image_url = imageUrl;
+          opengraphDetails.openGraph_image = secureUrl;
+        }
+      }
+    }
+  }
+
+  // Extract favicon (prefer https)
+  if (hybridGraph?.favicon && typeof hybridGraph.favicon === "string") {
+    const faviconUrl = resolveImageUrl(hybridGraph.favicon, finalUrl);
+    if (faviconUrl && faviconUrl.startsWith("https://")) {
+      extractedFields.display_merchant_logo_url = faviconUrl;
+      opengraphDetails.hybridGraph_favicon = hybridGraph.favicon;
+    }
+  }
+
+  // Extract domain
+  const domain = deriveMerchantDomainFromUrl(finalUrl);
+  if (domain) {
+    extractedFields.display_merchant_domain = domain;
+  }
+
+  // Store details
+  if (hybridGraph) {
+    opengraphDetails.hybridGraph = {
+      title: hybridGraph.title,
+      image: hybridGraph.image,
+      imageSecureUrl: hybridGraph.imageSecureUrl,
+      favicon: hybridGraph.favicon,
+    };
+  }
+  if (openGraph) {
+    opengraphDetails.openGraph = {
+      title: openGraph.title,
+      image: openGraph.image,
+      url: openGraph.url, // Note: we don't use this to replace item.url
+    };
+  }
+  if (requestInfo) {
+    opengraphDetails.requestInfo = {
+      redirects: requestInfo.redirects,
+      finalUrl: requestInfo.finalUrl,
+    };
+  }
+
+  details.opengraph = opengraphDetails;
+
+  // Cap raw JSON for DB storage
+  const raw = safeJsonForDb(response);
+
+  return { extractedFields, details, raw };
+}
+
+export function buildFillOnlyUpdates(
   item: ItemRecord,
   extracted: ExtractedMetadata,
   finalUrl: string,
@@ -435,13 +1277,28 @@ function buildFillOnlyUpdates(
       updates.display_merchant_domain = domain;
     }
   }
-  if (isMissingDisplayValue(item.display_merchant_logo_url)) {
-    const domain =
-      extracted.display_merchant_domain ?? updates.display_merchant_domain ?? item.display_merchant_domain;
-    if (domain) {
-      updates.display_merchant_logo_url = buildFaviconUrl(domain);
+  // Merchant logo with upgrade logic
+  const domain =
+    extracted.display_merchant_domain ?? updates.display_merchant_domain ?? item.display_merchant_domain;
+  const currentLogo = item.display_merchant_logo_url;
+  const fallbackLogo = domain ? buildFaviconUrl(domain) : null;
+
+  if (isMissingDisplayValue(currentLogo)) {
+    // Missing: fill with extracted logo or fallback
+    if (extracted.display_merchant_logo_url) {
+      updates.display_merchant_logo_url = extracted.display_merchant_logo_url;
+    } else if (fallbackLogo) {
+      updates.display_merchant_logo_url = fallbackLogo;
     }
+  } else if (
+    currentLogo === fallbackLogo &&
+    extracted.display_merchant_logo_url &&
+    extracted.display_merchant_logo_url.startsWith("https://")
+  ) {
+    // Upgrade: current is fallback, extracted is better (https)
+    updates.display_merchant_logo_url = extracted.display_merchant_logo_url;
   }
+  // Else: do nothing (keep existing logo)
 
   const shouldSetPriceAmount =
     item.display_price_amount_minor === null &&
