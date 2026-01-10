@@ -459,36 +459,41 @@ function safeParseUrl(value: string): URL | null {
 }
 
 // Shopify Product JS detection and fetching
-function isProbablyShopifyProductUrl(url: string): {
+export function isProbablyShopifyProductUrl(url: string): {
   origin: string;
   localePrefix: string | null;
   handle: string;
 } | null {
+  let urlObj: URL;
   try {
-    const urlObj = new URL(url);
-    const pathname = urlObj.pathname;
-
-    // Match patterns like:
-    // /products/<handle>
-    // /en-sg/products/<handle>
-    // /en/products/<handle>
-    const shopifyPattern = /^\/([a-z]{2}(-[a-z]{2})?\/)?products\/([^\/]+)(\/.*)?$/i;
-    const match = pathname.match(shopifyPattern);
-    if (!match) {
+    urlObj = new URL(url);
+  } catch (error) {
+    try {
+      urlObj = new URL(url, "https://example.com");
+    } catch (fallbackError) {
       return null;
     }
+  }
 
-    const localePrefix = match[1] ? match[1].replace(/\/$/, "") : null;
-    const handle = match[3];
-
-    return {
-      origin: `${urlObj.protocol}//${urlObj.host}`,
-      localePrefix,
-      handle,
-    };
-  } catch {
+  const segs = urlObj.pathname.split("/").filter(Boolean);
+  const productsIndex = segs.indexOf("products");
+  if (productsIndex < 0) {
     return null;
   }
+
+  const handle = segs[productsIndex + 1];
+  if (!handle) {
+    return null;
+  }
+
+  const localePrefix =
+    productsIndex > 0 && segs[0] !== "collections" ? segs[0] : null;
+
+  return {
+    origin: `${urlObj.protocol}//${urlObj.host}`,
+    localePrefix,
+    handle,
+  };
 }
 
 async function fetchShopifyProductJs(
