@@ -26,6 +26,10 @@ const REDIRECT_LIMIT = 3;
 const MAX_RESPONSE_BYTES = 1_000_000;
 const OPENGRAPH_IO_APP_ID = process.env.OPENGRAPH_IO_APP_ID;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 // Get Accept-Language header value (future: read from user.preferred_language)
 function getAcceptLanguage(): string {
   // For now, default to en-US,en;q=0.9
@@ -218,10 +222,12 @@ async function enrichItem(params: {
   // Shopify failed if: not a shopify URL, fetch failed, or extracted no useful fields
   const shopifyAttempt = attempts.find((a) => a.strategy === "shopify_js");
   const shopifyExtracted = shopifyAttempt?.details?.shopify;
+  const shopifyExtractedRecord = isRecord(shopifyExtracted) ? shopifyExtracted : null;
   const hasShopifyUsefulFields =
-    shopifyExtracted &&
-    typeof shopifyExtracted === "object" &&
-    (shopifyExtracted.title || shopifyExtracted.image || shopifyExtracted.variants_sample);
+    shopifyExtractedRecord !== null &&
+    (shopifyExtractedRecord.title ||
+      shopifyExtractedRecord.image ||
+      shopifyExtractedRecord.variants_sample);
   const shopifyFailed =
     !shopifyInfo ||
     shopifyAttempt?.error !== undefined ||
@@ -276,21 +282,29 @@ async function enrichItem(params: {
 
   // Compute final updates (delta from original item to working item)
   const finalUpdates: DisplayFieldUpdate = {};
-  const fieldKeys: (keyof DisplayFieldUpdate)[] = [
-    "display_product_title",
-    "display_cover_image_url",
-    "display_merchant_domain",
-    "display_merchant_logo_url",
-    "display_price_amount_minor",
-    "display_currency",
-    "display_price_text",
-    "display_price_updated_at",
-  ];
-
-  for (const key of fieldKeys) {
-    if (workingItem[key] !== item[key]) {
-      finalUpdates[key] = workingItem[key] as string | number | null | undefined;
-    }
+  if (workingItem.display_product_title !== item.display_product_title) {
+    finalUpdates.display_product_title = workingItem.display_product_title;
+  }
+  if (workingItem.display_cover_image_url !== item.display_cover_image_url) {
+    finalUpdates.display_cover_image_url = workingItem.display_cover_image_url;
+  }
+  if (workingItem.display_merchant_domain !== item.display_merchant_domain) {
+    finalUpdates.display_merchant_domain = workingItem.display_merchant_domain;
+  }
+  if (workingItem.display_merchant_logo_url !== item.display_merchant_logo_url) {
+    finalUpdates.display_merchant_logo_url = workingItem.display_merchant_logo_url;
+  }
+  if (workingItem.display_price_amount_minor !== item.display_price_amount_minor) {
+    finalUpdates.display_price_amount_minor = workingItem.display_price_amount_minor;
+  }
+  if (workingItem.display_currency !== item.display_currency) {
+    finalUpdates.display_currency = workingItem.display_currency;
+  }
+  if (workingItem.display_price_text !== item.display_price_text) {
+    finalUpdates.display_price_text = workingItem.display_price_text;
+  }
+  if (workingItem.display_price_updated_at !== item.display_price_updated_at) {
+    finalUpdates.display_price_updated_at = workingItem.display_price_updated_at;
   }
 
   // Apply updates if any
@@ -550,11 +564,11 @@ function extractFromShopifyProductJs(
   const extractedFields: ExtractedMetadata = {};
   const details: Record<string, unknown> = {};
 
-  if (!json || typeof json !== "object") {
+  if (!isRecord(json)) {
     return { extractedFields, details, raw: json };
   }
 
-  const product = json as Record<string, unknown>;
+  const product = json;
   const shopifyDetails: Record<string, unknown> = {};
 
   // Extract title
@@ -567,8 +581,8 @@ function extractFromShopifyProductJs(
   }
 
   // Extract image
-  if (product.image && typeof product.image === "object") {
-    const image = product.image as Record<string, unknown>;
+  if (isRecord(product.image)) {
+    const image = product.image;
     if (typeof image.src === "string") {
       const imageUrl = resolveImageUrl(image.src, finalUrl);
       if (imageUrl) {
@@ -578,8 +592,8 @@ function extractFromShopifyProductJs(
     }
   } else if (Array.isArray(product.images) && product.images.length > 0) {
     const firstImage = product.images[0];
-    if (typeof firstImage === "object" && firstImage !== null) {
-      const image = firstImage as Record<string, unknown>;
+    if (isRecord(firstImage)) {
+      const image = firstImage;
       if (typeof image.src === "string") {
         const imageUrl = resolveImageUrl(image.src, finalUrl);
         if (imageUrl) {
@@ -598,31 +612,33 @@ function extractFromShopifyProductJs(
 
   // Extract price from first variant
   if (Array.isArray(product.variants) && product.variants.length > 0) {
-    const firstVariant = product.variants[0] as Record<string, unknown>;
-    shopifyDetails.variants_sample = [
-      {
-        id: firstVariant.id,
-        price: firstVariant.price,
-        available: firstVariant.available,
-      },
-    ];
+    const firstVariant = product.variants[0];
+    if (isRecord(firstVariant)) {
+      shopifyDetails.variants_sample = [
+        {
+          id: firstVariant.id,
+          price: firstVariant.price,
+          available: firstVariant.available,
+        },
+      ];
 
-    if (typeof firstVariant.price === "string") {
-      const priceFloat = parseFloat(firstVariant.price);
-      if (Number.isFinite(priceFloat)) {
-        extractedFields.display_price_amount_minor = Math.round(priceFloat * 100);
-      } else {
-        const priceText = sanitizePriceText(firstVariant.price);
-        if (priceText) {
-          extractedFields.display_price_text = priceText;
+      if (typeof firstVariant.price === "string") {
+        const priceFloat = parseFloat(firstVariant.price);
+        if (Number.isFinite(priceFloat)) {
+          extractedFields.display_price_amount_minor = Math.round(priceFloat * 100);
+        } else {
+          const priceText = sanitizePriceText(firstVariant.price);
+          if (priceText) {
+            extractedFields.display_price_text = priceText;
+          }
         }
       }
-    }
 
-    if (typeof firstVariant.price_currency === "string") {
-      const currency = sanitizeCurrency(firstVariant.price_currency);
-      if (currency) {
-        extractedFields.display_currency = currency;
+      if (typeof firstVariant.price_currency === "string") {
+        const currency = sanitizeCurrency(firstVariant.price_currency);
+        if (currency) {
+          extractedFields.display_currency = currency;
+        }
       }
     }
   }
@@ -640,9 +656,8 @@ function extractFromShopifyProductJs(
       .slice(0, 3)
       .map((img: unknown) => {
         if (typeof img === "string") return img;
-        if (typeof img === "object" && img !== null) {
-          const imgObj = img as Record<string, unknown>;
-          return imgObj.src ?? img;
+        if (isRecord(img)) {
+          return img.src ?? img;
         }
         return img;
       });
@@ -1028,8 +1043,8 @@ function collectJsonLdNodes(data: unknown): Record<string, unknown>[] {
   if (Array.isArray(data)) {
     return data.flatMap((entry) => collectJsonLdNodes(entry));
   }
-  if (typeof data === "object") {
-    const record = data as Record<string, unknown>;
+  if (isRecord(data)) {
+    const record = data;
     const graph = record["@graph"];
     if (Array.isArray(graph)) {
       return graph.flatMap((entry) => collectJsonLdNodes(entry));
@@ -1047,8 +1062,8 @@ function extractJsonLdImage(value: unknown): string | null {
     const first = value.find((entry) => typeof entry === "string");
     return typeof first === "string" ? first : null;
   }
-  if (value && typeof value === "object") {
-    const obj = value as Record<string, unknown>;
+  if (isRecord(value)) {
+    const obj = value;
     if (typeof obj.url === "string") {
       return obj.url;
     }
@@ -1063,10 +1078,10 @@ type ExtractedPrice = {
 };
 
 function extractJsonLdPrice(value: unknown): ExtractedPrice {
-  if (!value || typeof value !== "object") {
+  if (!isRecord(value)) {
     return { amountMinor: null, currency: null, text: null };
   }
-  const record = value as Record<string, unknown>;
+  const record = value;
   const priceValue = record.price ?? record.lowPrice ?? record.highPrice ?? null;
   const currencyValue = record.priceCurrency ?? null;
   const priceSpecification = record.priceSpecification;
@@ -1084,8 +1099,8 @@ function extractJsonLdPrice(value: unknown): ExtractedPrice {
     }
   }
 
-  if (priceSpecification && typeof priceSpecification === "object") {
-    const spec = priceSpecification as Record<string, unknown>;
+  if (isRecord(priceSpecification)) {
+    const spec = priceSpecification;
     const specPrice = spec.price ?? null;
     if (amountMinor === null && typeof specPrice === "number") {
       amountMinor = Math.round(specPrice * 100);
@@ -1144,14 +1159,14 @@ function extractFromOpenGraphIo(json: unknown, finalUrl: string): {
   const extractedFields: ExtractedMetadata = {};
   const details: Record<string, unknown> = {};
 
-  if (!json || typeof json !== "object") {
+  if (!isRecord(json)) {
     return { extractedFields, details, raw: json };
   }
 
-  const response = json as Record<string, unknown>;
-  const hybridGraph = response.hybridGraph as Record<string, unknown> | undefined;
-  const openGraph = response.openGraph as Record<string, unknown> | undefined;
-  const requestInfo = response.requestInfo as Record<string, unknown> | undefined;
+  const response = json;
+  const hybridGraph = isRecord(response.hybridGraph) ? response.hybridGraph : undefined;
+  const openGraph = isRecord(response.openGraph) ? response.openGraph : undefined;
+  const requestInfo = isRecord(response.requestInfo) ? response.requestInfo : undefined;
 
   const opengraphDetails: Record<string, unknown> = {};
 
@@ -1184,8 +1199,8 @@ function extractFromOpenGraphIo(json: unknown, finalUrl: string): {
         extractedFields.display_cover_image_url = imageUrl;
         opengraphDetails.openGraph_image = openGraph.image;
       }
-    } else if (typeof openGraph.image === "object" && openGraph.image !== null) {
-      const imageObj = openGraph.image as Record<string, unknown>;
+    } else if (isRecord(openGraph.image)) {
+      const imageObj = openGraph.image;
       const secureUrl = imageObj.secure_url ?? imageObj.url;
       if (typeof secureUrl === "string") {
         const imageUrl = resolveImageUrl(secureUrl, finalUrl);
