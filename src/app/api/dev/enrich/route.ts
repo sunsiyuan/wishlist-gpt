@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
 
   let fetchResult: FetchResult | null = null;
   let extracted: ExtractedMetadata = {};
+  let extractedDetails: Record<string, unknown> = {};
   let computedUpdates: DisplayFieldUpdate = {};
   let applied = false;
   let error: string | null = null;
@@ -70,13 +71,16 @@ export async function GET(request: NextRequest) {
           timedOut: fetchResult?.timedOut ?? null,
         },
         extracted: {},
+        extractedDetails: {},
         computedUpdates: {},
         applied: false,
         error,
       });
     }
 
-    extracted = extractDisplayMetadata(fetchResult.html, fetchResult.finalUrl);
+    const extractedResult = extractDisplayMetadata(fetchResult.html, fetchResult.finalUrl);
+    extracted = extractedResult.extractedFields;
+    extractedDetails = extractedResult.details;
 
     if (itemId) {
       const item = await getItemForUser({ userId: auth.userId, itemId });
@@ -107,6 +111,7 @@ export async function GET(request: NextRequest) {
       timedOut: fetchResult?.timedOut ?? null,
     },
     extracted,
+    extractedDetails,
     computedUpdates,
     applied,
     error,
