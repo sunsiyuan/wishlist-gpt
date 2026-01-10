@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { getBearerToken, verifyAccessToken } from "../../../server/auth/bearer";
 import { getSupabaseUserId } from "../../../server/auth/supabase";
 import type { DisplayFieldUpdate } from "../../../server/items/store";
-import { createOrTouchItem, listItemsForUser, updateItemDisplayFields } from "../../../server/items/store";
-import { enrichItemBestEffort } from "../../../server/items/enrich";
+import {
+  createOrTouchItem,
+  listItemsForUser,
+  updateItemDisplayFields,
+  insertItemEnrichRun,
+} from "../../../server/items/store";
+import { enrichItemBestEffort, type EnrichAttempt } from "../../../server/items/enrich";
 import {
   deriveDisplayDefaults,
   extractDisplayHints,
@@ -99,6 +105,64 @@ export async function POST(request: NextRequest) {
             updates,
           })
         : item;
+
+    // Log GPTs input as first attempt (best effort, non-blocking)
+    after(async () => {
+      try {
+        const bodyRecord = body as Record<string, unknown>;
+        const providedFields: string[] = [];
+        const inputDetails: Record<string, unknown> = {};
+
+        // Whitelisted fields from request body
+        const whitelistedFields = [
+          "url",
+          "display_product_title",
+          "display_cover_image_url",
+          "display_price_text",
+          "display_price_amount_minor",
+          "display_currency",
+          "display_merchant_domain",
+          "display_merchant_logo_url",
+        ];
+
+        for (const field of whitelistedFields) {
+          if (field in bodyRecord && bodyRecord[field] !== undefined) {
+            inputDetails[field] = bodyRecord[field];
+            providedFields.push(field);
+          }
+        }
+
+        const attempt: EnrichAttempt = {
+          strategy: "gpts_input",
+          started_at: new Date().toISOString(),
+          duration_ms: 0,
+          request: {
+            source: "actions",
+            path: "/items",
+          },
+          details: {
+            input: inputDetails,
+            provided_fields: providedFields,
+          },
+        };
+
+        await insertItemEnrichRun({
+          userId: auth.userId,
+          itemId: item.id,
+          sourceUrl: urlValue.trim(),
+          attempts: [attempt],
+          finalApplied: false,
+          finalUpdates: {},
+        });
+      } catch (error) {
+        // Silently fail - best effort
+        console.warn("[items] Failed to log GPTs input attempt", {
+          item_id: item.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+
     enrichItemBestEffort({ userId: auth.userId, itemId: item.id, url: item.url_original });
     return NextResponse.json({
       item: {
