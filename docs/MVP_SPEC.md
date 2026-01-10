@@ -2,6 +2,117 @@
 
 ---
 
+# v0.5_SPEC (Feedback Loop)
+
+## 0. 一句话结论 / One-line summary
+CN：v0.5 新增用户反馈入口、反馈存储与最小限流（每用户每分钟 1 条），闭环覆盖 Web 与 Actions。  
+EN: v0.5 adds feedback entrypoints, storage, and minimal rate limiting (1/min per user) across Web and Actions.
+
+---
+
+## 1. 目标与非目标 / Goals & non-goals
+
+### 1.1 目标 / Goals
+CN：
+- 提供 Web 与 Actions 的反馈入口与 API。
+- 反馈写入 `feedback` 表，包含最小上下文（meta）。
+- 最小滥用控制：每用户 60 秒 1 条，message ≤ 1000 字符。
+
+EN:
+- Provide Web and Actions feedback entrypoints and APIs.
+- Persist feedback in the `feedback` table with minimal context (meta).
+- Minimal abuse control: 1 feedback / 60s / user, message ≤ 1000 chars.
+
+### 1.2 非目标 / Non-goals
+CN：
+- 不做匿名反馈、分类/标签、管理员后台、邮件通知。
+- 不做大规模 UI 重构或新 onboarding。
+
+EN:
+- No anonymous feedback, categories/tags, admin UI, or email workflows.
+- No major UI redesign or onboarding changes.
+
+---
+
+## 2. 入口 / Entry points
+
+CN：
+- `/app` Cheatsheet 内可随时发送反馈（弹层）。
+- `/s/:share_id` 页脚 Feedback 按钮（登录后打开弹层，未登录跳转登录后自动打开）。
+- Actions：`POST /feedback`（Bearer）。
+
+EN:
+- `/app` Cheatsheet includes a feedback entry (modal).
+- `/s/:share_id` footer Feedback button (logged in opens modal; otherwise redirect to login then auto-open).
+- Actions: `POST /feedback` (Bearer).
+
+---
+
+## 3. 数据模型 / Data model
+
+### feedback
+* `id` uuid primary key default gen_random_uuid()
+* `user_id` uuid not null references auth.users(id)
+* `message` text not null
+* `created_at` timestamptz not null default now()
+* `meta` jsonb not null default '{}'::jsonb
+* index: `(user_id, created_at desc)`
+
+---
+
+## 4. APIs / APIs
+
+### 4.1 `POST /api/feedback` (cookie session)
+Request:
+```json
+{
+  "message": "string",
+  "context": {
+    "page": "/app | /s/:share_id | ...",
+    "share_id": "optional",
+    "item_id": "optional",
+    "source_url": "optional"
+  }
+}
+```
+Response:
+```json
+{ "ok": true }
+```
+
+### 4.2 `POST /feedback` (Bearer)
+Same shape/validation/response as `/api/feedback`.
+
+### 4.3 Validation & rate limit
+CN：
+- message 必填，trim 后长度 1..1000。
+- 60 秒内重复提交返回 429 `{ "ok": false, "error": "rate_limited" }`。
+- meta 必须包含 `context`（如提供），以及 `request_id`/`x_vercel_id`/`ua`。
+
+EN:
+- message required, trimmed length 1..1000.
+- Submitting within 60 seconds returns 429 `{ "ok": false, "error": "rate_limited" }`.
+- meta includes `context` (if provided) and `request_id`/`x_vercel_id`/`ua`.
+
+---
+
+## 5. 验收标准 / Acceptance criteria
+CN：
+- `/app` 可提交反馈并写入数据库。
+- `/s/:share_id` 可提交反馈且 meta.context.share_id 正确。
+- Actions `POST /feedback` 可用且 OpenAPI 可导入。
+- 60 秒内重复提交返回 429；>1000 字符返回 400。
+- 文档与 PROJECT_MAP/CHEATSHEET 同步更新。
+
+EN:
+- Feedback can be submitted from `/app` and stored in DB.
+- `/s/:share_id` feedback stored with meta.context.share_id.
+- Actions `POST /feedback` works and OpenAPI is importable.
+- 60s rate limit returns 429; >1000 chars returns 400.
+- Docs and PROJECT_MAP/CHEATSHEET are updated.
+
+---
+
 # v0.3_SPEC (Consumer minimal UI + Notes + Delete/Undo + Share Sheet)
 
 ## 0. 一句话结论 / One-line summary

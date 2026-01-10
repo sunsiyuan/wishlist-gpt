@@ -12,14 +12,22 @@ import {
 } from "../../../lib/itemDisplay";
 import { getPublicShareItems, isValidShareId } from "../../../server/shares";
 import ShareViewTracker from "./ShareViewTracker";
+import ShareFeedbackEntry from "./ShareFeedbackEntry";
 
 export const dynamic = "force-dynamic";
 
-export default async function SharePage({ params }: { params: Promise<{ share_id: string }> }) {
+type SharePageProps = {
+  params: Promise<{ share_id: string }>;
+  searchParams?: Promise<{ intent?: string }>;
+};
+
+export default async function SharePage({ params, searchParams }: SharePageProps) {
   const { share_id: shareId } = await params;
   if (!isValidShareId(shareId)) {
     notFound();
   }
+
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   const requestHeaders = await headers();
   const acceptLanguage = requestHeaders.get("accept-language");
@@ -185,6 +193,7 @@ export default async function SharePage({ params }: { params: Promise<{ share_id
             })}
           </div>
         )}
+        <ShareFeedbackEntry shareId={shareId} intent={resolvedSearchParams?.intent} />
       </div>
     </main>
   );

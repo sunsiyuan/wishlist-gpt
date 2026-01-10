@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import FeedbackModal from "../components/FeedbackModal";
 import {
   getCardTitle,
   getCoverFallbackLabel,
@@ -53,6 +54,7 @@ const SCROLL_THRESHOLD = 16;
 const TOAST_DURATION_MS = 4000;
 
 const NOTE_PLACEHOLDER = "Add a note…";
+const FEEDBACK_CONTEXT_APP = { page: "/app" };
 
 function isMobileLike(): boolean {
   if (typeof navigator === "undefined") {
@@ -240,6 +242,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
   const [noteDraft, setNoteDraft] = useState("");
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isCheatsheetOpen, setIsCheatsheetOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [shareState, setShareState] = useState<ShareState>({
     shareId: null,
@@ -997,6 +1000,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
               <li>Tell GPT what you want and it appears in your list.</li>
               <li>Tap an item to add a note or decide.</li>
               <li>Share a read-only list anytime.</li>
+              <li>Send feedback any time.</li>
             </ul>
             <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
               <button
@@ -1031,6 +1035,23 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                 Back to GPT
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsFeedbackOpen(true)}
+              style={{
+                width: "100%",
+                marginTop: "0.75rem",
+                border: "none",
+                background: "transparent",
+                color: "#111",
+                padding: "0.4rem",
+                fontWeight: 600,
+                textDecoration: "underline",
+                cursor: "pointer",
+              }}
+            >
+              Send feedback
+            </button>
           </div>
         </div>
       ) : null}
@@ -1221,6 +1242,27 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
       </button>
 
       {toast ? <Toast toast={toast} /> : null}
+
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        context={FEEDBACK_CONTEXT_APP}
+        onClose={() => {
+          setIsFeedbackOpen(false);
+          setIsCheatsheetOpen(false);
+        }}
+        onSuccess={() => {
+          showToast({ message: "Thanks — received." });
+          setIsCheatsheetOpen(false);
+        }}
+        onRateLimit={() => {
+          showToast({ message: "Too fast — try again in a minute.", tone: "error" });
+          setIsCheatsheetOpen(false);
+        }}
+        onError={() => {
+          showToast({ message: "Couldn’t send. Try again.", tone: "error" });
+          setIsCheatsheetOpen(false);
+        }}
+      />
     </div>
   );
 }
