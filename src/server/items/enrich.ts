@@ -24,6 +24,15 @@ const FETCH_TIMEOUT_MS = Number.parseInt(process.env.ENRICH_FETCH_TIMEOUT_MS ?? 
 const OPENGRAPH_IO_TIMEOUT_MS = 2000;
 const REDIRECT_LIMIT = 3;
 const MAX_RESPONSE_BYTES = 1_000_000;
+const BLOCKED_STATUS_CODES = new Set([403, 429, 503]);
+const BLOCKED_BODY_KEYWORDS = [
+  "captcha",
+  "verify you are human",
+  "access denied",
+  "bot detection",
+  "unusual traffic",
+  "challenge",
+];
 const OPENGRAPH_IO_APP_ID = process.env.OPENGRAPH_IO_APP_ID;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -51,9 +60,15 @@ export type EnrichAttempt = {
   fetch?: {
     ok: boolean;
     status?: number;
+    status_code?: number;
     redirects?: number;
     timed_out?: boolean;
     final_url?: string;
+    response_content_type?: string;
+    latency_ms?: number;
+    blocked?: boolean;
+    blocked_reason?: string;
+    blocked_keyword?: string;
   };
   details?: Record<string, unknown>;
   raw?: unknown;
@@ -139,6 +154,9 @@ async function enrichItem(params: {
         attempt.fetch = {
           ok: true,
           final_url: fetchResult.finalUrl,
+          status_code: fetchResult.status,
+          response_content_type: fetchResult.responseContentType ?? "",
+          latency_ms: duration,
         };
         const extracted = extractFromShopifyProductJs(fetchResult.json, fetchResult.finalUrl);
         attempt.details = extracted.details;
@@ -151,7 +169,7 @@ async function enrichItem(params: {
           Object.assign(workingItem, updates);
         }
       } else {
-        attempt.fetch = { ok: false };
+        attempt.fetch = { ok: false, latency_ms: duration };
         attempt.error = "fetch_failed_or_not_found";
       }
     } catch (error) {
@@ -172,6 +190,8 @@ async function enrichItem(params: {
     request: {
       url: params.url,
       headers: {
+        "User-Agent": "WishlistGPT/0.4",
+        Accept: "text/html,application/xhtml+xml",
         "Accept-Language": getAcceptLanguage(),
       },
     },
@@ -182,31 +202,53 @@ async function enrichItem(params: {
     const duration = Date.now() - new Date(htmlStartedAt).getTime();
     htmlAttempt.duration_ms = duration;
 
-    if (fetchResult && fetchResult.html) {
+    if (fetchResult && (fetchResult.html || fetchResult.blocked)) {
       htmlAttempt.fetch = {
-        ok: true,
+        ok: fetchResult.status ? fetchResult.status >= 200 && fetchResult.status < 300 : true,
         status: fetchResult.status,
+        status_code: fetchResult.status,
         redirects: fetchResult.redirectCount,
         timed_out: fetchResult.timedOut ?? false,
         final_url: fetchResult.finalUrl,
+        response_content_type: fetchResult.responseContentType ?? "",
+        latency_ms: duration,
+        blocked: fetchResult.blocked ?? false,
+        blocked_reason: fetchResult.blockedReason,
+        blocked_keyword: fetchResult.blockedKeyword,
       };
 
-      const extracted = extractDisplayMetadata(fetchResult.html, fetchResult.finalUrl);
-      htmlAttempt.details = extracted.details;
-      // Do not store raw HTML, only parsed structures
+      if (fetchResult.blocked) {
+        htmlAttempt.details = {
+          blocked: {
+            reason: fetchResult.blockedReason,
+            keyword: fetchResult.blockedKeyword,
+          },
+        };
+        htmlAttempt.error = "blocked_response";
+      } else if (fetchResult.html) {
+        const extracted = extractDisplayMetadata(fetchResult.html, fetchResult.finalUrl);
+        htmlAttempt.details = extracted.details;
+        // Do not store raw HTML, only parsed structures
 
-      const updates = buildFillOnlyUpdates(workingItem, extracted.extractedFields, fetchResult.finalUrl);
-      htmlAttempt.computed_updates = updates;
-      if (Object.keys(updates).length > 0) {
-        Object.assign(workingItem, updates);
+        const updates = buildFillOnlyUpdates(workingItem, extracted.extractedFields, fetchResult.finalUrl);
+        htmlAttempt.computed_updates = updates;
+        if (Object.keys(updates).length > 0) {
+          Object.assign(workingItem, updates);
+        }
       }
     } else {
       htmlAttempt.fetch = {
         ok: false,
         status: fetchResult?.status ?? undefined,
+        status_code: fetchResult?.status ?? undefined,
         redirects: fetchResult?.redirectCount ?? undefined,
         timed_out: fetchResult?.timedOut ?? false,
         final_url: fetchResult?.finalUrl ?? params.url,
+        response_content_type: fetchResult?.responseContentType ?? "",
+        latency_ms: duration,
+        blocked: fetchResult?.blocked ?? false,
+        blocked_reason: fetchResult?.blockedReason,
+        blocked_keyword: fetchResult?.blockedKeyword,
       };
       htmlAttempt.error = "fetch_failed";
     }
@@ -257,7 +299,12 @@ async function enrichItem(params: {
       ogAttempt.duration_ms = duration;
 
       if (fetchResult) {
-        ogAttempt.fetch = { ok: true };
+        ogAttempt.fetch = {
+          ok: true,
+          status_code: fetchResult.status,
+          response_content_type: fetchResult.responseContentType ?? "",
+          latency_ms: duration,
+        };
         const extracted = extractFromOpenGraphIo(fetchResult.json, params.url);
         ogAttempt.details = extracted.details;
         ogAttempt.raw = extracted.raw;
@@ -268,7 +315,7 @@ async function enrichItem(params: {
           Object.assign(workingItem, updates);
         }
       } else {
-        ogAttempt.fetch = { ok: false };
+        ogAttempt.fetch = { ok: false, latency_ms: duration };
         ogAttempt.error = "fetch_failed";
       }
     } catch (error) {
@@ -352,94 +399,229 @@ export type FetchResult = {
   status?: number;
   redirectCount?: number;
   timedOut?: boolean;
+  responseContentType?: string;
+  blocked?: boolean;
+  blockedReason?: string;
+  blockedKeyword?: string;
 };
 
 export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchResult | null> {
   let currentUrl = urlValue;
-  let previousUrl: string | null = null;
   let timedOut = false;
   for (let redirectCount = 0; redirectCount <= REDIRECT_LIMIT; redirectCount += 1) {
     const url = safeParseUrl(currentUrl);
     if (!url) {
-      return { finalUrl: urlValue, html: "", status: 0, redirectCount, timedOut: false };
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-      timedOut = true;
-    }, FETCH_TIMEOUT_MS);
-    let response: Response;
-    try {
-      // 构建更真实的浏览器 headers，避免被识别为 bot
-      const headers: Record<string, string> = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": getAcceptLanguage(),
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-User": "?1",
-        "Upgrade-Insecure-Requests": "1",
+      return {
+        finalUrl: urlValue,
+        html: "",
+        status: 0,
+        redirectCount,
+        timedOut: false,
+        responseContentType: "",
       };
-
-      // 根据是否是第一次请求设置不同的 headers
-      if (redirectCount === 0) {
-        // 第一次请求：模拟从 Google 搜索点击进入
-        headers["Referer"] = "https://www.google.com/";
-        headers["Sec-Fetch-Site"] = "cross-site";
-      } else if (previousUrl) {
-        // 重定向后的请求：使用前一个 URL 作为 Referer
-        headers["Referer"] = previousUrl;
-        headers["Sec-Fetch-Site"] = "same-site";
-      }
-
-      response = await fetch(url.toString(), {
-        redirect: "manual",
-        signal: controller.signal,
-        headers,
-      });
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === "AbortError") {
-        return { finalUrl: currentUrl, html: "", status: 0, redirectCount, timedOut: true };
-      }
-      return { finalUrl: currentUrl, html: "", status: 0, redirectCount, timedOut: false };
     }
-    clearTimeout(timeoutId);
+
+    const requestStart = Date.now();
+    const deadline = requestStart + FETCH_TIMEOUT_MS;
+    const headers = buildHtmlFetchHeaders();
+    let responseResult = await fetchWithTimeout(url.toString(), headers, FETCH_TIMEOUT_MS);
+    timedOut = responseResult.timedOut;
+
+    if (!responseResult.response) {
+      return {
+        finalUrl: currentUrl,
+        html: "",
+        status: 0,
+        redirectCount,
+        timedOut,
+        responseContentType: "",
+      };
+    }
+
+    let response = responseResult.response;
+    if ((response.status === 429 || response.status === 503) && !responseResult.timedOut) {
+      const retryDelayMs = computeRetryDelayMs(response.headers.get("retry-after"));
+      const remainingForDelay = deadline - Date.now();
+      if (retryDelayMs > 0 && remainingForDelay > retryDelayMs) {
+        await sleep(retryDelayMs);
+        const remainingForRetry = deadline - Date.now();
+        if (remainingForRetry > 0) {
+          responseResult = await fetchWithTimeout(url.toString(), headers, remainingForRetry);
+          timedOut = responseResult.timedOut;
+          if (!responseResult.response) {
+            return {
+              finalUrl: currentUrl,
+              html: "",
+              status: 0,
+              redirectCount,
+              timedOut,
+              responseContentType: "",
+            };
+          }
+          response = responseResult.response;
+        }
+      }
+    }
 
     if (isRedirectResponse(response)) {
       const location = response.headers.get("location");
       if (!location) {
-        return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
+        return {
+          finalUrl: currentUrl,
+          html: "",
+          status: response.status,
+          redirectCount,
+          timedOut: false,
+          responseContentType: response.headers.get("content-type") ?? "",
+        };
       }
       if (redirectCount >= REDIRECT_LIMIT) {
-        return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
+        return {
+          finalUrl: currentUrl,
+          html: "",
+          status: response.status,
+          redirectCount,
+          timedOut: false,
+          responseContentType: response.headers.get("content-type") ?? "",
+        };
       }
-      previousUrl = currentUrl;
       const nextUrl = new URL(location, url);
       currentUrl = nextUrl.toString();
       continue;
     }
 
     if (!response.ok) {
-      return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
+      return {
+        finalUrl: currentUrl,
+        html: "",
+        status: response.status,
+        redirectCount,
+        timedOut: false,
+        responseContentType: response.headers.get("content-type") ?? "",
+        ...getBlockedInfo(response.status, null),
+      };
     }
 
     const html = await readResponseText(response);
     if (!html) {
-      return { finalUrl: currentUrl, html: "", status: response.status, redirectCount, timedOut: false };
+      return {
+        finalUrl: currentUrl,
+        html: "",
+        status: response.status,
+        redirectCount,
+        timedOut: false,
+        responseContentType: response.headers.get("content-type") ?? "",
+      };
     }
 
-    return { finalUrl: url.toString(), html, status: response.status, redirectCount, timedOut: false };
+    // If this looks like a block/challenge page, skip deep parsing.
+    const blockedInfo = getBlockedInfo(response.status, html);
+    if (blockedInfo.blocked) {
+      return {
+        finalUrl: url.toString(),
+        html: "",
+        status: response.status,
+        redirectCount,
+        timedOut: false,
+        responseContentType: response.headers.get("content-type") ?? "",
+        ...blockedInfo,
+      };
+    }
+
+    return {
+      finalUrl: url.toString(),
+      html,
+      status: response.status,
+      redirectCount,
+      timedOut: false,
+      responseContentType: response.headers.get("content-type") ?? "",
+    };
   }
-  return { finalUrl: currentUrl, html: "", status: 0, redirectCount: REDIRECT_LIMIT + 1, timedOut: false };
+  return {
+    finalUrl: currentUrl,
+    html: "",
+    status: 0,
+    redirectCount: REDIRECT_LIMIT + 1,
+    timedOut: false,
+    responseContentType: "",
+  };
 }
 
 function isRedirectResponse(response: Response): boolean {
   return [301, 302, 303, 307, 308].includes(response.status);
+}
+
+function buildHtmlFetchHeaders(): Record<string, string> {
+  return {
+    "User-Agent": "WishlistGPT/0.4",
+    Accept: "text/html,application/xhtml+xml",
+    "Accept-Language": getAcceptLanguage(),
+  };
+}
+
+function computeRetryDelayMs(retryAfterHeader: string | null): number {
+  if (retryAfterHeader) {
+    const parsed = Number.parseInt(retryAfterHeader, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.min(parsed * 1000, 5000);
+    }
+  }
+  const base = 250 + Math.floor(Math.random() * 550);
+  const jitter = Math.floor(Math.random() * 100);
+  return base + jitter;
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function fetchWithTimeout(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs: number,
+): Promise<{ response: Response | null; timedOut: boolean }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      redirect: "manual",
+      signal: controller.signal,
+      headers,
+    });
+    return { response, timedOut: false };
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return { response: null, timedOut: true };
+    }
+    return { response: null, timedOut: false };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export function getBlockedInfo(
+  status: number | undefined,
+  body: string | null,
+): { blocked: boolean; blockedReason?: string; blockedKeyword?: string } {
+  if (status && BLOCKED_STATUS_CODES.has(status)) {
+    return { blocked: true, blockedReason: "status_code" };
+  }
+  if (!body) {
+    return { blocked: false };
+  }
+  const haystack = body.toLowerCase();
+  for (const keyword of BLOCKED_BODY_KEYWORDS) {
+    if (haystack.includes(keyword)) {
+      return { blocked: true, blockedReason: "body_keyword", blockedKeyword: keyword };
+    }
+  }
+  return { blocked: false };
+}
+
+export function isBlockedResponse(status: number | undefined, body: string | null): boolean {
+  return getBlockedInfo(status, body).blocked;
 }
 
 function safeParseUrl(value: string): URL | null {
@@ -500,7 +682,7 @@ async function fetchShopifyProductJs(
   origin: string,
   localePrefix: string | null,
   handle: string,
-): Promise<{ finalUrl: string; json: unknown } | null> {
+): Promise<{ finalUrl: string; json: unknown; status?: number; responseContentType?: string } | null> {
   const endpoints = [
     localePrefix ? `${origin}/${localePrefix}/products/${handle}.js` : null,
     `${origin}/products/${handle}.js`,
@@ -534,7 +716,12 @@ async function fetchShopifyProductJs(
           });
           if (redirectResponse.ok) {
             const json = await redirectResponse.json();
-            return { finalUrl: nextUrl.toString(), json };
+            return {
+              finalUrl: nextUrl.toString(),
+              json,
+              status: redirectResponse.status,
+              responseContentType: redirectResponse.headers.get("content-type") ?? "",
+            };
           }
         }
         continue;
@@ -545,7 +732,12 @@ async function fetchShopifyProductJs(
       }
 
       const json = await response.json();
-      return { finalUrl: endpoint, json };
+      return {
+        finalUrl: endpoint,
+        json,
+        status: response.status,
+        responseContentType: response.headers.get("content-type") ?? "",
+      };
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === "AbortError") {
@@ -1123,7 +1315,9 @@ function extractJsonLdPrice(value: unknown): ExtractedPrice {
   };
 }
 
-async function fetchOpenGraphIo(url: string): Promise<{ json: unknown } | null> {
+async function fetchOpenGraphIo(
+  url: string,
+): Promise<{ json: unknown; status?: number; responseContentType?: string } | null> {
   if (!OPENGRAPH_IO_APP_ID) {
     return null;
   }
@@ -1146,7 +1340,11 @@ async function fetchOpenGraphIo(url: string): Promise<{ json: unknown } | null> 
     }
 
     const json = await response.json();
-    return { json };
+    return {
+      json,
+      status: response.status,
+      responseContentType: response.headers.get("content-type") ?? "",
+    };
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === "AbortError") {
