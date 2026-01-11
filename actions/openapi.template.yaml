@@ -97,6 +97,16 @@ components:
             $ref: "#/components/schemas/Item"
       required:
         - items
+    ShareResponse:
+      type: object
+      properties:
+        share_id:
+          type: string
+        share_url:
+          type: string
+      required:
+        - share_id
+        - share_url
     FeedbackContext:
       type: object
       properties:
@@ -223,3 +233,19 @@ paths:
           description: Unauthorized
         "429":
           description: Rate limited
+  /shares:
+    post:
+      operationId: createShare
+      summary: Create or reuse an active share link
+      security:
+        - oauth2:
+            - wishlist:write
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareResponse"
+        "401":
+          description: Unauthorized
