@@ -1474,3 +1474,82 @@ Delete behavior must be identical whether triggered from card menu or Decision S
      Regression: v0.1 loop remains intact (`getMe → createItem → listItems`)
 
 ---
+
+# v0.6 — Privacy/Terms + Post-login Onboarding (P0 Profile)
+
+## 背景与目标
+- v0.6 的目标是补齐最小合规入口，并收集 enrich 抓取更准确所需的最小用户上下文（P0），且不影响现有 GPT Actions/Add 的成功率。  
+- The goal of v0.6 is to add minimal compliance entry points and collect the minimum user context needed for more accurate enrichment (P0), without reducing the success rate of existing GPT Actions/Add flows.
+
+## 交付范围
+1) 隐私政策与服务条款  
+Privacy Policy & Terms of Service  
+- 新增页面：`/privacy`、`/terms`。  
+  Add pages: `/privacy`, `/terms`.  
+- 入口仅要求覆盖：`/login` 页脚显示 Privacy / Terms 链接（其他页面不强制）。  
+  Only required entry point: show Privacy/Terms links in the `/login` footer (not required elsewhere).
+
+2) 登录后 Onboarding（独立页面，一屏完成）  
+Post-login Onboarding (standalone page, single-screen)  
+- 新增页面：`/onboarding`，并在登录成功后立即跳转到该页面。  
+  Add `/onboarding` and redirect to it immediately after successful login.  
+- Onboarding 一屏收集并保存（P0）：`country_code`、`preferred_language`、`preferred_currency`。  
+  Collect & persist (P0): `country_code`, `preferred_language`, `preferred_currency`.  
+- 记录合规接受信息：`accepted_at`、`policy_version`（日期字符串，例如 `2026-01-11`，写死在代码中）。  
+  Persist acceptance fields: `accepted_at` and `policy_version` (date string e.g. `2026-01-11`, hard-coded).  
+- 页面仅展示 under-13 提示文案（不需要 checkbox，不做 DOB/年龄验证，不额外落库 age 字段）。  
+  Show an under-13 notice as plain text only (no checkbox, no DOB/age verification, no extra age fields stored).
+
+3) App 设置入口 (App settings entry point)
+- `/app` 顶部 header 的最右侧（在 cheatsheet 按钮右边）增加齿轮 icon，跳转到 `/app/settings`。  
+  Add a gear icon to the far-right of the `/app` header (to the right of the cheatsheet button) linking to `/app/settings`.  
+- `/app/settings` 复用 onboarding 相同的表单，可修改并保存 country/language/currency。  
+  `/app/settings` reuses the same form as onboarding and allows editing/saving country/language/currency.
+
+4) Web 端 profile gate（只影响 Web，不影响 Actions） - Web profile gate (web-only, does not affect Actions)  
+- Web 端访问 `/app` 时，如果 profile 不完整则重定向到 `/onboarding`。  
+  When visiting `/app` on web, redirect to `/onboarding` if the profile is incomplete.  
+- GPT Actions/CreateItem 在 profile 缺失时仍必须成功（不得引入新的失败路径）。  
+  GPT Actions/CreateItem must still succeed when profile is missing (no new failure paths).
+
+5) enrich 使用 profile（最小化改动）- Enrichment uses profile (minimal change)  
+- profile 完整时：enrich 请求至少使用 `preferred_language` 作为 `Accept-Language`。  
+  If profile is complete: at minimum use `preferred_language` as `Accept-Language` for enrichment fetches.  
+- profile 缺失/不完整时：不从 URL 推断 locale，不使用“本次请求 headers/IP”作为用户代理，使用固定默认值：`language=en-US`、`currency=USD`、`country=UNKNOWN`。  
+  If profile is missing/incomplete: do not infer locale from URL and do not use request headers/IP as user proxy; use fixed defaults: `language=en-US`, `currency=USD`, `country=UNKNOWN`.
+
+## 数据模型（DB）
+- 新增表：`profiles`，用于存储最小用户上下文（P0）与合规接受信息。  
+  Add a `profiles` table to store minimum user context (P0) and acceptance fields.  
+- 字段：`user_id`(PK, references auth.users)、`country_code`、`preferred_language`、`preferred_currency`、`accepted_at`、`policy_version`、`created_at`、`updated_at`。  
+  Fields: `user_id` (PK, references auth.users), `country_code`, `preferred_language`, `preferred_currency`, `accepted_at`, `policy_version`, `created_at`, `updated_at`.  
+- RLS：仅允许已登录用户读写自己的 profile（`user_id = auth.uid()`）。  
+  RLS: authenticated users can only read/write their own profile row (`user_id = auth.uid()`).
+
+## 依赖
+- 使用 `country-to-currency`（固定版本号，不使用 `^`）提供 country→默认 currency 的轻量映射，用于 onboarding 默认值预填。  
+- Use `country-to-currency` with a pinned exact version (no `^`) to provide lightweight country→default currency mapping for onboarding defaults.
+
+## 非目标（Non-goals）
+- 不做 cookie banner。  
+  No cookie consent banner.  
+- 不做 DOB/年龄验证/KYC。  
+  No DOB/age verification/KYC.  
+- 不做 URL locale 推断策略。  
+  No URL-locale inference strategy.  
+- 不要求 GPT Actions 在无 profile 情况下失败（必须保持兼容）。  
+  No requirement for GPT Actions to fail when profile is missing (must remain compatible).
+
+### 验收（Acceptance）
+- `/login` 显示 Privacy / Terms 链接，并可访问 `/privacy`、`/terms`。  
+  `/login` shows Privacy/Terms links and `/privacy`, `/terms` are accessible.  
+- 登录成功后进入 `/onboarding`，一屏完成 country/language/currency 设置并保存。  
+  After login, `/onboarding` appears and saves country/language/currency in a single screen.  
+- Web 端访问 `/app` 且 profile 不完整时会跳转到 `/onboarding`。  
+  On web, `/app` redirects to `/onboarding` when profile is incomplete.  
+- `/app` header 的齿轮入口可进入 `/app/settings` 并保存设置。  
+  The gear icon in `/app` header opens `/app/settings` and saves settings.  
+- GPT Actions/CreateItem 在 profile 缺失时仍能成功（无回退）。  
+  GPT Actions/CreateItem still succeeds when profile is missing (no regression).  
+- enrich 在 profile 存在时使用 `Accept-Language`，profile 缺失时使用默认值且不做 URL 推断/不读请求 headers。  
+  Enrichment uses `Accept-Language` when profile exists; otherwise uses defaults without URL inference or request-header proxying.
