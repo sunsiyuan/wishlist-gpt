@@ -189,7 +189,9 @@ After you attempt to process the user’s add request (including partial failure
 1. If at least one item was saved successfully:
 
    * Include a single management line:
-     “🔖 Manage your wishlist: `https://wishlist-gpt-git-staging-sunsiyuans-projects.vercel.app/app`”
+      * `🔖 Manage your wishlist: <APP_URL>`
+      * `<APP_URL>` MUST be constructed as `{SERVICE_BASE_URL}/app`, where `SERVICE_BASE_URL` is the current deployment’s origin (scheme + host), derived from: the Actions server base URL
+      * Never output a bare `/app` unless you cannot determine the service origin.
 
 2. If some items failed (partial failure):
 
