@@ -1,4 +1,5 @@
 import ProfileForm from "../../components/ProfileForm";
+import DarkModeToggle from "../../components/DarkModeToggle";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { getProfileForUser } from "../../../server/profiles/store";
 
@@ -17,7 +18,10 @@ export default async function SettingsPage() {
         <p className="m-0 text-gray-600 dark:text-gray-400">Settings</p>
         <h1 className="mt-1 mb-0 text-2xl font-bold">App preferences</h1>
       </header>
-      <ProfileForm initialValues={profile ?? undefined} submitLabel="Save settings" />
+      <div className="space-y-4">
+        <DarkModeToggle />
+        <ProfileForm initialValues={profile ?? undefined} submitLabel="Save settings" />
+      </div>
     </main>
   );
 }

@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  XMarkIcon,
+  Cog6ToothIcon,
+  BarsArrowUpIcon,
+  BarsArrowDownIcon,
+  ShareIcon,
+  QuestionMarkCircleIcon,
+} from "@heroicons/react/24/outline";
 import FeedbackModal from "../components/FeedbackModal";
 import {
   getCardTitle,
@@ -473,7 +480,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
               aria-label="Settings"
               className="no-underline text-secondary dark:text-secondary-dark text-lg hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
             >
-              ⚙️
+              <Cog6ToothIcon className="w-5 h-5" />
             </a>
           </div>
         </header>
@@ -481,15 +488,26 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
           <button
             type="button"
             onClick={() => setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))}
-            className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-3.5 py-1.5 cursor-pointer text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+            className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-3.5 py-1.5 cursor-pointer text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200 flex items-center gap-1.5"
           >
-            {sortOrder === "desc" ? "Newest" : "Oldest"}
+            {sortOrder === "desc" ? (
+              <>
+                <BarsArrowUpIcon className="w-4 h-4" />
+                Newest
+              </>
+            ) : (
+              <>
+                <BarsArrowDownIcon className="w-4 h-4" />
+                Oldest
+              </>
+            )}
           </button>
           <button
             type="button"
             onClick={handleOpenShare}
-            className="border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill px-5 py-2 cursor-pointer text-[0.95rem] font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200"
+            className="border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill px-5 py-2 cursor-pointer text-[0.95rem] font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200 flex items-center gap-1.5"
           >
+            <ShareIcon className="w-4 h-4" />
             Share
           </button>
         </section>
@@ -570,11 +588,12 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                             <h2 className="text-base font-semibold m-0 truncate">{title}</h2>
                           </div>
                           {showPriceRow ? (
-                            <div className="mt-1.5 text-gray-600 dark:text-gray-400">
+                            <div className="mt-1.5 text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
                               <span>{priceText}</span>
-                              <span title={PRICE_TOOLTIP} className="ml-1.5 text-gray-400 dark:text-gray-500">
-                                ?
-                              </span>
+                              <QuestionMarkCircleIcon
+                                title={PRICE_TOOLTIP}
+                                className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500"
+                              />
                             </div>
                           ) : null}
                         </div>
@@ -653,11 +672,12 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                   <h2 className="m-0 text-lg font-semibold">{getCardTitle(activeItem)}</h2>
                 </div>
                 {shouldShowPriceRow(activeItem) && activePriceText ? (
-                  <div className="mt-1.5 text-gray-600 dark:text-gray-400">
+                  <div className="mt-1.5 text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
                     <span>{activePriceText}</span>
-                    <span title={PRICE_TOOLTIP} className="ml-1.5 text-gray-400 dark:text-gray-500">
-                      ?
-                    </span>
+                    <QuestionMarkCircleIcon
+                      title={PRICE_TOOLTIP}
+                      className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500"
+                    />
                   </div>
                 ) : null}
               </div>
