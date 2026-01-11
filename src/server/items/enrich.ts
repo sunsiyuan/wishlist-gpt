@@ -170,7 +170,7 @@ async function enrichItem(params: {
       attempt.duration_ms = duration;
 
       if (!fetchResult.ok) {
-        const failure = fetchResult;
+        const failure = fetchResult as ShopifyJsFailureResult;
         attempt.fetch = {
           ok: false,
           status: failure.status,
@@ -752,11 +752,7 @@ export function isProbablyShopifyProductUrl(url: string): {
   };
 }
 
-async function fetchShopifyProductJs(
-  origin: string,
-  localePrefix: string | null,
-  handle: string,
-): Promise<
+type ShopifyJsFetchResult =
   | { ok: true; finalUrl: string; json: unknown; status: number; contentType?: string }
   | {
       ok: false;
@@ -770,8 +766,15 @@ async function fetchShopifyProductJs(
       errorName?: string;
       errorMessage?: string;
       unexpectedContentType?: boolean;
-    }
-> {
+    };
+
+type ShopifyJsFailureResult = Extract<ShopifyJsFetchResult, { ok: false }>;
+
+async function fetchShopifyProductJs(
+  origin: string,
+  localePrefix: string | null,
+  handle: string,
+): Promise<ShopifyJsFetchResult> {
   const endpoints = [
     localePrefix ? `${origin}/${localePrefix}/products/${handle}.js` : null,
     `${origin}/products/${handle}.js`,
