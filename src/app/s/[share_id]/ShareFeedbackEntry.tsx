@@ -19,23 +19,11 @@ function Toast({ toast }: { toast: ToastState }) {
   return (
     <div
       role="status"
-      style={{
-        position: "fixed",
-        bottom: "24px",
-        left: "50%",
-        transform: "translateX(-50%)",
-        background: toast.tone === "error" ? "#2f1518" : "#111",
-        color: "#fff",
-        padding: "0.65rem 1rem",
-        borderRadius: "999px",
-        display: "flex",
-        alignItems: "center",
-        gap: "0.75rem",
-        boxShadow: "0 12px 24px rgba(0, 0, 0, 0.2)",
-        zIndex: 80,
-      }}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 ${
+        toast.tone === "error" ? "bg-red-950" : "bg-primary dark:bg-primary-dark"
+      } text-white py-2.5 px-4 rounded-pill flex items-center gap-3 shadow-toast dark:shadow-toast-dark z-[80]`}
     >
-      <span style={{ fontSize: "0.9rem" }}>{toast.message}</span>
+      <span className="text-sm">{toast.message}</span>
     </div>
   );
 }
@@ -106,18 +94,11 @@ export default function ShareFeedbackEntry({ shareId, intent }: ShareFeedbackEnt
   };
 
   return (
-    <div style={{ marginTop: "2rem", textAlign: "center" }}>
+    <div className="mt-8 text-center">
       <button
         type="button"
         onClick={handleFeedbackClick}
-        style={{
-          border: "1px solid #e3e3e3",
-          background: "#fff",
-          borderRadius: "999px",
-          padding: "0.55rem 1.5rem",
-          cursor: "pointer",
-          fontWeight: 600,
-        }}
+        className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-6 py-2.5 cursor-pointer font-semibold hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
       >
         Feedback
       </button>
@@ -129,7 +110,7 @@ export default function ShareFeedbackEntry({ shareId, intent }: ShareFeedbackEnt
         onRateLimit={() =>
           showToast({ message: "Too fast — try again in a minute.", tone: "error" })
         }
-        onError={() => showToast({ message: "Couldn’t send. Try again.", tone: "error" })}
+        onError={() => showToast({ message: "Couldn't send. Try again.", tone: "error" })}
       />
       {toast ? <Toast toast={toast} /> : null}
     </div>
