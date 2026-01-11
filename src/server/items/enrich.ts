@@ -55,7 +55,7 @@ function getAcceptLanguage(preferredLanguage?: string | null): string {
 
 // Enrich attempt type for logging
 export type EnrichAttempt = {
-  strategy: "gpts_input" | "shopify_js" | "html" | "opengraph_io";
+  strategy: "gpts_input" | "shopify_product_json" | "shopify_js" | "html" | "opengraph_io";
   started_at: string;
   duration_ms: number;
   request?: {
@@ -153,13 +153,93 @@ async function enrichItem(params: {
     });
   };
 
-  // Attempt 1: Shopify Product JS
+  // Attempt 1: Shopify Product JSON (preferred)
   const shopifyInfo = isProbablyShopifyProductUrl(params.url);
+  let shopifyJsonSucceeded = false;
   if (shopifyInfo) {
-    const startedAt = new Date().toISOString();
-    const attempt: EnrichAttempt = {
+    const jsonStartedAt = new Date().toISOString();
+    const jsonAttempt: EnrichAttempt = {
+      strategy: "shopify_product_json",
+      started_at: jsonStartedAt,
+      duration_ms: 0,
+      request: {
+        url: `${shopifyInfo.origin}${shopifyInfo.localePrefix ? `/${shopifyInfo.localePrefix}` : ""}/products/${shopifyInfo.handle}.json`,
+        headers: {
+          "User-Agent": BROWSER_USER_AGENT,
+          Accept: "application/json",
+          "Accept-Language": acceptLanguage,
+        },
+      },
+    };
+
+    try {
+      const fetchResult = await fetchShopifyProductJson(
+        shopifyInfo.origin,
+        shopifyInfo.localePrefix,
+        shopifyInfo.handle,
+        acceptLanguage,
+      );
+      const duration = Date.now() - new Date(jsonStartedAt).getTime();
+      jsonAttempt.duration_ms = duration;
+
+      if (!fetchResult.ok) {
+        const failure = fetchResult as ShopifyJsonFailureResult;
+        jsonAttempt.fetch = {
+          ok: false,
+          status: failure.status,
+          status_code: failure.status,
+          final_url: failure.finalUrl,
+          response_content_type: failure.contentType ?? "",
+          body_prefix: failure.bodyPrefix,
+          latency_ms: duration,
+          blocked: failure.blocked,
+          blocked_reason: failure.blockedReason,
+          blocked_keyword: failure.blockedKeyword,
+        };
+        if (failure.errorName) {
+          jsonAttempt.error = failure.errorName;
+        } else if (failure.blocked) {
+          jsonAttempt.error = "blocked_or_rate_limited";
+        } else if (failure.status) {
+          jsonAttempt.error = "http_error";
+        } else {
+          jsonAttempt.error = "network_or_runtime_error";
+        }
+      } else {
+        jsonAttempt.fetch = {
+          ok: true,
+          final_url: fetchResult.finalUrl,
+          status: fetchResult.status,
+          status_code: fetchResult.status,
+          response_content_type: fetchResult.contentType ?? "",
+          latency_ms: duration,
+        };
+        const extracted = extractFromShopifyProductJson(fetchResult.json, fetchResult.finalUrl);
+        jsonAttempt.details = extracted.details;
+        jsonAttempt.raw = extracted.raw;
+
+        const updates = buildFillOnlyUpdates(workingItem, extracted.extractedFields, fetchResult.finalUrl);
+        jsonAttempt.computed_updates = updates;
+        if (Object.keys(updates).length > 0) {
+          Object.assign(workingItem, updates);
+          shopifyJsonSucceeded = true;
+        }
+      }
+    } catch (error) {
+      const duration = Date.now() - new Date(jsonStartedAt).getTime();
+      jsonAttempt.duration_ms = duration;
+      jsonAttempt.error = error instanceof Error ? error.message : "Unknown error";
+    }
+
+    await logAttempt(jsonAttempt);
+  }
+
+  // Attempt 2: Shopify Product JS (fallback if JSON failed or extracted no useful fields)
+  if (shopifyInfo && !shopifyJsonSucceeded) {
+    const jsStartedAt = new Date().toISOString();
+    const jsAttempt: EnrichAttempt = {
       strategy: "shopify_js",
-      started_at: startedAt,
+      started_at: jsStartedAt,
       duration_ms: 0,
       request: {
         url: `${shopifyInfo.origin}${shopifyInfo.localePrefix ? `/${shopifyInfo.localePrefix}` : ""}/products/${shopifyInfo.handle}.js`,
@@ -174,12 +254,12 @@ async function enrichItem(params: {
         shopifyInfo.handle,
         acceptLanguage,
       );
-      const duration = Date.now() - new Date(startedAt).getTime();
-      attempt.duration_ms = duration;
+      const duration = Date.now() - new Date(jsStartedAt).getTime();
+      jsAttempt.duration_ms = duration;
 
       if (!fetchResult.ok) {
         const failure = fetchResult as ShopifyJsFailureResult;
-        attempt.fetch = {
+        jsAttempt.fetch = {
           ok: false,
           status: failure.status,
           status_code: failure.status,
@@ -193,16 +273,16 @@ async function enrichItem(params: {
         };
         // Use errorName from failure if available, otherwise infer from status/blocked
         if (failure.errorName) {
-          attempt.error = failure.errorName;
+          jsAttempt.error = failure.errorName;
         } else if (failure.blocked) {
-          attempt.error = "blocked_or_rate_limited";
+          jsAttempt.error = "blocked_or_rate_limited";
         } else if (failure.status) {
-          attempt.error = failure.unexpectedContentType ? "unexpected_content_type" : "http_error";
+          jsAttempt.error = failure.unexpectedContentType ? "unexpected_content_type" : "http_error";
         } else {
-          attempt.error = "network_or_runtime_error";
+          jsAttempt.error = "network_or_runtime_error";
         }
       } else {
-        attempt.fetch = {
+        jsAttempt.fetch = {
           ok: true,
           final_url: fetchResult.finalUrl,
           status: fetchResult.status,
@@ -211,23 +291,23 @@ async function enrichItem(params: {
           latency_ms: duration,
         };
         const extracted = extractFromShopifyProductJs(fetchResult.json, fetchResult.finalUrl);
-        attempt.details = extracted.details;
-        attempt.raw = extracted.raw;
+        jsAttempt.details = extracted.details;
+        jsAttempt.raw = extracted.raw;
 
         const updates = buildFillOnlyUpdates(workingItem, extracted.extractedFields, fetchResult.finalUrl);
-        attempt.computed_updates = updates;
+        jsAttempt.computed_updates = updates;
         if (Object.keys(updates).length > 0) {
           // Apply to working item
           Object.assign(workingItem, updates);
         }
       }
     } catch (error) {
-      const duration = Date.now() - new Date(startedAt).getTime();
-      attempt.duration_ms = duration;
-      attempt.error = error instanceof Error ? error.message : "Unknown error";
+      const duration = Date.now() - new Date(jsStartedAt).getTime();
+      jsAttempt.duration_ms = duration;
+      jsAttempt.error = error instanceof Error ? error.message : "Unknown error";
     }
 
-    await logAttempt(attempt);
+    await logAttempt(jsAttempt);
   }
 
   // Attempt 2: HTML (always try)
@@ -305,20 +385,23 @@ async function enrichItem(params: {
 
   await logAttempt(htmlAttempt);
 
-  // Determine if both attempts failed
-  // Shopify failed if: not a shopify URL, fetch failed, or extracted no useful fields
-  const shopifyAttempt = attempts.find((a) => a.strategy === "shopify_js");
+  // Determine if both Shopify attempts failed
+  // Shopify failed if: not a shopify URL, both JSON and JS failed, or extracted no useful fields
+  const shopifyJsonAttempt = attempts.find((a) => a.strategy === "shopify_product_json");
+  const shopifyJsAttempt = attempts.find((a) => a.strategy === "shopify_js");
+  const shopifyAttempt = shopifyJsonAttempt ?? shopifyJsAttempt; // Prefer JSON, fallback to JS
   const shopifyExtracted = shopifyAttempt?.details?.shopify;
   const shopifyExtractedRecord = isRecord(shopifyExtracted) ? shopifyExtracted : null;
   const hasShopifyUsefulFields =
     shopifyExtractedRecord !== null &&
     (shopifyExtractedRecord.title ||
       shopifyExtractedRecord.image ||
+      shopifyExtractedRecord.variants ||
       shopifyExtractedRecord.variants_sample);
   const shopifyFailed =
     !shopifyInfo ||
-    shopifyAttempt?.error !== undefined ||
-    !shopifyAttempt?.fetch?.ok ||
+    (shopifyJsonAttempt?.error !== undefined && (!shopifyJsAttempt || shopifyJsAttempt?.error !== undefined)) ||
+    (!shopifyJsonAttempt?.fetch?.ok && (!shopifyJsAttempt || !shopifyJsAttempt?.fetch?.ok)) ||
     !hasShopifyUsefulFields;
 
   // HTML failed if: fetch not ok OR extracted no fields
@@ -326,7 +409,7 @@ async function enrichItem(params: {
   const hasHtmlUsefulFields = htmlExtracted && Object.keys(htmlExtracted).length > 0;
   const htmlFailed = htmlAttempt.error !== undefined || !htmlAttempt.fetch?.ok || !hasHtmlUsefulFields;
 
-  // Attempt 3: opengraph.io (only if both failed)
+  // Attempt 4: opengraph.io (only if both Shopify and HTML failed)
   if (shopifyFailed && htmlFailed && OPENGRAPH_IO_APP_ID) {
     const ogStartedAt = new Date().toISOString();
     const ogAttempt: EnrichAttempt = {
@@ -813,6 +896,198 @@ type ShopifyJsFetchResult =
 
 type ShopifyJsFailureResult = Extract<ShopifyJsFetchResult, { ok: false }>;
 
+type ShopifyJsonFetchResult =
+  | { ok: true; finalUrl: string; json: unknown; status: number; contentType?: string }
+  | {
+      ok: false;
+      finalUrl: string;
+      status?: number;
+      contentType?: string;
+      blocked?: boolean;
+      blockedReason?: string;
+      blockedKeyword?: string;
+      bodyPrefix?: string;
+      errorName?: string;
+      errorMessage?: string;
+    };
+
+type ShopifyJsonFailureResult = Extract<ShopifyJsonFetchResult, { ok: false }>;
+
+async function fetchShopifyProductJson(
+  origin: string,
+  localePrefix: string | null,
+  handle: string,
+  acceptLanguage: string,
+): Promise<ShopifyJsonFetchResult> {
+  const endpoints = [
+    localePrefix ? `${origin}/${localePrefix}/products/${handle}.json` : null,
+    `${origin}/products/${handle}.json`,
+  ].filter(Boolean) as string[];
+
+  let lastFailure:
+    | {
+        ok: false;
+        finalUrl: string;
+        status?: number;
+        contentType?: string;
+        blocked?: boolean;
+        blockedReason?: string;
+        blockedKeyword?: string;
+        bodyPrefix?: string;
+        errorName?: string;
+        errorMessage?: string;
+      }
+    | null = null;
+
+  for (const endpoint of endpoints) {
+    const requestStart = Date.now();
+    const deadline = requestStart + FETCH_TIMEOUT_MS;
+    const headers = {
+      "User-Agent": BROWSER_USER_AGENT,
+      Accept: "application/json",
+      "Accept-Language": acceptLanguage,
+    };
+    let responseResult = await fetchWithTimeoutDetailed(endpoint, headers, FETCH_TIMEOUT_MS);
+
+    if (!responseResult.response) {
+      if (responseResult.timedOut) {
+        lastFailure = {
+          ok: false,
+          finalUrl: endpoint,
+          errorName: "AbortError",
+          errorMessage: "Request timed out",
+        };
+      } else if (responseResult.error) {
+        lastFailure = {
+          ok: false,
+          finalUrl: endpoint,
+          errorName: responseResult.error.name,
+          errorMessage: responseResult.error.message,
+        };
+      } else {
+        lastFailure = { ok: false, finalUrl: endpoint, errorName: "FetchError", errorMessage: "Fetch failed" };
+      }
+      continue;
+    }
+
+    let response = responseResult.response;
+    if (isRedirectResponse(response)) {
+      const location = response.headers.get("location");
+      if (!location) {
+        const contentType = response.headers.get("content-type");
+        const bodyPrefix = ENRICH_DEBUG
+          ? await readResponsePrefix(response.clone(), SHOPIFY_BODY_PREFIX_BYTES)
+          : undefined;
+        lastFailure = {
+          ok: false,
+          finalUrl: endpoint,
+          status: response.status,
+          contentType: contentType ?? "",
+          bodyPrefix,
+          ...getBlockedInfo(response.status, bodyPrefix ?? null),
+        };
+        continue;
+      }
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        lastFailure = {
+          ok: false,
+          finalUrl: endpoint,
+          errorName: "AbortError",
+          errorMessage: "Request timed out",
+        };
+        continue;
+      }
+      const nextUrl = new URL(location, endpoint).toString();
+      responseResult = await fetchWithTimeoutDetailed(nextUrl, headers, remaining);
+      if (!responseResult.response) {
+        if (responseResult.timedOut) {
+          lastFailure = {
+            ok: false,
+            finalUrl: nextUrl,
+            errorName: "AbortError",
+            errorMessage: "Request timed out",
+          };
+        } else if (responseResult.error) {
+          lastFailure = {
+            ok: false,
+            finalUrl: nextUrl,
+            errorName: responseResult.error.name,
+            errorMessage: responseResult.error.message,
+          };
+        } else {
+          lastFailure = { ok: false, finalUrl: nextUrl, errorName: "FetchError", errorMessage: "Fetch failed" };
+        }
+        continue;
+      }
+      response = responseResult.response;
+    }
+
+    const contentType = response.headers.get("content-type") ?? "";
+    const finalUrl = response.url || endpoint;
+
+    if (!response.ok) {
+      const bodyPrefix = ENRICH_DEBUG
+        ? await readResponsePrefix(response.clone(), SHOPIFY_BODY_PREFIX_BYTES)
+        : undefined;
+      const blockedInfo = getBlockedInfo(response.status, bodyPrefix ?? null);
+      lastFailure = {
+        ok: false,
+        finalUrl,
+        status: response.status,
+        contentType,
+        bodyPrefix,
+        ...blockedInfo,
+        errorName: blockedInfo.blocked ? "blocked_or_rate_limited" : "http_error",
+        errorMessage: blockedInfo.blocked
+          ? `HTTP ${response.status} (${blockedInfo.blockedReason ?? "blocked"})`
+          : `HTTP ${response.status}`,
+      };
+      continue;
+    }
+
+    // Response is ok - read body and parse JSON
+    let json: unknown;
+    try {
+      json = await response.json();
+    } catch (error) {
+      const bodyPrefix = ENRICH_DEBUG
+        ? await readResponsePrefix(response.clone(), SHOPIFY_BODY_PREFIX_BYTES)
+        : undefined;
+      const blockedInfo = getBlockedInfo(response.status, bodyPrefix ?? null);
+      lastFailure = {
+        ok: false,
+        finalUrl,
+        status: response.status,
+        contentType,
+        bodyPrefix,
+        ...blockedInfo,
+        errorName: blockedInfo.blocked ? "blocked_or_challenge" : "json_parse_error",
+        errorMessage: error instanceof Error ? error.message : "Failed to parse JSON",
+      };
+      continue;
+    }
+
+    // Success: JSON parsed successfully
+    return {
+      ok: true,
+      finalUrl,
+      json,
+      status: response.status,
+      contentType,
+    };
+  }
+
+  return (
+    lastFailure ?? {
+      ok: false,
+      finalUrl: `${origin}/products/${handle}.json`,
+      errorName: "FetchError",
+      errorMessage: "No Shopify JSON endpoints attempted",
+    }
+  );
+}
+
 async function fetchShopifyProductJs(
   origin: string,
   localePrefix: string | null,
@@ -1056,6 +1331,136 @@ async function fetchShopifyProductJs(
       errorMessage: "No Shopify endpoints attempted",
     }
   );
+}
+
+function extractFromShopifyProductJson(
+  json: unknown,
+  finalUrl: string,
+): {
+  extractedFields: ExtractedMetadata;
+  details: Record<string, unknown>;
+  raw: unknown;
+} {
+  const extractedFields: ExtractedMetadata = {};
+  const details: Record<string, unknown> = {};
+
+  if (!isRecord(json) || !isRecord(json.product)) {
+    return { extractedFields, details, raw: json };
+  }
+
+  const product = json.product;
+  const shopifyDetails: Record<string, unknown> = {};
+
+  // Extract id, title, handle, vendor
+  if (typeof product.id === "number" || typeof product.id === "string") {
+    shopifyDetails.id = product.id;
+  }
+  if (typeof product.title === "string") {
+    const title = sanitizeDisplayTitle(product.title);
+    if (title) {
+      extractedFields.display_product_title = title;
+      shopifyDetails.title = product.title;
+    }
+  }
+  if (typeof product.handle === "string") {
+    shopifyDetails.handle = product.handle;
+  }
+  if (typeof product.vendor === "string") {
+    shopifyDetails.vendor = product.vendor;
+  }
+
+  // Extract images (first image as cover)
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    const firstImage = product.images[0];
+    if (typeof firstImage === "string") {
+      const imageUrl = resolveImageUrl(firstImage, finalUrl);
+      if (imageUrl) {
+        extractedFields.display_cover_image_url = imageUrl;
+        shopifyDetails.image = firstImage;
+      }
+    } else if (isRecord(firstImage)) {
+      const src = firstImage.src;
+      if (typeof src === "string") {
+        const imageUrl = resolveImageUrl(src, finalUrl);
+        if (imageUrl) {
+          extractedFields.display_cover_image_url = imageUrl;
+          shopifyDetails.image = src;
+        }
+      }
+    }
+    // Store first 3 images in details
+    shopifyDetails.images = product.images
+      .slice(0, 3)
+      .map((img: unknown) => {
+        if (typeof img === "string") return img;
+        if (isRecord(img)) {
+          return img.src ?? img;
+        }
+        return img;
+      });
+  }
+
+  // Extract price from first variant
+  if (Array.isArray(product.variants) && product.variants.length > 0) {
+    const firstVariant = product.variants[0];
+    if (isRecord(firstVariant)) {
+      const variantDetails: Record<string, unknown> = {};
+      if (typeof firstVariant.id === "number" || typeof firstVariant.id === "string") {
+        variantDetails.id = firstVariant.id;
+      }
+
+      let priceDisplay: string | null = null;
+      let priceCurrency: string | null = null;
+      let compareAtPrice: string | null = null;
+
+      if (typeof firstVariant.price === "string") {
+        priceDisplay = firstVariant.price.trim();
+        variantDetails.price = priceDisplay;
+        if (priceDisplay) {
+          const priceFloat = parseFloat(priceDisplay);
+          if (Number.isFinite(priceFloat) && priceFloat >= 0) {
+            extractedFields.display_price_amount_minor = Math.round(priceFloat * 100);
+          } else {
+            const priceText = sanitizePriceText(priceDisplay);
+            if (priceText) {
+              extractedFields.display_price_text = priceText;
+            }
+          }
+        }
+      }
+
+      if (typeof firstVariant.price_currency === "string") {
+        priceCurrency = firstVariant.price_currency.trim();
+        variantDetails.price_currency = priceCurrency;
+        const currency = sanitizeCurrency(priceCurrency);
+        if (currency) {
+          extractedFields.display_currency = currency;
+        }
+      }
+
+      if (typeof firstVariant.compare_at_price === "string") {
+        compareAtPrice = firstVariant.compare_at_price.trim();
+        variantDetails.compare_at_price = compareAtPrice || null; // Normalize empty string to null
+      } else if (firstVariant.compare_at_price === null || firstVariant.compare_at_price === undefined) {
+        variantDetails.compare_at_price = null;
+      }
+
+      shopifyDetails.variants = [variantDetails];
+    }
+  }
+
+  // Extract merchant domain
+  const domain = deriveMerchantDomainFromUrl(finalUrl);
+  if (domain) {
+    extractedFields.display_merchant_domain = domain;
+  }
+
+  details.shopify = shopifyDetails;
+
+  // Cap raw JSON for DB storage (store the full product object)
+  const raw = safeJsonForDb(product);
+
+  return { extractedFields, details, raw };
 }
 
 function extractFromShopifyProductJs(
