@@ -35,8 +35,6 @@ yarn-error.log*
 # vercel
 .vercel
 
-# public files
-public/openapi.yaml
 
 # typescript
 *.tsbuildinfo

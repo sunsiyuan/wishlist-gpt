@@ -3,7 +3,7 @@ info:
   title: WishlistGPT Actions API
   version: 0.1.0
 servers:
-  - url: __BASE_URL__
+  - url: https://example.com
 
 components:
   schemas:
@@ -140,8 +140,8 @@ components:
       type: oauth2
       flows:
         authorizationCode:
-          authorizationUrl: __BASE_URL__/oauth/authorize
-          tokenUrl: __BASE_URL__/oauth/token
+          authorizationUrl: https://example.com/oauth/authorize
+          tokenUrl: https://example.com/oauth/token
           scopes:
             wishlist:read: Read wishlist data
             wishlist:write: Write wishlist data

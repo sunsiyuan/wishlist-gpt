@@ -35,21 +35,21 @@ EN:
 
 ### 1.1 两种认证 / Two auth modes
 CN：
-- **OAuth Bearer（Actions）**：用于 `/me`、`/items`、`/feedback`。Header：`Authorization: Bearer <access_token>`  
+- **OAuth Bearer（Actions）**：用于 `/me`、`/items`、`/shares`、`/feedback`。Header：`Authorization: Bearer <access_token>`  
 - **Supabase Cookie Session（Web）**：用于 `/app` 与所有 `/api/*` web endpoints（shares/items note/delete/restore/feedback 等）。
 
 EN:
-- **OAuth Bearer (Actions)**: for `/me`, `/items`, `/feedback`. Header: `Authorization: Bearer <access_token>`  
+- **OAuth Bearer (Actions)**: for `/me`, `/items`, `/shares`, `/feedback`. Header: `Authorization: Bearer <access_token>`  
 - **Supabase Cookie Session (Web)**: for `/app` and all `/api/*` web endpoints (shares/items note/delete/restore/feedback, etc.).
 
 ### 1.2 明确禁止 / Explicitly disallowed
 CN：
-- `/api/shares*` **只允许 cookie session**（不接受 Bearer）。  
-- `/me` 与 `/items` **必须支持 Bearer**（Actions 必须可用）。
+- `/api/shares*` **只允许 cookie session**（显式拒绝 Authorization 头）。  
+- `/me`、`/items` 与 `/shares` **必须支持 Bearer**（Actions 必须可用）。
 
 EN:
-- `/api/shares*` is **cookie-session only** (no Bearer).  
-- `/me` and `/items` **must support Bearer** (Actions must work).
+- `/api/shares*` is **cookie-session only** (explicitly rejects Authorization headers).  
+- `/me`, `/items`, and `/shares` **must support Bearer** (Actions must work).
 
 ### 1.3 生产默认（明确关键开关）/ Production defaults (key toggle)
 CN：
@@ -290,7 +290,11 @@ Response:
 CN：display hints 校验失败应“忽略该字段，不影响创建成功”；异步 enrichment 不得阻塞响应。  
 EN: Invalid display hints must be ignored (do not fail the request); async enrichment must not block.
 
-### 4.2.4 `POST /feedback`（v0.5，Bearer）
+### 4.2.4 `POST /shares`（create-or-reuse active share）
+CN：返回 `{ share_id, share_url }`，`share_url` 必须为绝对 URL（`/s/:share_id`）。  
+EN: Returns `{ share_id, share_url }` where `share_url` is an absolute URL (`/s/:share_id`).
+
+### 4.2.5 `POST /feedback`（v0.5，Bearer）
 CN：与 `POST /api/feedback` 同 shape/validation/response。  
 EN: Same shape/validation/response as `POST /api/feedback`.
 

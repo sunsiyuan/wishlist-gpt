@@ -10,6 +10,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (request.headers.get("authorization")) {
+    return NextResponse.json({ ok: false, error: "bearer_not_allowed" }, { status: 401 });
+  }
+
   const userId = await getSupabaseUserId(request);
   if (!userId) {
     return jsonError(401, "unauthorized", "Supabase session required");
