@@ -169,7 +169,28 @@ async function enrichItem(params: {
       const duration = Date.now() - new Date(startedAt).getTime();
       attempt.duration_ms = duration;
 
-      if (fetchResult.ok) {
+      if (!fetchResult.ok) {
+        const failure = fetchResult;
+        attempt.fetch = {
+          ok: false,
+          status: failure.status,
+          status_code: failure.status,
+          final_url: failure.finalUrl,
+          response_content_type: failure.contentType ?? "",
+          body_prefix: failure.bodyPrefix,
+          latency_ms: duration,
+          blocked: failure.blocked,
+          blocked_reason: failure.blockedReason,
+          blocked_keyword: failure.blockedKeyword,
+        };
+        if (failure.blocked) {
+          attempt.error = "blocked_or_rate_limited";
+        } else if (failure.status) {
+          attempt.error = failure.unexpectedContentType ? "unexpected_content_type" : "http_error";
+        } else {
+          attempt.error = "network_or_runtime_error";
+        }
+      } else {
         attempt.fetch = {
           ok: true,
           final_url: fetchResult.finalUrl,
@@ -187,26 +208,6 @@ async function enrichItem(params: {
         if (Object.keys(updates).length > 0) {
           // Apply to working item
           Object.assign(workingItem, updates);
-        }
-      } else {
-        attempt.fetch = {
-          ok: false,
-          status: fetchResult.status,
-          status_code: fetchResult.status,
-          final_url: fetchResult.finalUrl,
-          response_content_type: fetchResult.contentType ?? "",
-          body_prefix: fetchResult.bodyPrefix,
-          latency_ms: duration,
-          blocked: fetchResult.blocked,
-          blocked_reason: fetchResult.blockedReason,
-          blocked_keyword: fetchResult.blockedKeyword,
-        };
-        if (fetchResult.blocked) {
-          attempt.error = "blocked_or_rate_limited";
-        } else if (fetchResult.status) {
-          attempt.error = fetchResult.unexpectedContentType ? "unexpected_content_type" : "http_error";
-        } else {
-          attempt.error = "network_or_runtime_error";
         }
       }
     } catch (error) {
