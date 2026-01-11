@@ -240,7 +240,7 @@ async function enrichItem(params: {
     };
 
   try {
-    const fetchResult = await fetchHtmlWithRedirects(params.url);
+    const fetchResult = await fetchHtmlWithRedirects(params.url, acceptLanguage);
     const duration = Date.now() - new Date(htmlStartedAt).getTime();
     htmlAttempt.duration_ms = duration;
 
@@ -448,7 +448,10 @@ export type FetchResult = {
   blockedKeyword?: string;
 };
 
-export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchResult | null> {
+export async function fetchHtmlWithRedirects(
+  urlValue: string,
+  acceptLanguage: string,
+): Promise<FetchResult | null> {
   let currentUrl = urlValue;
   let timedOut = false;
   for (let redirectCount = 0; redirectCount <= REDIRECT_LIMIT; redirectCount += 1) {
