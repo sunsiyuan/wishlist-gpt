@@ -108,8 +108,6 @@ components:
           type: string
         source_url:
           type: string
-      required:
-        - page
     CreateFeedbackRequest:
       type: object
       properties:
