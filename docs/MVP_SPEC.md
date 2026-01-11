@@ -1,146 +1,367 @@
 # MVP_SPEC
 
----
-
-# v0.6_SPEC (Privacy/Terms + Onboarding + Settings)
-
-## 0. 一句话结论 / One-line summary
-- CN：v0.6 新增登录页隐私/条款入口、登录后一次性偏好收集（国家/语言/货币）与应用设置页，并在资料缺失时使用固定默认值。  
-  EN: v0.6 adds login footer links for privacy/terms, a lightweight post-login preference capture (country/language/currency), an app settings page, and fixed defaults when profile data is missing.
+> CN：本文件是 WishlistGPT 的**对外 contract + 验收标准**（normative）。  
+> EN: This file is the **normative external contract + acceptance criteria** for WishlistGPT.
 
 ---
 
-## 1. 目标与非目标 / Goals & non-goals
+## 0) 文档约定 / Doc conventions
 
-### 1.1 目标 / Goals
-- CN：新增公开页面 `/privacy` 与 `/terms`。  
-  EN: Add public pages at `/privacy` and `/terms`.
-- CN：登录成功后引导到 `/onboarding`，单屏完成国家/语言/货币采集。  
-  EN: Redirect after login to `/onboarding` for a single-screen country/language/currency form.
-- CN：新增 `/app/settings` 并在 `/app` 顶栏加入设置入口。  
-  EN: Add `/app/settings` and a header entry point in `/app`.
-- CN：`/app` 在资料不完整时重定向至 `/onboarding`。  
-  EN: Redirect `/app` to `/onboarding` when the profile is incomplete.
-- CN：富化请求优先使用用户偏好，否则回退到固定默认值。  
-  EN: Use profile preferences for enrichment requests, otherwise fall back to fixed defaults.
-
-### 1.2 非目标 / Non-goals
-- CN：不做 Cookie 同意弹窗或年龄验证流程。  
-  EN: No cookie consent banner or age verification flow.
-- CN：不使用 URL 或请求头推断缺失资料。  
-  EN: Do not infer missing profile data from URL or request headers.
-
----
-
-## 2. 路由与体验 / Routes & UX
-- CN：`/login` 页脚仅展示隐私与条款链接。  
-  EN: The `/login` footer displays only the privacy and terms links.
-- CN：`/onboarding` 未登录重定向 `/login`，已完成资料则重定向 `/app`。  
-  EN: `/onboarding` redirects unauthenticated users to `/login` and completed profiles to `/app`.
-- CN：`/onboarding` 展示 13 岁以上提示文字（无勾选框），并包含隐私/条款链接。  
-  EN: `/onboarding` shows a 13+ notice as plain text (no checkbox) with privacy/terms links.
-- CN：`/app/settings` 复用同一表单更新偏好，不覆盖已存在的同意时间与版本。  
-  EN: `/app/settings` reuses the same form and preserves existing acceptance timestamps/versions.
-
----
-
-## 3. 数据模型 / Data model
-- CN：新增 `profiles` 表：`user_id`、`country_code`、`preferred_language`、`preferred_currency`、`accepted_at`、`policy_version`、`created_at`、`updated_at`。  
-  EN: Add a `profiles` table with `user_id`, `country_code`, `preferred_language`, `preferred_currency`, `accepted_at`, `policy_version`, `created_at`, and `updated_at`.
-- CN：启用 RLS，仅允许认证用户读写自己的记录。  
-  EN: Enable RLS so authenticated users can read/write their own row.
-
----
-
-## 4. APIs / APIs
-- CN：`GET /api/profile` 返回当前用户资料（仅 cookie session）。  
-  EN: `GET /api/profile` returns the current user profile (cookie session only).
-- CN：`POST /api/profile` upsert 用户资料，并在首次写入时设置同意时间与版本。  
-  EN: `POST /api/profile` upserts the profile and sets acceptance metadata on first write.
-
----
-
-## 5. 富化与默认值 / Enrichment defaults
-- CN：资料完整时将 `preferred_language` 写入 fetch 的 `Accept-Language`。  
-  EN: When the profile is complete, set fetch `Accept-Language` to `preferred_language`.
-- CN：资料缺失时固定使用 `language=en-US`、`currency=USD`、`country=UNKNOWN`。  
-  EN: When the profile is missing, use fixed defaults: `language=en-US`, `currency=USD`, `country=UNKNOWN`.
-
----
-
-## 6. 验收标准 / Acceptance criteria
-- CN：登录页显示隐私/条款链接且仅在 `/login`。  
-  EN: Privacy/terms links appear on `/login` only.
-- CN：登录后跳转 `/onboarding`，完成后进入 `/app`。  
-  EN: Post-login redirects to `/onboarding`, which routes to `/app` on completion.
-- CN：`/app` 在资料缺失时强制前往 `/onboarding`。  
-  EN: `/app` forces navigation to `/onboarding` when the profile is incomplete.
-- CN：设置页可更新国家/语言/货币且不覆盖同意记录。  
-  EN: Settings can update country/language/currency without overwriting acceptance metadata.
-
----
-
-# v0.5_SPEC (Feedback Loop)
-
-## 0. 一句话结论 / One-line summary
-CN：v0.5 新增用户反馈入口、反馈存储与最小限流（每用户每分钟 1 条），闭环覆盖 Web 与 Actions。  
-EN: v0.5 adds feedback entrypoints, storage, and minimal rate limiting (1/min per user) across Web and Actions.
-
----
-
-## 1. 目标与非目标 / Goals & non-goals
-
-### 1.1 目标 / Goals
+### 0.1 规范范围 / What this spec controls
 CN：
-- 提供 Web 与 Actions 的反馈入口与 API。
-- 反馈写入 `feedback` 表，包含最小上下文（meta）。
-- 最小滥用控制：每用户 60 秒 1 条，message ≤ 1000 字符。
+- 本文件定义**对外可见的行为与接口 contract**（Actions/OpenAPI + Web API + Web pages 的关键语义）。
+- 若代码与本文件不一致：**以本文件为准**，应更新代码或更新本文件（保持一致）。
 
 EN:
-- Provide Web and Actions feedback entrypoints and APIs.
-- Persist feedback in the `feedback` table with minimal context (meta).
-- Minimal abuse control: 1 feedback / 60s / user, message ≤ 1000 chars.
+- This defines the **externally visible contract** (Actions/OpenAPI + Web APIs + key page semantics).
+- If code diverges: **this file wins**; update code or update this file (keep them in sync).
 
-### 1.2 非目标 / Non-goals
+### 0.2 双语格式 / Bilingual format
+CN：默认采用 `中文一行 + 英文一行`（或同一条 bullet 的 `CN/EN` 并列）。  
+EN: Default style is `CN line + EN line` (or CN/EN paired bullets).
+
+### 0.3 “Locked” 与 “Best-effort” / “Locked” vs “Best-effort”
 CN：
-- 不做匿名反馈、分类/标签、管理员后台、邮件通知。
-- 不做大规模 UI 重构或新 onboarding。
+- **Locked**：必须满足；否则视为不符合验收。
+- **Best-effort**：尽量做，但失败不得阻塞核心链路。
 
 EN:
-- No anonymous feedback, categories/tags, admin UI, or email workflows.
-- No major UI redesign or onboarding changes.
+- **Locked**: must hold; otherwise it fails acceptance.
+- **Best-effort**: try your best, but failures must not block the core loop.
 
 ---
 
-## 2. 入口 / Entry points
+## 1) 认证模型（统一定义）/ Auth model (single source of truth)
 
+### 1.1 两种认证 / Two auth modes
 CN：
-- `/app` Cheatsheet 内可随时发送反馈（弹层）。
-- `/s/:share_id` 页脚 Feedback 按钮（登录后打开弹层，未登录跳转登录后自动打开）。
-- Actions：`POST /feedback`（Bearer）。
+- **OAuth Bearer（Actions）**：用于 `/me`、`/items`、`/feedback`。Header：`Authorization: Bearer <access_token>`  
+- **Supabase Cookie Session（Web）**：用于 `/app` 与所有 `/api/*` web endpoints（shares/items note/delete/restore/feedback 等）。
 
 EN:
-- `/app` Cheatsheet includes a feedback entry (modal).
-- `/s/:share_id` footer Feedback button (logged in opens modal; otherwise redirect to login then auto-open).
-- Actions: `POST /feedback` (Bearer).
+- **OAuth Bearer (Actions)**: for `/me`, `/items`, `/feedback`. Header: `Authorization: Bearer <access_token>`  
+- **Supabase Cookie Session (Web)**: for `/app` and all `/api/*` web endpoints (shares/items note/delete/restore/feedback, etc.).
+
+### 1.2 明确禁止 / Explicitly disallowed
+CN：
+- `/api/shares*` **只允许 cookie session**（不接受 Bearer）。  
+- `/me` 与 `/items` **必须支持 Bearer**（Actions 必须可用）。
+
+EN:
+- `/api/shares*` is **cookie-session only** (no Bearer).  
+- `/me` and `/items` **must support Bearer** (Actions must work).
+
+### 1.3 生产默认（明确关键开关）/ Production defaults (key toggle)
+CN：
+- 生产环境中，若 `OAUTH_ALLOW_AUTH_HEADER_LOGIN` **未设置**，默认 **禁用** “Supabase Authorization 头部登录绕过”，仅允许 cookie-based session（Web）。  
+- 注意：OAuth Bearer 校验（`/me`, `/items`, `/feedback`）**不受**该开关影响，始终使用 `Authorization: Bearer` 校验。
+
+EN:
+- In production, when `OAUTH_ALLOW_AUTH_HEADER_LOGIN` is **unset**, the Supabase “Authorization header login bypass” is **disabled** by default; Web auth is cookie-session only.  
+- Note: OAuth Bearer verification (`/me`, `/items`, `/feedback`) is **not gated** by this flag; it always uses `Authorization: Bearer`.
+
+### 1.4 最小隐私与安全基线（Locked）/ Minimal privacy & security baseline (Locked)
+CN：
+- Public share 页面严格 non-PII：不输出 `user_id`、email、任何鉴权/内部字段（见 §2.2.1）。  
+- 追踪与反馈的 `meta` 应“够用但克制”：只记录诊断所需字段，避免写入 PII。  
+- 任何网络抓取/enrichment 必须做 SSRF 防护、redirect 复检、超时与大小限制（见 v0.4）。  
+- 具体安全细则与运维准则以 `SECURITY.md` 为准（本文件只保留最关键的对外 contract）。
+
+EN:
+- Public share pages must be non-PII: never return `user_id`, email, or any auth/internal fields (see §2.2.1).  
+- Tracking/feedback `meta` should be “useful but minimal”: log only what’s needed for debugging; avoid PII.  
+- Any fetch/enrichment must implement SSRF protections, redirect re-checks, hard timeouts and size caps (see v0.4).  
+- For detailed security/ops guidance, `SECURITY.md` is the source of truth (this spec keeps only the external contract).
 
 ---
 
-## 3. 数据模型 / Data model
+## 2) 核心对象与语义（统一定义）/ Core entities & semantics (single definition)
 
-### feedback
-* `id` uuid primary key default gen_random_uuid()
-* `user_id` uuid not null references auth.users(id)
-* `message` text not null
-* `created_at` timestamptz not null default now()
-* `meta` jsonb not null default '{}'::jsonb
-* index: `(user_id, created_at desc)`
+## 2.1 Item（wishlist item）
+CN：Item 是“用户收藏的一条记录”，核心为 `url_original`，展示字段为 `display_*` 快照（best-effort）。  
+EN: An Item is a user-owned wishlist record; `url_original` is the core, and `display_*` are best-effort display snapshots.
+
+### 2.1.1 排序与过滤（Locked）/ Sorting & filtering (Locked)
+CN：
+- 列表读取必须过滤：`deleted_at IS NULL`。  
+- 列表排序**只按 `created_at`**（Newest/Oldest 两态）。  
+- 编辑 `personal_note`、异步 enrichment 更新 `display_*` **不得改变排序位置**。
+
+EN:
+- List reads must filter: `deleted_at IS NULL`.  
+- List ordering uses **`created_at` only** (Newest/Oldest).  
+- Editing `personal_note` and async enrichment updates **must not reorder** items.
+
+### 2.1.2 display_* 的语义 / Semantics of display_*
+CN：
+- `display_*` 是展示快照：允许为空、不保证实时、不作为主键/幂等键。  
+- `display_price_updated_at` 只在价格字段被写入/更新时变化；不得被 touch/note/非价格补全误更新。
+
+EN:
+- `display_*` are display snapshots: nullable, not real-time, not identity keys.  
+- `display_price_updated_at` updates only when price fields change; it must not be bumped by touch/note/non-price fills.
+
+### 2.1.3 Soft delete（Locked）/ Soft delete (Locked)
+CN：
+- 删除采用 soft delete：`deleted_at = now()`；restore 清空 `deleted_at`。  
+- delete/restore **必须幂等**（重复请求不报错）。
+
+EN:
+- Deletion is soft delete: `deleted_at = now()`, restore clears `deleted_at`.  
+- delete/restore **must be idempotent**.
 
 ---
 
-## 4. APIs / APIs
+## 2.2 Share（公开分享链接）
+CN：Share 是“每用户最多一个 active share（`revoked_at is null`）”的只读公开入口 `/s/:share_id`。  
+EN: Share is a per-user public read-only entry `/s/:share_id`, with at most one active share (`revoked_at is null`).
 
-### 4.1 `POST /api/feedback` (cookie session)
+### 2.2.1 PII 边界（Locked）/ PII boundary (Locked)
+CN：
+- `/s/:share_id` 不得输出 `user_id`、email、任何鉴权/内部追踪字段。  
+- 推荐 allowlist 输出：`display_*`、`personal_note`、`source_url`。
+
+EN:
+- `/s/:share_id` must not output `user_id`, email, or any auth/internal tracking fields.  
+- Suggested allowlist: `display_*`, `personal_note`, `source_url`.
+
+### 2.2.2 revoke 行为（Locked）/ Revoke semantics (Locked)
+CN：revoke 后同链接必须立即 404（与不存在一致）。  
+EN: After revoke, the same URL must 404 immediately (indistinguishable from not found).
+
+---
+
+## 2.3 Tracking（最小埋点）
+CN：埋点写入 `events` 表，必须 best-effort 且不阻塞渲染/接口响应。  
+EN: Tracking writes to `events` and must be best-effort and non-blocking.
+
+---
+
+## 2.4 Feedback（用户反馈）
+CN：反馈写入 `feedback` 表，最小限流 1/min/user，覆盖 Web + Actions。  
+EN: Feedback writes to `feedback` with a minimal 1/min/user rate limit across Web + Actions.
+
+---
+
+## 3) 数据模型摘要 / Data model summary
+
+> CN：这里只列“语义上被 spec 依赖的字段/约束”。  
+> EN: This lists only the fields/constraints that the spec relies on.
+
+### 3.1 items
+- `id` uuid
+- `user_id` uuid
+- `url_original` text
+- `source_url` text nullable
+- `personal_note` text nullable
+- `deleted_at` timestamptz nullable
+- `created_at` timestamptz
+- `updated_at` timestamptz
+- `display_cover_image_url` text nullable
+- `display_product_title` text nullable
+- `display_merchant_logo_url` text nullable
+- `display_merchant_domain` text nullable
+- `display_price_amount_minor` int nullable
+- `display_currency` text nullable
+- `display_price_text` text nullable
+- `display_price_updated_at` timestamptz nullable
+
+### 3.2 shares
+- `id` uuid (share_id)
+- `user_id` uuid
+- `created_at` timestamptz
+- `revoked_at` timestamptz nullable
+- Constraint: partial unique index `unique(user_id) where revoked_at is null`
+
+### 3.3 events
+- `event_name` text (namespaced)
+- `occurred_at` timestamptz
+- `user_id` uuid nullable
+- `share_id` uuid/text nullable
+- `client_id` text nullable
+- `meta` jsonb not null default `{}`  
+- Dedupe: unique `(event_name, meta->>'request_id')`
+
+### 3.4 feedback
+- `id` uuid
+- `user_id` uuid
+- `message` text
+- `created_at` timestamptz
+- `meta` jsonb not null default `{}`  
+- Index: `(user_id, created_at desc)`
+
+### 3.5 oauth_codes / oauth_tokens
+- 见 v0.1（OAuth bridge）章节。
+
+---
+
+## 4) API Contract（按“对外入口”组织）/ API contract (by external surface)
+
+## 4.1 OAuth bridge（Actions Connect 必需）/ OAuth bridge (required for Actions Connect)
+
+### 4.1.1 `GET /api/oauth/authorize`（alias: `GET /oauth/authorize`）
+CN：签发 authorization code，并 redirect 到 allowlisted `redirect_uri`。  
+EN: Issues an authorization code and redirects to allowlisted `redirect_uri`.
+
+### 4.1.2 `POST /api/oauth/token`（alias: `POST /oauth/token`）
+CN：支持 `authorization_code` 与 `refresh_token` 两种 grant。  
+EN: Supports both `authorization_code` and `refresh_token` grants.
+
+---
+
+## 4.2 Actions APIs（Bearer）/ Actions APIs (Bearer)
+
+### 4.2.1 `GET /me`
+Response:
+```json
+{ "user_id": "string", "client_id": "string" }
+```
+
+### 4.2.2 `GET /items`
+Response (additive):
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "url_original": "string",
+      "source_url": "string|null",
+      "personal_note": "string|null",
+      "deleted_at": "timestamptz|null",
+      "created_at": "timestamptz",
+      "updated_at": "timestamptz",
+
+      "display_cover_image_url": "string|null",
+      "display_product_title": "string|null",
+      "display_merchant_logo_url": "string|null",
+      "display_merchant_domain": "string|null",
+      "display_price_amount_minor": 1234,
+      "display_currency": "USD",
+      "display_price_text": "string|null",
+      "display_price_updated_at": "timestamptz|null"
+    }
+  ]
+}
+```
+
+CN：必须满足 §2.1.1 的排序/过滤规则（deleted filter + created_at ordering）。  
+EN: Must follow §2.1.1 (deleted filter + created_at ordering).
+
+### 4.2.3 `POST /items`（idempotent create/touch）
+Request (url required; display_* optional as hints):
+```json
+{
+  "url": "string",
+
+  "display_cover_image_url": "string (optional)",
+  "display_product_title": "string (optional)",
+  "display_merchant_logo_url": "string (optional)",
+  "display_merchant_domain": "string (optional)",
+  "display_price_amount_minor": 1234,
+  "display_currency": "USD",
+  "display_price_text": "string (optional)"
+}
+```
+
+Response:
+```json
+{
+  "item": {
+    "id": "uuid",
+    "url_original": "string",
+    "source_url": "string|null",
+    "personal_note": "string|null",
+    "deleted_at": "timestamptz|null",
+    "created_at": "timestamptz",
+    "updated_at": "timestamptz",
+
+    "display_cover_image_url": "string|null",
+    "display_product_title": "string|null",
+    "display_merchant_logo_url": "string|null",
+    "display_merchant_domain": "string|null",
+    "display_price_amount_minor": 1234,
+    "display_currency": "USD",
+    "display_price_text": "string|null",
+    "display_price_updated_at": "timestamptz|null"
+  }
+}
+```
+
+CN：display hints 校验失败应“忽略该字段，不影响创建成功”；异步 enrichment 不得阻塞响应。  
+EN: Invalid display hints must be ignored (do not fail the request); async enrichment must not block.
+
+### 4.2.4 `POST /feedback`（v0.5，Bearer）
+CN：与 `POST /api/feedback` 同 shape/validation/response。  
+EN: Same shape/validation/response as `POST /api/feedback`.
+
+---
+
+## 4.3 Web Pages（页面语义，非纯 API）/ Web pages (semantic contract)
+
+### 4.3.1 `/login`
+CN：支持 Supabase Google 登录（email 可选）；成功后进入 `/app`（或 `next=`）。  
+EN: Supports Supabase Google login (email optional); lands on `/app` (or `next=`).
+
+### 4.3.2 `/app`（cookie session gated）
+CN：显示单列列表 + sort toggle + share controls + cheatsheet + decision sheet（详见 v0.3）。  
+EN: Shows single-column list + sort toggle + share controls + cheatsheet + decision sheet (see v0.3).
+
+### 4.3.3 `/s/:share_id`（public read-only）
+CN：公开可访问；revoked 或不存在 → 404；不泄露 PII；过滤 deleted。  
+EN: Public; revoked/not found → 404; no PII; filters deleted.
+
+---
+
+## 4.4 Web APIs（cookie session）/ Web APIs (cookie session)
+
+### 4.4.1 Shares（v0.2）
+- `POST /api/shares`：create-or-reuse active share → `{ share_id, share_url }`
+- `POST /api/shares/rotate`：revoke active then create new → `{ share_id, share_url }`
+- `POST /api/shares/:id/revoke`：idempotent revoke → `{ ok: true }`
+
+CN：必须满足“一用户仅一个 active share”的约束与 §2.2.2 的 404 语义。  
+EN: Must enforce single active share and §2.2.2 404 semantics.
+
+### 4.4.2 Items web-only mutations（v0.3）
+#### `PATCH /api/items/:id/note`
+Request:
+```json
+{ "personal_note": "string|null" }
+```
+Response:
+```json
+{ "ok": true, "item": { "id": "uuid", "personal_note": "string|null", "updated_at": "timestamptz" } }
+```
+
+#### `POST /api/items/:id/delete`
+Response:
+```json
+{ "ok": true }
+```
+
+#### `POST /api/items/:id/restore`
+Response:
+```json
+{ "ok": true }
+```
+
+CN：仅 cookie session；delete/restore 幂等；列表语义遵循 §2.1.1。  
+EN: Cookie-only; idempotent delete/restore; list semantics follow §2.1.1.
+
+### 4.4.3 Tracking endpoint（v0.2）
+#### `POST /api/track/share-view`（public）
+CN：
+- 在浏览器访问 `/s/:share_id` 时 fire-and-forget 调用。  
+- 写入 `events`：`event_name='web.share.page_view'`，`share_id` 必填，`user_id` 若已登录则填，否则 null。  
+- **HEAD 请求不得写入事件**。
+
+EN:
+- Fire-and-forget from `/s/:share_id`.  
+- Writes `events`: `event_name='web.share.page_view'`, `share_id` required, `user_id` set if authenticated otherwise null.  
+- **HEAD must not write events**.
+
+### 4.4.4 Feedback（v0.5）
+#### `POST /api/feedback`（cookie session）
 Request:
 ```json
 {
@@ -158,1476 +379,262 @@ Response:
 { "ok": true }
 ```
 
-### 4.2 `POST /feedback` (Bearer)
-Same shape/validation/response as `/api/feedback`.
-
-### 4.3 Validation & rate limit
-CN：
-- message 必填，trim 后长度 1..1000。
-- 60 秒内重复提交返回 429 `{ "ok": false, "error": "rate_limited" }`。
-- meta 必须包含 `context`（如提供），以及 `request_id`/`x_vercel_id`/`ua`。
-
-EN:
-- message required, trimmed length 1..1000.
-- Submitting within 60 seconds returns 429 `{ "ok": false, "error": "rate_limited" }`.
-- meta includes `context` (if provided) and `request_id`/`x_vercel_id`/`ua`.
+Validation & rate limit (Locked):
+- `message` trimmed length 1..1000
+- 60s 内重复提交：429 `{ "ok": false, "error": "rate_limited" }`
+- `meta` must include: `context`(if any) + `request_id` + `x_vercel_id` + `ua`
 
 ---
 
-## 5. 验收标准 / Acceptance criteria
-CN：
-- `/app` 可提交反馈并写入数据库。
-- `/s/:share_id` 可提交反馈且 meta.context.share_id 正确。
-- Actions `POST /feedback` 可用且 OpenAPI 可导入。
-- 60 秒内重复提交返回 429；>1000 字符返回 400。
-- 文档与 PROJECT_MAP/CHEATSHEET 同步更新。
+# 5) Version Specs（按版本组织；避免重复）/ Version specs (organized; de-duplicated)
 
-EN:
-- Feedback can be submitted from `/app` and stored in DB.
-- `/s/:share_id` feedback stored with meta.context.share_id.
-- Actions `POST /feedback` works and OpenAPI is importable.
-- 60s rate limit returns 429; >1000 chars returns 400.
-- Docs and PROJECT_MAP/CHEATSHEET are updated.
+> CN：版本章节主要回答“为什么做、验收是什么”。接口与语义的**唯一来源**是 §1–§4。  
+> EN: Version sections focus on “why” and acceptance. The **single source of truth** for contracts is §1–§4.
 
 ---
 
-# v0.3_SPEC (Consumer minimal UI + Notes + Delete/Undo + Share Sheet)
+## v0.1_SPEC (GPT MVP: OAuth bridge + /me + /items)
 
-## 0. 一句话结论 / One-line summary
-CN：v0.3 在保持 v0.1 Actions 闭环不变的前提下，新增 `/app` 消费者 UI（轻量单列）、个人备注、软删除 + 撤销，以及分享页展示（只读）。  
-EN: v0.3 keeps the v0.1 Actions loop intact and adds the `/app` consumer UI (single column), personal notes, soft delete + undo, and public share display (read-only).
+### 0) 一句话结论 / One-line summary
+CN：v0.1 只保证 Actions 闭环：OAuth Connect → `GET /me` → `POST /items` → `GET /items`，且 OpenAPI 可导入。  
+EN: v0.1 guarantees the Actions loop: OAuth Connect → `GET /me` → `POST /items` → `GET /items`, and importable OpenAPI.
 
----
+### 1) 目标与非目标 / Goals & non-goals
+Goals:
+- OAuth authorization-code flow for Actions (bridge)
+- Bearer-protected `/me` and `/items`
+- OpenAPI generated from template and importable by Actions
 
-## 1. v0.3 UI/UX 摘要 / UI/UX summary
-
-CN：
-- `/app` 为移动优先单列列表：顶栏 `WishlistGPT` + `Cheatsheet`，列表顶栏 `Newest/Oldest`（按 `created_at`）+ `Share`。
-- 卡片显示：方形封面、标题 + 圆形商家 logo、价格（`?` 提示）、备注预览；点击卡片打开 Decision Sheet。
-- Decision Sheet：封面、标题/商家、价格、备注编辑 + 保存；主按钮 `View on website`（使用 `source_url`）；次按钮 `Delete`。
-- 删除不确认；删除成功后显示 4s Undo toast（只保证最近一次删除可撤销）。
-- Cheatsheet 作为轻量弹层，空状态按钮复用；Return 浮动按钮仅图标。
-- v0.3 仅浅色主题。
-
-EN:
-- `/app` is a mobile-first single column list: header `WishlistGPT` + `Cheatsheet`, list top bar `Newest/Oldest` (by `created_at`) + `Share`.
-- Cards show square cover, title + round merchant logo, price with `?` tooltip, note preview; tapping opens the Decision Sheet.
-- Decision Sheet includes cover, title/merchant, price, note editor + save; primary `View on website` (uses `source_url`); secondary `Delete`.
-- Delete has no confirmation; on success show 4s Undo toast (only last delete is guaranteed).
-- Cheatsheet is a lightweight sheet (empty state uses the same); floating Return button is icon-only.
-- v0.3 is light-theme only.
-
----
-
-## 2. 数据模型变更 / Data model changes
-
-### items (新增字段 / new columns)
-
-* `personal_note` (text)
-* `deleted_at` (timestamptz)
-* `display_cover_image_url` (text)
-* `display_product_title` (text)
-* `display_merchant_logo_url` (text)
-* `display_merchant_domain` (text)
-* `display_price_amount_minor` (int)
-* `display_currency` (text)
-* `display_price_text` (text)
-* `display_price_updated_at` (timestamptz)
-
-CN：列表读取必须过滤 `deleted_at IS NULL`；排序仅基于 `created_at`。  
-EN: List reads must filter `deleted_at IS NULL`; ordering uses `created_at` only.
-
----
-
-## 3. v0.3 新增接口 / New v0.3 endpoints
-
-### 3.1 `PATCH /api/items/:id/note`
-Request:
-```json
-{ "personal_note": "string|null" }
-```
-Response:
-```json
-{ "ok": true, "item": { "id": "uuid", "personal_note": "string|null", "updated_at": "timestamptz" } }
-```
-
-### 3.2 `POST /api/items/:id/delete`
-Response:
-```json
-{ "ok": true }
-```
-
-### 3.3 `POST /api/items/:id/restore`
-Response:
-```json
-{ "ok": true }
-```
-
-CN：以上接口仅支持 cookie session；保证幂等。  
-EN: These endpoints are cookie-session only and idempotent.
-
----
-
-## 4. Public Share v0.3 行为 / Public share behavior
-
-CN：
-- `/s/:share_id` 只读展示，过滤 `deleted_at IS NULL`。
-- 响应严格 allowlist：`display_*`、`personal_note`、`source_url`，不包含 PII。
-- 仍保持 revoke 后立即 404。
-
-EN:
-- `/s/:share_id` is read-only and filters `deleted_at IS NULL`.
-- Response allowlist includes `display_*`, `personal_note`, `source_url` and excludes PII.
-- Revoked shares 404 immediately.
-
----
-
-# v0.1_SPEC (GPT MVP)
-
-## 0. 一句话结论 / One-line summary
-CN：MVP v0 只保证 **OAuth bridge + `/me` + `/items` + 可导入的 OpenAPI** 这条闭环，所有接口形态与字段**以当前代码实现为准**。  
-EN: MVP v0 only guarantees the closed loop of **OAuth bridge + `/me` + `/items` + importable OpenAPI**, and all shapes/fields follow the current implementation.
-
----
-
-## 1. MVP 定义（范围）/ MVP Definition (Scope)
-
-### 1.1 目标 / Goals
-CN：
-- Actions 通过 OAuth Connect 完成授权码流程并拿到 access token
-- Actions 使用 Bearer 调 `GET /me` 获取 `user_id + client_id`
-- Actions 使用 Bearer 调 `POST /items` 保存 URL、调 `GET /items` 列表
-- OpenAPI 合约由模板生成并可被 Actions 导入（驱动上述调用）
-
-EN:
-- Actions completes OAuth Connect (authorization-code flow) and obtains an access token
-- Actions calls `GET /me` (Bearer) to get `user_id + client_id`
-- Actions calls `POST /items` (Bearer) to save a URL and `GET /items` to list items
-- OpenAPI contract is generated from a template and importable by Actions (enabling the calls above)
-
-### 1.2 非目标 / Non-goals
-CN：以下内容不属于 MVP v0（即使曾经有文档或目录，也不代表已实现）：
-- 分享页 / share page
-- URL 归一化 / URL normalization
-- 更丰富的数据模型、额外 API、排序/删除等扩展能力
-
-EN: The following are NOT part of MVP v0 (legacy docs/folders do not imply implementation):
+Non-goals:
 - Share pages
-- URL normalization
-- Expanded data model, additional APIs, reorder/delete, etc.
+- URL normalization / product scraping
+- Web UI / delete / notes (introduced later)
+
+### 2) 已实现清单（v0.1 基线）/ Implemented baseline (v0.1)
+- OAuth: `GET /api/oauth/authorize` + `POST /api/oauth/token` (and aliases)
+- Protected APIs: `GET /me`, `GET /items`, `POST /items`
+- OpenAPI: render `actions/openapi.template.yaml` → `public/openapi.yaml`
+- Logout testing utility (not in Actions contract): `GET /logout`, `POST /api/logout`
+
+CN：任何不在此列表的能力，视为未实现。  
+EN: Anything not explicitly listed here is considered not implemented.
+
+### 3) 验收 / Acceptance
+Script-level:
+- `npm run smoke:oauth` passes (OAuth flow + `/me`)
+- `npm run smoke:items` passes (`/items` POST + GET)
+
+Actions-level:
+- Actions can import `public/openapi.yaml`
+- After Connect: `getMe → createItem → listItems` succeeds
 
 ---
 
-## 2. 当前已实现状态（MVP v0）/ Current Implemented Status (MVP v0)
+## v0.2_SPEC (Growth MVP: /app + shares + public share + minimal tracking)
 
-### 2.1 已实现 / Implemented
-- OAuth bridge：
-  - `GET /api/oauth/authorize`（别名 `GET /oauth/authorize`）生成授权码（redirect 到 allowlisted `redirect_uri`）
-  - `POST /api/oauth/token`（别名 `POST /oauth/token`）支持 `authorization_code` 与 `refresh_token`
-- 受保护 API（需要 OAuth Bearer）：
-  - `GET /me`
-  - `GET /items`
-  - `POST /items`（同一 URL 幂等 create/touch）
-- OpenAPI：
-  - 从 `actions/openapi.template.yaml` 渲染为 `public/openapi.yaml`
-- Logout 测试工具（不属于 Actions contract）：
-  - `GET /logout`（清理 Supabase cookies 并跳转 `/login`）
-  - `POST /api/logout`（清理 Supabase cookies，返回 `{ ok: true }`）
+### 0) 一句话结论 / One-line summary
+CN：v0.2 在 v0.1 之上新增 Web：`/app` 私有列表、`/s/:share_id` 公开只读分享、shares APIs，以及最小埋点落库。  
+EN: v0.2 adds Web surfaces on top of v0.1: private `/app`, public read-only `/s/:share_id`, shares APIs, and minimal tracking.
 
-- OAuth bridge:
-  - `GET /api/oauth/authorize` (alias `GET /oauth/authorize`) issues authorization codes (redirects to allowlisted `redirect_uri`)
-  - `POST /api/oauth/token` (alias `POST /oauth/token`) supports `authorization_code` and `refresh_token`
-- Protected APIs (OAuth Bearer required for Actions; web UI may also use cookie session starting v0.2):
-  - `GET /me`
-  - `GET /items`
-  - `POST /items` (idempotent create/touch for the same URL)
-- OpenAPI:
-  - Render `actions/openapi.template.yaml` into `public/openapi.yaml`
-- Logout testing utility (not part of Actions contract):
-  - `GET /logout` (clears Supabase cookies and redirects to `/login`)
-  - `POST /api/logout` (clears Supabase cookies, returns `{ ok: true }`)
+### 1) Goals
+- Authenticated list UI `/app` (cookie session)
+- Share link generation + revoke/rotate (one active share per user)
+- Public share page `/s/:share_id` (no PII leakage)
+- Minimal tracking (non-blocking): `web.app.items_list_load`, `web.share.page_view`
 
-### 2.2 未实现 / Not implemented
-CN：任何不在“已实现”列表中的能力，都视为未实现。  
-EN: Any capability not explicitly listed as “Implemented” is not implemented.
+### 2) Non-goals
+- No product scraping / OG poster
+- No analytics dashboard (SQL only)
+- No complex abuse controls (beyond minimal dedupe)
 
----
+### 3) Tracking details (Locked)
+Event names:
+- `web.app.items_list_load`
+- `web.share.page_view`
 
-## 3. 现有 API 形状（按实现）/ Current API Shapes (As implemented)
+Meta fields (Locked):
+- `meta.request_id` (UUID generated once per request)
+- `meta.x_vercel_id` (nullable)
+CN：埋点写入必须 best-effort，不能阻塞页面渲染/API 响应。  
+EN: Tracking must be best-effort and must not block page/API responses.
 
-> 说明：这里只描述“对外可见的 contract”。如代码内部还有更多字段/错误码，以实现为准。  
-> Note: This describes the externally visible contract. Additional fields/errors are implementation-defined.
+### 4) 验收 / Acceptance
+Manual:
+1. Google 登录后进入 `/app`，能看到 items 列表（排序/过滤遵循 §2.1.1）。  
+2. `/app` Share 生成 `share_url`，无痕打开 `/s/<share_id>` 可见只读列表。  
+3. revoke/rotate 后旧链接 404。  
+4. Public page 不泄露 PII（源码/响应中不出现 `user_id`、`@` 等）。
 
-### 3.1 `GET /me`
-- 响应 / Response:
-```json
-{ "user_id": "string", "client_id": "string" }
-````
-
-### 3.2 `GET /items`
-
-* 响应 / Response:
-
-```json
-{
-  "items": [
-    {
-      "id": "uuid",
-      "url_original": "string",
-      "created_at": "timestamptz",
-      "updated_at": "timestamptz",
-      "display_cover_image_url": "string|null",
-      "display_product_title": "string|null",
-      "display_merchant_logo_url": "string|null",
-      "display_merchant_domain": "string|null",
-      "display_price_amount_minor": 1234,
-      "display_currency": "USD",
-      "display_price_text": "string|null",
-      "display_price_updated_at": "timestamptz|null"
-    }
-  ]
-}
-```
-
-### 3.3 `POST /items`
-
-* 请求 / Request:
-
-```json
-{
-  "url": "string",
-  "display_cover_image_url": "string (optional)",
-  "display_product_title": "string (optional)",
-  "display_merchant_logo_url": "string (optional)",
-  "display_merchant_domain": "string (optional)",
-  "display_price_amount_minor": 1234,
-  "display_currency": "USD",
-  "display_price_text": "string (optional)"
-}
-```
-
-* 响应 / Response:
-
-```json
-{
-  "item": {
-    "id": "uuid",
-    "url_original": "string",
-    "created_at": "timestamptz",
-    "updated_at": "timestamptz",
-    "display_cover_image_url": "string|null",
-    "display_product_title": "string|null",
-    "display_merchant_logo_url": "string|null",
-    "display_merchant_domain": "string|null",
-    "display_price_amount_minor": 1234,
-    "display_currency": "USD",
-    "display_price_text": "string|null",
-    "display_price_updated_at": "timestamptz|null"
-  }
-}
-```
-
-### 3.4 `POST /oauth/token`（authorization_code）
-
-* 请求体 / Request body: `application/x-www-form-urlencoded`
-* 响应 / Response: `access_token`, `token_type`, `expires_in`, `refresh_token`
-
-### 3.5 `POST /oauth/token`（refresh_token）
-
-* 请求体 / Request body: `application/x-www-form-urlencoded`
-* 响应 / Response: `access_token`, `token_type`, `expires_in`（无 / no `refresh_token`）
+SQL:
+- `/app` list load → `events(event_name='web.app.items_list_load', user_id=<me>)`
+- `/s/:share_id` view → `events(event_name='web.share.page_view', share_id=<share_id>)`
 
 ---
 
-## 4. 用户路径（已实现 vs 规划）/ User flows (Current vs Planned)
+## v0.3_SPEC (Consumer minimal UI + Notes + Delete/Undo + Share Sheet)
 
-### 4.1 已实现 / Current
+### 0) 一句话结论 / One-line summary
+CN：v0.3 引入“消费者 UI”与“快速决策”：单列卡片 `/app`、Decision Sheet、`personal_note`、soft delete + Undo、分享面板。  
+EN: v0.3 adds consumer UI and quick decisions: card list `/app`, Decision Sheet, `personal_note`, soft delete + Undo, and Share sheet.
 
-1. 用户通过 `/login` 使用 Supabase Google/邮箱登录 → `/auth/callback` 交换 session（设置 `sb-*` cookies）
-
-2. Actions 调 `GET /api/oauth/authorize`（或别名 `/oauth/authorize`）进入授权码流程
-
-3. Actions 调 `POST /oauth/token`（或 `/api/oauth/token`）换取 access token（可选 refresh token）
-
-4. Actions 使用 Bearer 调 `GET /me`、`POST /items`、`GET /items`
-
-5. User logs in via `/login` (Supabase Google/email) → `/auth/callback` exchange to set `sb-*` cookies
-
-6. Actions calls `GET /api/oauth/authorize` (or alias `/oauth/authorize`)
-
-7. Actions calls `POST /oauth/token` (or `/api/oauth/token`) to exchange for an access token (optional refresh token)
-
-8. Actions uses Bearer to call `GET /me`, `POST /items`, `GET /items`
-
-### 4.2 规划 / Planned
-
-CN：规划中的流程不写入“当前闭环”，也不作为验收依据。
-EN: Planned flows are not part of the current loop and are not acceptance criteria.
-
----
-
-## 5. 验收标准（当前）/ Acceptance criteria (Current)
-
-### 5.1 脚本验收 / Script-level acceptance
-
-* `npm run smoke:oauth` 通过（OAuth flow + `/me`）
-
-* `npm run smoke:items` 通过（`/items` POST + GET）
-
-* `npm run smoke:oauth` passes (OAuth flow + `/me`)
-
-* `npm run smoke:items` passes (`/items` POST + GET)
-
-### 5.2 Actions 验收 / Actions-level acceptance
-
-* Actions 能导入生成后的 OpenAPI（`public/openapi.yaml` 对外可访问）
-
-* 完成 Connect 后，能依次调用：`getMe` → `createItem` → `listItems` 且成功返回
-
-* Actions can import the generated OpenAPI (served from `public/openapi.yaml`)
-
-* After Connect, Actions can call: `getMe` → `createItem` → `listItems` successfully
-
----
-
-## 6. 数据模型摘要（当前字段）/ Data model summary (Current fields)
-
-### items
-
-* `id` (uuid)
-* `user_id` (uuid)
-* `url_original` (text)
-* `created_at` (timestamptz)
-* `updated_at` (timestamptz)
-
-### oauth_codes
-
-* `code` (text)
-* `user_id` (uuid)
-* `client_id` (text)
-* `redirect_uri` (text)
-* `expires_at` (timestamptz)
-* `used_at` (timestamptz, nullable)
-
-### oauth_tokens
-
-* `refresh_token_hash` (text)
-* `user_id` (uuid)
-* `client_id` (text)
-* `expires_at` (timestamptz)
-* `revoked_at` (timestamptz, nullable)
-* `created_at` (timestamptz)
-
----
-
-# v0.2_SPEC (Growth MVP)
-
-## 0) 一句话结论 / One-line summary
-CN：v0.2（增长视角）在 v0（OAuth bridge + `/me` + `/items`）闭环之上，新增 **登录后列表页（/app）**、**公开分享页（/s/:share_id）**、**Google 登录（降摩擦；Apple/OG 暂缓）**，并补齐 **最小埋点（可度量且不阻塞渲染）**。
-EN: v0.2 (growth) builds on v0 (OAuth bridge + `/me` + `/items`) and adds an authenticated list UI (`/app`), a public share page (`/s/:share_id`), Google login (Apple/OG deferred), and minimal tracking that must be non-blocking.
-
----
-
-## 0.1 v0.2 (web-only) implemented
-- `GET /s/:share_id` public share page renders a read-only list (sorted by `updated_at desc, id desc`).
-- Revoked shares return 404 (same as not found).
-
-- `GET /s/:share_id` 公开分享页可读列表（排序 `updated_at desc, id desc`）。
-- revoke 后返回 404（与不存在一致）。
-
----
-
-## 1) 范围 / Scope
-
-### 1.1 Goals（要达成什么）
+### 1) 核心功能 / Core features
 CN：
-1. **登录后列表页**：用户登录后能稳定查看自己的 items（按最近更新排序）；在 `/app` 一键生成分享链接并复制（调用 `POST /api/shares`，复用 active share）。
-2. **公开分享**：用户生成一个不透明分享链接 `/s/<share_id>`，任何人可打开只读列表；支持 revoke/rotate 让旧链接失效。
-3. **社交登录（最小）**：打通 **Google** 登录（Supabase Provider），降低新用户回流门槛；Apple 暂缓（见 Parking Lot）。
-4. **最小埋点**：至少能度量「自己查看列表」与「分享页被打开」两类关键行为；埋点必须 **best-effort + 不阻塞渲染**，并具备基本去重与隐私处理。
+1) `/app` 单列卡片浏览（移动端优先）。  
+2) Sort toggle：Newest ↔ Oldest（只按 `created_at`）。  
+3) 卡片展示：封面、标题、商家 logo、价格（best-effort）、备注预览。  
+4) Decision Sheet：View on website + note inline edit/save + Delete。  
+5) Delete：无确认、soft delete、4s Undo toast（仅保证最近一次删除可撤销）。  
+6) Cheatsheet：Header 入口；空态按钮复用。  
+7) Share：Share sheet（copy link / system share / revoke / regenerate）。  
+8) Floating Return（GPT icon）：下滑隐藏，上滑显示，不遮挡最后卡片。
+
+EN: (mirrors CN; see detailed UI spec below.)
+
+### 2) 非目标 / Non-goals
+- Web 不提供 Add item（不支持从 URL 添加，不做 web chat）
+- Web 不允许编辑 `display_*`（只允许改 `personal_note`）
+- v0.3 light theme only
+- 不做多 list / settings 页面 / poster 海报
+
+### 3) 详细 UI/UX 规范（Locked）/ Detailed UI/UX (Locked)
+> 说明 / Note: 以下为 v0.3 的“体验 contract”，用于 QA 与实现对齐。
+
+#### 3.1 `/app` layout
+- Header（non-sticky）：Left `WishlistGPT`, Right `Cheatsheet`
+- List top bar：Left sort toggle, Right `Share`
+- List bottom padding：避免浮动 Return 按钮遮挡
+
+#### 3.2 Card rendering rules (must avoid noisy error UI)
+- Cover: always render 1:1 container; image failure → placeholder; no infinite retry
+- Merchant logo: only render container when logo exists; failure → fallback (domain initial or icon)
+- Domain fallback priority:
+  1) `display_merchant_domain`
+  2) parse from `source_url` host (strip `www.`)
+  3) null
+- Title fallback:
+  - prefer `display_product_title`
+  - else if domain: `From {domain}`
+  - else `Untitled item`
+- Price row:
+  - render only when price exists (`display_price_text` or (`display_price_amount_minor` + `display_currency`))
+  - otherwise omit the whole row (and omit `?` tooltip)
+- Personal note preview:
+  - if present: show 1–2 lines
+  - else show secondary placeholder `Add a note…`
+
+#### 3.3 Overflow menu (`⋯`)
+- Popover with only:
+  - `Edit note`
+  - `Delete` (danger)
+
+#### 3.4 Delete behavior (Locked)
+- No confirmation
+- May optimistically remove card, but **toast appears only after delete succeeds**
+- Failure: rollback UI, show `Couldn’t delete. Try again.`
+- Toast 4s: `Item deleted` + `Undo`
+- Undo restores same id; only last delete is guaranteed undoable
+
+#### 3.5 Decision Sheet
+- Opens from card tap (~70% height; can expand)
+- Content order: cover → title+logo → price → note editor (+ inline Save) → `View on website` (primary) → `Delete` (implicit text link)
+- If Delete triggered in sheet: close sheet after success
+- `View on website` uses `source_url` (desktop opens new tab; mobile same tab)
+
+#### 3.6 Share sheet
+- Shows active share on open; if none, creates one
+- Copy link always available; system share only if available
+- Revoke link → shows disabled state + `Generate new link`
+
+### 4) v0.3 验收 / Acceptance
+- `/app` renders correctly on mobile and desktop (single column)
+- Sort toggle works (created_at only; no reorder on note edit)
+- Card → Decision Sheet works; note edit/save works
+- Delete is soft + Undo; idempotent; rollback on failure
+- Share sheet works; revoke makes `/s/:share_id` 404; regenerate works
+- `/s/:share_id` read-only, filters deleted, no PII, includes personal_note + `View on website`
+
+---
+
+## v0.4_SPEC (GPT Created Item Enrichment: display snapshot via GPT hints + server best-effort)
+
+### 0) 一句话结论 / One-line summary
+CN：v0.4 让 GPT 在 `POST /items` 时尽量写入 `display_*`（hints），服务端异步 enrichment 兜底补全缺失字段，且不阻塞响应。  
+EN: v0.4 lets GPT send `display_*` hints during `POST /items`, with async server enrichment to backfill missing fields without blocking.
+
+### 1) 范围 / Scope
+- No new tables/columns (reuse v0.3 `display_*`)
+- Additive API schema update so Actions can send/receive `display_*`
+- Async enrichment is non-blocking; fill-only by default (no override)
+
+### 2) `POST /items` behavior (two-phase)
+Phase 1 (sync):
+1) Perform idempotent create/touch first (preserve semantics)  
+2) Validate and persist provided `display_*` hints (local-only validation; ignore invalid fields; never fail success)  
+3) Optional deterministic no-network fills:
+   - derive `display_merchant_domain` from URL host if missing
+   - set deterministic favicon URL for `display_merchant_logo_url` if missing
+
+Phase 2 (async):
+- Fetch/parse URL to fill missing `display_*` (best-effort, non-blocking)
+- Enforce SSRF protections, redirect limit, body size cap, hard timeout
+- Default policy: fill-only (do not overwrite existing non-null fields)
+
+### 3) 安全 / Security (must hold)
+- allow http/https only
+- block localhost/private/metadata ranges (re-check after redirects)
+- no user cookies; do not log full HTML bodies
+
+### 4) 验收 / Acceptance
+1) Actions `createItem(POST /items)` can include hints; response includes Phase-1 written/derived fields  
+2) `listItems(GET /items)` returns items with `display_*` additively; may become richer after async runs  
+3) Failures/timeouts do not block `POST /items` success  
+4) v0.1 loop remains intact
+
+---
+
+## v0.5_SPEC (Feedback Loop)
+
+### 0) 一句话结论 / One-line summary
+CN：v0.5 新增反馈入口（Web + Actions）、落库与最小限流（1/min/user），并要求文档同步。  
+EN: v0.5 adds feedback entrypoints (Web + Actions), persistence, and minimal rate limiting (1/min/user), with doc sync required.
+
+### 1) Goals
+- Web feedback entrypoints:
+  - `/app` Cheatsheet → feedback modal
+  - `/s/:share_id` footer `Feedback` (logged out → `/login?next=...&intent=feedback`)
+- Actions endpoint: `POST /feedback` (Bearer)
+- Store into `feedback` table with minimal context meta
+- Rate limit: 1/min/user; message length ≤ 1000
+
+### 2) Non-goals
+- No anonymous feedback
+- No categories/tags
+- No admin dashboard / email notifications
+- No large onboarding/UI overhaul
+
+### 3) Validation & rate limit (Locked)
+- message trimmed length 1..1000
+- within 60s → 429 `{ ok:false, error:"rate_limited" }`
+- meta includes: `context` (if provided), `request_id`, `x_vercel_id`, `ua`
+
+### 4) 验收 / Acceptance
+- `/app` feedback submits and writes to DB
+- `/s/:share_id` feedback writes with `meta.context.share_id`
+- Actions `POST /feedback` works and OpenAPI is importable
+- 60s repeat → 429; >1000 chars → 400
+- Docs sync: PROJECT_MAP + CHEATSHEET + MVP_SPEC updated (normative docs stay aligned)
+
+---
+
+## 6) Parking Lot（future / 暂缓项）
+CN：
+- Apple 登录（等待 D-U-N-S / Apple Dev Program）
+- OG 预览与 share poster
+- Actions 埋点（`actions.get_me / actions.list_items / actions.create_item`）
+- 更复杂的分享页风控（bot filter、rate limit、更细去重）
 
 EN:
-1. **Authenticated list UI**: after login, users can view their items reliably (sorted by recency) and generate & copy a share link in `/app` (calls `POST /api/shares`, reuses active share).
-2. **Public share**: users can generate an opaque share URL `/s/<share_id>` for anyone to view a read-only list; supports revoke/rotate to invalidate old links.
-3. **Social login (minimal)**: enable **Google** login via Supabase Provider; Apple is deferred (see Parking Lot).
-4. **Minimal tracking**: measure two key behaviors (private list usage + share page opens). Tracking must be **best-effort and non-blocking**, with basic dedupe and privacy handling.
-
-### 1.2 Non-goals（明确不做）
-CN：
-- 不扩充 item 字段（仍以现有存储与接口为准）。
-- 不做 URL normalization / ACP / 商品信息抓取。
-- 不做多列表、多文件夹、标签、搜索、编辑/删除 item。
-- 不做复杂增长分析面板（仅落库 + 可用 SQL 聚合）。
-EN:
-- No item field expansion (follow current storage/API).
-- No URL normalization / ACP / product scraping.
-- No multi-lists, folders, tags, search, or item edit/delete.
-- No analytics dashboard (store events; query via SQL).
-
-### 1.3 Assumptions（前置假设）
-- v0 的 OAuth bearer 访问 `/me` 与 `/items` 已稳定可用。
-- 生产环境默认禁用 Supabase `Authorization: Bearer` 头部登录绕过（仅 cookie session），由 `OAUTH_ALLOW_AUTH_HEADER_LOGIN` 控制（见 `SECURITY.md`）。
-
----
-
-## 2) 用户故事 / User stories
-
-### 2.1 已登录用户（Owner）
-- 作为 owner，我能在 `/app` 看到自己的收藏列表（最近更新在前）。
-- 我能一键生成分享链接并复制。
-- 我能撤销分享链接（revoke），确保旧链接不可再访问。
-
-### 2.2 访客（Viewer）
-- 作为访客，我能打开 `/s/<share_id>` 并看到只读列表。
-- 我不会看到任何 owner 的敏感信息（user_id、邮箱等）。
-- （可传播的 OG 预览属于 future，见 Parking Lot。）
-
-### 2.3 新用户回流（New user）
-- 作为从分享页来的新用户，我能用 Google 快速登录（未来可扩展“导入/收藏该列表”；Apple 暂缓）。
-
----
-
-## 3) 产品形态 / Product shape (Routes & UI)
-
-> 路由命名可按现有 Next.js 结构微调；下面是建议的最小集合。
-
-### 3.1 `/login`
-- Buttons (minimal):
-  - Continue with Google
-  - Continue with Email (if enabled)
-- 登录成功后重定向到 `/app`
-- Apple 登录属于 future（见 Parking Lot）
-
-### 3.2 `/app`（Authenticated list page）
-- Gate: requires Supabase session cookie
-- List:
-  - fields: `url_original`, `id`, `created_at`, `updated_at`
-  - sort: `updated_at DESC, id DESC`
-- Actions:
-  - Share button: call `POST /api/shares` (reuse if exists) → copy `share_url` to clipboard
-  - Revoke share link (optional to place under “Share settings”)
-- Data:
-  - load items via the same backend as GET /items (cookie session). Prefer instrumenting the shared listItems() server function.
-
-### 3.3 `/s/<share_id>`（Public share page）
-- Public, read-only
-- Same list sort as `/app`
-- No OG requirements in v0.2 (moved to Parking Lot)
-
----
-
-## 4) 数据模型 / Data model
-
-### 4.1 `shares`
-Purpose: **exactly one active share per user** (active := `revoked_at is null`), supports revoke/rotate.
-
-Minimal schema:
-- `id` (uuid v4, unguessable)
-- `user_id` (uuid, FK -> auth.users)
-- `created_at` (timestamptz, default now())
-- `revoked_at` (timestamptz, nullable)
-
-Indexes / Constraints:
-- `index shares(user_id)`
-- **partial unique index**: `unique(user_id) where revoked_at is null`  // enforce one active share per user
-- `index shares(revoked_at)`
-
-Notes:
-- `id` should be **unguessable** (uuid v4 is usually OK; token-based also OK).
-- If you want stronger safety: store `share_token_hash` and only expose raw token once.
-
-### 4.2 `events`（统一埋点表 / Unified tracking table）
-Minimal schema:
-- `id` (bigserial/uuid)
-- `event_name` (text) **namespaced** (see below), e.g. `web.app.items_list_load`, `web.share.page_view`, `actions.list_items`
-- `occurred_at` (timestamptz default now())
-- `user_id` (uuid, nullable)  // the *viewer/caller* user if authenticated
-- `share_id` (uuid/text, nullable)
-- `client_id` (text, nullable) `wishlistgpt-dev` | `wishlistgpt-staging` | `wishlistgpt-prod`  // for Actions (OAuth client)
-- `meta` (jsonb, not null, default `{}`)
-
-Event naming convention (locked):
-- `web.app.*`   // authenticated web UI (/app)
-- `web.share.*` // public share page (/s/:share_id)
-- `actions.*`   // reserved for future (GPTs Actions calls; Parking Lot)
-
-Meta fields (locked):
-- `meta.request_id` (text) // generated UUID once per incoming request (reuse for all event writes within that request), used for idempotency.
-- `meta.x_vercel_id` (text) // raw request header `x-vercel-id` when available (Vercel); nullable; only for debugging/log correlation.
-
-Indexes:
-- `(event_name, occurred_at)`
-- `(user_id, occurred_at)`
-- `(share_id, occurred_at)`
-- `(client_id, occurred_at)` (optional)
-- Unique index for idempotency: `(event_name, meta->>'request_id')`
-
-Retention:
-- phase-1: keep all; phase-2: optional TTL / partitioning.
-
-
-## 5) 接口与服务端行为 / Interfaces & server behavior
-
-### 5.1 Items（已有）
-- `GET /items` (alias `GET /api/items` if implemented)
-  - Auth: OAuth Bearer for Actions; cookie session for web UI is also OK.
-- `POST /items` (alias `POST /api/items` if implemented)
-
-v0.2 Web UI should call the same underlying storage layer / endpoint.
-
-### 5.2 Shares（新增）
-
-
-- `POST /api/shares`
-  - Auth: cookie session required (Supabase session cookie; not OAuth Bearer)
-  - Behavior (locked):
-    - If the user already has an **active** share (`revoked_at is null`), **return it** (reuse).
-    - If no active share exists, **create a new share** and return it.
-  - Response:
-    - `{ share_id, share_url }`
-    - `share_url` uses request origin: `<origin>/s/<share_id>`
-
-- `POST /api/shares/rotate`  (or `POST /api/shares?rotate=1`)
-  - Auth: cookie session required
-  - Behavior:
-    - Revoke current active share (if any), then create a new active share
-    - If create hits partial-unique race, retry once after re-revoking
-  - Response:
-    - `{ share_id, share_url }`
-
-- `POST /api/shares/:id/revoke`
-  - Auth: cookie session required
-  - Behavior:
-    - Only owner can revoke; if not owner or share missing, return 404 (no leakage)
-    - Idempotent: already-revoked shares still return success
-    - After revoke, `GET /s/:id` must return 404
-  - Response:
-    - `{ ok: true }`
-
-### 5.3 Tracking（埋点落点）
-原则：
-- **统一写入 `events` 表**；优先 **server-side**（稳定，不受 adblock/JS 影响）
-- **不引入 `context` 字段**：来源/表面由 `event_name` 命名空间表达（`web.app.*` / `web.share.*` / `actions.*`）
-- v0.2 **只保留最小 meta**：`meta.request_id` + `meta.x_vercel_id`
-
-> Note: `web.share.page_view` 统计会包含 link preview/bot 的 GET 请求（v0.2 接受；后续如需可再引入 bot filter 或更精细去重）。
-
-#### Required fields for every event write (v0.2)
-All event writes MUST include:
-- `meta.request_id`: UUID generated **once per incoming request**, and reused for all event writes within that request
-- `meta.x_vercel_id`: request header `x-vercel-id` when available (nullable)
-
-#### Required event writes (v0.2)
-
-**Principle (locked): tracking must never block.**  
-All tracking writes should be **best-effort** and must not delay user-facing page renders or API responses. Prefer a helper such as `trackBestEffort()` implemented with `after()` + hard timeout + error swallowing.
-
-A) Web App (`/app`)
-- when the list is successfully rendered / list data returned:
-  - `event_name = "web.app.items_list_load"`
-  - `user_id = <owner>`
-  - `client_id = null`, `share_id = null`
-
-B) Public Share (`/s/:share_id`)
-- on page load, the client should fire-and-forget `POST /api/track/share-view` which writes:
-  - `event_name = "web.share.page_view"`
-  - `share_id = <share_id>`
-  - `user_id = <viewer>` if viewer has a valid cookie session; otherwise null
-- Do NOT write events for `HEAD` requests.
-
-(Deferred) Actions tracking (`actions.*`) is moved to Parking Lot.
-
-## 6) 去重与风控 / Dedupe & abuse controls
-
-### 6.1 Dedupe rule (minimal)
-目标：防止 refresh/retry/prefetch/Actions 轮询导致 event 爆炸；不追求完美刻画 engagement。
-
-**Primary dedupe (idempotency via `meta.request_id`)**
-- skip inserting duplicates with same (`event_name`, `meta.request_id`) only
-No additional time-window dedupe in v0.2.
-
-
-### 6.2 Rate limiting (skip in v0.2)
-- Public share endpoint should have basic rate limit to reduce scraping / brute force.
-- Consider adding a simple per-IP limit on `/s/:share_id`.
-
----
-
-## 7) 隐私与安全 / Privacy & security
-
-- Share links must not expose `user_id` or any auth token.
-- `GET /s/:share_id` must:
-  - return 404 if revoked or not found
-  - never leak whether a user exists beyond “not found”
-- Do not store PII in `meta`.
-  - Only store `meta.request_id` and `meta.x_vercel_id`.
-- Production default remains:
-  - Supabase session relies on cookie (no header bypass unless explicitly enabled), see `SECURITY.md`.
-
----
-
-## 8) 验收标准 / Acceptance criteria
-
-### 8.1 Manual E2E（人肉验收）
-1. 使用 **Google** 登录成功后进入 `/app`，能看到 items 列表（`updated_at desc, id desc`）。
-2. 在 `/app` 点击 Share，调用成功后剪贴板得到 `/s/<share_id>`（即 `share_url`）。
-3. 无痕窗口打开 `/s/<share_id>`，能看到相同排序的列表（只读）。
-4. Owner revoke/rotate 后：无痕再开旧 `/s/<share_id>` 必须 404。
-5. 页面源代码/接口响应中不应出现 `user_id`、邮箱等敏感信息（public share）。
-
-> Apple 登录与 OG 预览属于 Parking Lot（future）。
-
-### 8.2 Tracking 验收（SQL）
-- Owner 在 `/app` 查看列表后应至少出现一条事件：
-  - `events where event_name='web.app.items_list_load' and user_id=<me>`
-- 访客打开分享页后应出现事件：
-  - `events where event_name='web.share.page_view' and share_id=<share_id>`
-
-> Note: `actions.*` tracking is deferred (Parking Lot).
-
-Basic metrics examples:
-- Daily active users (core: web app only in v0.2):
-  - ```sql
-    select date_trunc('day', occurred_at) as d,
-           count(distinct user_id) as dau
-      from events
-     where user_id is not null
-       and event_name like 'web.app.%'
-     group by 1
-     order by 1;
-    ```
-- Share reach (requests-based views in v0.2):
-  - ```sql
-    select share_id,
-           count(*) as views
-      from events
-     where event_name = 'web.share.page_view'
-       and share_id is not null
-     group by 1
-     order by views desc;
-    ```
-### 8.3 Retention (definition)
-Core retention (recommended for v0.2):
-- A user is **active** on a day if they have ANY event with:
-  - `event_name like 'web.app.%'`
-  - and `user_id is not null`
-
-(Share page views can be analyzed separately via `web.share.*`. Actions retention via `actions.*` is future / Parking Lot.)
-
-D1/D7 retention (example logic):
-- D1: users active on day D AND active on day D+1
-- D7: users active on day D AND active on day D+7
-
-## 9) 任务拆解 / Work breakdown (P0/P1)
-
-### P0（必须有）
-- [ ] `/login` Google login (Supabase provider) + redirect to `/app` (Email login optional if already enabled)
-- [ ] `/app` list page (auth gate + list render + recency sort)
-- [ ] Share controls in `/app`: create/reuse share link (`POST /api/shares`) + revoke/rotate (as implemented)
-- [ ] `shares` table + constraints (one active share per user) + create/reuse + revoke/rotate APIs
-- [ ] `/s/:share_id` public share page (read-only; revoked → 404; no PII leak)
-- [ ] `events` table + best-effort writes:
-  - `web.app.items_list_load`
-  - `web.share.page_view` via fire-and-forget `POST /api/track/share-view`
-  - idempotency/dedupe via `(event_name, meta.request_id)`
-- [ ] Docs sync:
-  - Update `PROJECT_MAP.md` entrypoints
-  - Update `CHEATSHEET.md` (env vars / local+prod setup notes)
-  - Update `SECURITY.md` if the security boundary changes
-
-### P1（可后置）
-- [ ] Add CTA on share page (login / import)
-- [ ] Basic rate limit on share page / tracking endpoint
-- [ ] More events: `create_share`, `revoke_share`, `login_success`
-
----
-
-## 10) Parking Lot（future / 暂缓项）
-These are intentionally out of v0.2 scope (documented for future work).
-
-- **Apple 登录**：Supabase Apple provider wiring（等待 D‑U‑N‑S / Apple Developer Program）。
-- **OG 预览**：share page OG meta（title/description）与静态图 `public/og/share.png`（1200x630）。
-- **Actions 埋点**：在 Actions endpoints 成功响应时写入 `actions.get_me / actions.list_items / actions.create_item`。
-- **单条 item Copy URL**（/app 内的 per-item copy）。
-
----
-
-# v0.3 核心功能 UIUX MVP SPEC（中英文双语）
-
-## 0) 一句话结论 / One-line Summary
-> WishlistGPT 是 **GPT-native** 产品，Web 仅作为 **展示与决策界面**。  
-> WishlistGPT is a **GPT-native** product with a web interface used for **viewing and decision-making**.  
->
-> 用户在 ChatGPT 中添加/理解商品；Web 用于浏览、快速决策、编辑个人备注、删除、分享。  
-> Users add/understand items in ChatGPT; the web is for viewing, quick decisions, editing personal notes, deleting, and sharing.
-
----
-
-### 0.1 非目标 / Non-goals (明确不做)
-- Web 不提供 Add item（不支持从 URL 添加、不支持 Web chat / NLP）。  
-  No “Add item” on web (no URL add, no web chat / NLP).
-- Web 不允许编辑商品展示字段（标题/封面/商家/价格）。  
-  No editing of product display fields (title/cover/merchant/price).
-- v0.3 不做独立 Settings 页面（账号管理不在本期 UI 范围）。  
-  No standalone Settings page in v0.3 (account management out of scope).
-- v0.3 不做多 List（但 UI 语义需可扩展到未来多 List）。  
-  No multi-list in v0.3 (but semantics should not block future multi-list).
-- v0.3 Share 不做 Poster 海报（仅做链接分享 + revoke/regenerate）。  
-  No poster generation in v0.3 share (link-only sharing + revoke/regenerate).
-- v0.3 **仅支持 Light theme**（不做 Dark mode 样式适配）。  
-  v0.3 is **light-theme only** (no explicit dark mode support).
-
----
-
-## 1) 核心功能 / Core Features (v0.3)
-1) `/app` 私有主页面：单列卡片浏览清单（移动端优先）。  
-   `/app` private main page: single-column card list (mobile-first).
-2) 两种排序来回切换：按添加时间 Newest ↔ Oldest。  
-   Two-way sort toggle: Newest ↔ Oldest by added time.
-3) 卡片展示：封面（正方形）、标题、商家 logo（圆形）、价格（本地化）、个人备注预览。  
-   Card display: square cover, title, circular merchant logo, localized price, note preview.
-4) 点击卡片进入 **Decision Sheet**（轻量详情）用于快速决策与跳转商品页。  
-   Card click opens **Decision Sheet** for quick decision & external navigation.
-5) 仅支持编辑 `personal_note`（在 sheet 内 inline 编辑 + Save）。  
-   Only `personal_note` is editable (inline in sheet + Save).
-6) 删除：无二次确认 + Undo + Soft delete。  
-   Delete: no confirmation + Undo + soft delete.
-7) Cheatsheet：Header 常驻入口，轻浮层展示使用说明；含 `Got it / Back to GPT`。  
-   Cheatsheet: persistent header entry, lightweight overlay; includes `Got it / Back to GPT`.
-8) 分享：列表顶部一键进入 Share sheet；支持 copy link、系统 share（可用则显示）、revoke + regenerate。  
-   Share: one-click Share sheet from list top bar; copy link, system share if available, revoke + regenerate.
-9) 右下角悬浮：Return（GPT icon），下滑隐藏/上滑显示。  
-   Floating Return (GPT icon), hides on scroll down / shows on scroll up.
-
----
-
-## 2) 页面与路由 / Routes & Pages
-
-### 2.1 `/app` — 私有清单主页面 / Private Wishlist Main
-**目标 / Goal**：浏览 → 点进 Decision Sheet → `View on website` 快速决策；同时支持快速编辑 note、快速删除、快速分享。  
-View → Decision Sheet → `View on website` for decisions; also quick note edit, delete, and share.
-
-### 2.2 `/s/:share_id` — 公共分享页（只读） / Public Share Page (Read-only)
-- public 可访问；只读渲染列表。  
-  Public accessible; read-only rendering.
-- 根据 share_id 找 owner，再取 owner 的 items（同排序规则）。  
-  Resolve owner by share_id, then fetch owner items (same sort rules).
-- 必须过滤 `deleted_at IS NULL`（已删除不展示）。  
-  Must filter `deleted_at IS NULL` (deleted items never show).
-- revoked 必须 404。  
-  Revoked must return 404.
-- 不泄露 PII（不输出 user_id/email 等）。  
-  No PII leakage (no user_id/email, etc.).
-- **public 页允许展示 `personal_note`**。  
-  Public page may display `personal_note`.
-- public 页应提供 `View on website`（使用 `source_url`）。  
-  Public page should offer `View on website` (using `source_url`).
-
----
-
-## 3) 适配策略 / Responsive Strategy (Mobile-first + Desktop 自适配)
-### 3.1 移动端优先 / Mobile-first
-- 单列卡片 + bottom sheet 为主交互。  
-  Single-column cards + bottom sheet as primary interaction.
-- 触控热区充足（尤其 `⋯` 区域）。  
-  Touch targets must be large enough (especially `⋯`).
-
-### 3.2 桌面端自适配 / Desktop Adaptive (no desktop-exclusive UX)
-- 仍保持单列，但容器更宽（提高信息密度、减少换行）。  
-  Still single-column; wider container for better density.
-- `View on website` 默认新 tab 打开。  
-  Default open in new tab for `View on website`.
-- 不做 hover/快捷键等桌面专属功能。  
-  No hover shortcuts / desktop-only features.
-
----
-
-## 4) `/app` 布局 / Layout Spec
-
-### 4.1 Header（不吸顶）/ Header (non-sticky)
-- 左 / Left：`WishlistGPT`  
-- 右 / Right：`Cheatsheet`（文字按钮，视觉更轻，可用淡色）  
-  `Cheatsheet` (text button; visually light, e.g., softer color)
-
-> 说明 / Note：避免 sticky header，减少移动端浏览器地址栏占位冲突。  
-> Avoid sticky header to reduce conflicts with mobile browser chrome.
-
-### 4.2 列表顶部工具栏（在内容区内）/ List Top Bar (inside content)
-- 左 / Left：排序切换（两态）  
-  Sort toggle (2-state): `Newest` / `Oldest`
-- 右 / Right：`Share`（一键可达；list-level action）  
-  `Share` (one-click; list-level action)
-
-### 4.3 列表 / List
-- 单列 / Single column
-- 卡片间距偏生活化（留白更舒服）  
-  Consumer-friendly spacing (comfortable whitespace)
-
-### 4.4 悬浮 Return 按钮 / Floating Return Button
-- 右下角悬浮按钮：仅 GPT icon（无文案）。  
-  Bottom-right floating button: GPT icon only (no label).
-- 无障碍 / A11y：需要 `aria-label="Return to ChatGPT"`；桌面可选 tooltip。  
-  Must include `aria-label="Return to ChatGPT"`; optional tooltip on desktop.
-- 滚动行为 / Scroll behavior：
-  - 向下滚动隐藏 / hide on scroll down
-  - 向上滚动显示 / show on scroll up
-  - 阈值 12–24px + throttle（业界标准）避免闪烁  
-    threshold 12–24px + throttling to avoid flicker
-- 列表容器必须有 bottom padding，避免按钮遮挡最后卡片：  
-  List container must include bottom padding to avoid covering last card:
-  - `padding-bottom >= buttonHeight + 16px + safe-area-inset-bottom`
-
----
-
-## 5) Card 组件 / Item Card Component
-
-### 5.1 卡片内容 / Card Contents
-- **封面 / Cover**：正方形容器（1:1），`object-fit: cover`  
-  Square container (1:1), `object-fit: cover`
-- **标题 / Title**：最多 2 行截断  
-  Up to 2 lines (clamped)
-- **商家 logo / Merchant logo**：圆形容器（18–22px），放在标题旁边  
-  Circular container (18–22px), placed next to the title
-- **价格 / Price**：本地化展示（见 §10.1 规则），旁边一个 `?`  
-  Localized formatting (see §10.1 rules) + small `?` tooltip
-- **个人备注预览 / Note preview**：可选，1 行或 2 行预览  
-  Optional, 1–2 lines preview
-- **状态 / Status**：v0.3 不展示行内状态；未来可做封面 stamp（Reserved 等）。  
-  No inline status in v0.3; future: cover stamp (Reserved, etc.)
-
-### 5.2 图片加载 / Image Loading
-- 有 skeleton + 占位图 fallback  
-  Skeleton + placeholder fallback
-- 封面容器固定高度（1:1）防止列表跳动  
-  Fixed 1:1 container to avoid layout shift
-- v0.3 允许 hotlink；图片失败不得阻塞首屏；不得无限重试。  
-  v0.3 allows hotlink; image failures must not block above-the-fold; no infinite retries.
-
-### 5.3 交互 / Interactions
-- **整卡可点击**打开 Decision Sheet（除 `⋯` 区域外）。  
-  Entire card is clickable to open Decision Sheet (except `⋯` area).
-- `⋯` 独立热区（防 fat finger）：建议 40×40px 点击区域。  
-  Dedicated `⋯` hit area to prevent fat finger; recommend 40×40px.
-
-### 5.4 兜底展示规则（Card）
-为避免列表出现重复的“坏状态文案”（如反复出现 Price unavailable），Card 必须遵循以下渲染规则：
-To avoid repetitive “error-like” UI (e.g., repeated “Price unavailable”), the card must follow these rules:
-
-#### 5.4.1. Cover（封面）
-- 永远渲染 1:1 正方形容器，避免 layout shift。
-  Always render a fixed 1:1 container to prevent layout shift.
-- 若 `display_cover_image_url` 存在：渲染图片（`object-fit: cover`）。
-  若图片加载失败：切换到 placeholder（不得无限重试）。
-  If `display_cover_image_url` exists: render image (`object-fit: cover`).
-  If image fails: switch to placeholder (no infinite retry).
-- 若 `display_cover_image_url` 不存在：直接渲染 placeholder。
-  If missing: render placeholder.
-
-#### 5.4.2. Merchant logo（商家 logo）
-- **默认不渲染 logo 容器**（避免无意义占位）。
-  **Do not render the logo container by default** (avoid meaningless placeholders).
-- 若 `display_merchant_logo_url` 存在：渲染圆形 logo（18–22px）并放在标题旁边。
-  If `display_merchant_logo_url` exists: render a circular logo (18–22px) next to the title.
-  - 若 logo 图片加载失败：使用 fallback（例如：domain 首字母或通用 icon）在圆形容器内展示。
-  If logo fails to load: fallback to domain initial or a generic icon inside the circle.
-- 若 `display_merchant_logo_url` 不存在：不显示 logo 容器。
-  If missing: do not show the logo container.
-
-#### 5.4.3. Domain 解析（用于标题兜底与 logo fallback）
-- `domain` 优先级 (priority): 
-  1. `display_merchant_domain`
-  2. parse host from `source_url` (strip `www.`)
-  3. otherwise null
-
-
-#### 5.4.4. Title（标题）
-- Use `display_product_title` when present.
-- Else if `domain` exists: fallback to **`From {domain}`** (never use “Wishlist item”).
-- Else: `Untitled item`.
-
-#### 5.4.5. Price 行（价格）
-- **仅当存在价格时才渲染价格行**；无价格时整行不出现，也不显示 `?` tooltip。
-  **Render the entire price row only when price exists**; otherwise omit the row and omit the `?` tooltip.
-- 价格存在条件（任一满足）：
-  * `display_price_text` 非空，或
-  * `display_price_amount_minor` 与 `display_currency` 同时存在
-- 价格展示优先级：
-  * 优选使用 `Intl.NumberFormat` 本地化格式化
-  * 否则 `display_price_text`
-
-
-#### 5.4.6. Personal note（备注）
-- 若 `personal_note` 非空：显示 1–2 行预览。
-  If present: show 1–2 line preview.
-- 若为空：显示 placeholder：`Add a note…`（轻色/次要）。
-  If empty: show placeholder `Add a note…` (secondary style).
-
----
-
-## 6) `⋯` 菜单 / Overflow Menu (Popover)
-
-### 6.1 形态 / Form
-- 使用 **Popover**（轻量气泡菜单），贴近触发点。  
-  Use **Popover** anchored to the trigger.
-
-### 6.2 菜单项 / Items
-- `Edit note`
-- `Delete`（红色 / red）
-
-### 6.3 Delete 行为 / Delete Behavior（无确认 + Undo + Soft delete）
-**一致性要求 / Consistency requirement**：无论从卡片菜单或 Decision Sheet 触发 Delete，行为必须一致。  
-Delete behavior must be identical whether triggered from card menu or Decision Sheet.
-
-- 点击 Delete：无二次确认。  
-  No confirmation.
-- UI 反馈：可 **optimistic 立即移除卡片**；Toast 必须在 **删除成功后**出现。  
-  UI feedback: may optimistically remove the card immediately; toast must appear **only after delete succeeds**.
-- 删除失败：必须回滚 UI，并提示：`Couldn’t delete. Try again.`  
-  On failure: must roll back UI and show: `Couldn’t delete. Try again.`
-- 后端 soft delete：`deleted_at = now()`。  
-  Backend soft delete: set `deleted_at = now()`.
-- Toast（4s）：`Item deleted` + `Undo`  
-  Toast (4s): `Item deleted` + `Undo`
-- 点击 Undo：调用 restore endpoint，恢复原 item（id 与 created_at 保持不变）。  
-  Undo calls restore endpoint; item restored with same id & created_at.
-- 竞态/幂等（MVP）/ Race & idempotency (MVP):
-  - delete/restore 必须幂等（重复请求不应报错）。  
-    delete/restore must be idempotent.
-  - Toast/Undo 仅保证对“最近一次删除”有效（MVP 约束）。  
-    Undo is guaranteed only for the “most recent delete” (MVP constraint).
-
----
-
-## 7) Decision Sheet（轻量详情）/ Decision Sheet (Bottom Sheet)
-
-### 7.1 打开方式 / Trigger
-- 点击卡片主体打开 bottom sheet。  
-  Tap card body to open bottom sheet.
-
-### 7.2 默认高度与轻重 / Default Height & Weight
-- 默认打开约占屏 ~70%，可上拉到更高（接近全屏）。  
-  Opens at ~70% height; can expand near full screen.
-
-### 7.3 内容结构（顺序）/ Content Structure (order)
-- 封面大图（正方形）/ Large square cover  
-- 标题 + 圆形 logo（同一块）/ Title + circular logo  
-- 价格 + `?` tooltip / Price + `?` tooltip  
-- `personal_note` inline 编辑区 + `Save` / Inline note editor + `Save` 
-  * Note 的 `Save` 必须是 **Note 编辑区内的 inline 操作**（例如在输入框右侧或输入框下方小按钮），而不是主动作区的大按钮。 
-- 主按钮 / Primary CTA：`View on website`  
-- 次按钮 / Secondary CTA：`Delete`（改为隐式文字链接，见 §7.6）
-
-### 7.4 外跳策略 / External Navigation
-- v0.3 `View on website` 永远使用 `source_url`。  
-  In v0.3, `View on website` always uses `source_url`.
-- 若 `source_url` 为空：按钮置灰并显示提示 `Link unavailable`（或隐藏，需统一策略）。  
-  If `source_url` is empty: disable CTA and show `Link unavailable` (or hide; must be consistent).
-- 桌面：默认新 tab 打开。  
-  Desktop: opens in new tab by default.
-- 移动端（含 GPT 内置浏览器）：同 tab 打开。  
-  Mobile (incl. GPT in-app browser): same tab.
-
-### 7.5 Delete from Sheet
-- 若在 Decision Sheet 中触发 Delete：删除成功后 **自动关闭 sheet**。  
-  If delete is triggered from Decision Sheet: **close the sheet** after successful deletion.
-- Undo 成功后：仅恢复列表，不自动重新打开 sheet。  
-  After Undo: restore list only; do not auto-reopen the sheet.
-
-#### 7.6 按钮与动作布局（新增）
-- `View on website`：主按钮（primary）。
-  `View on website`: primary button.
-- `Delete`：**隐式文字链接**（danger style），放在主按钮下方（或同区块底部），避免与主 CTA 争夺注意力。
-  `Delete`: **implicit text link** (danger style) placed under the primary CTA (or at the bottom of the CTA block) to reduce attention competition.
-- `Save`：仅在 note 进入编辑态时显示（inline），保存成功后退出编辑态并更新列表预览。
-  `Save`: shown only when the note is in editing state (inline). On success, exit edit mode and update the list preview.
-
----
-
-## 8) Cheatsheet（轻浮层）/ Cheatsheet (Light Overlay)
-
-### 8.1 打开 / Trigger
-- Header 右侧 `Cheatsheet` 点击打开。  
-  Triggered by header `Cheatsheet`.
-
-### 8.2 形态 / Form
-- 轻量 modal / bottom sheet（一屏内容）。  
-  Lightweight modal/bottom sheet (single-screen).
-
-### 8.3 文案（英文优先；可附中文解释）/ Copy (English-first with optional CN)
-**定位句 / Positioning line**
-- EN: `Add items in ChatGPT. Manage & share them here.`
-- ZH: `在 ChatGPT 里添加商品；在这里浏览、决策、备注与分享。`
-
-**示例 / Examples**
-1. `Add these links to my wishlist: ...`
-2. `Add "Nike Air Force 1, white, size 42" to my wishlist`
-3. `Show my wishlist — I’ll clean it up on the web`
-
-**Actions**
-- `Got it`
-- `Back to GPT`（触发 Return 预期路径 / triggers Return expected path）
-
-> Return 预期路径（描述期望，不绑定实现）/ Return expected path (experience-level):
-> - 若从 ChatGPT app 内置浏览器打开：Return 应回到原 ChatGPT 会话。  
->   If opened inside ChatGPT in-app browser: Return should go back to the originating ChatGPT conversation.
-> - 若从桌面浏览器新 tab 打开：Return 应尽力回到上一个页面或提示用户切回 ChatGPT tab。  
->   If opened in a new desktop tab: Return should attempt to go back or prompt user to switch back to the ChatGPT tab.
-
----
-
-## 9) Share（分享）/ Share (Link-only MVP)
-
-### 9.1 入口 / Entry
-- `/app` 列表顶部工具栏右侧 `Share` 一键打开。  
-  One-click from list top bar `Share`.
-
-### 9.2 Share Sheet 内容 / Share Sheet Contents
-- 标题 / Title：`Share list`
-- 链接短展示 + Copy（复制完整链接）  
-  Short link display + Copy (copies full URL)
-- `Share…`（仅当系统分享 API 可用时显示）  
-  `Share…` shown only if system share API is available
-- `Revoke link`（危险操作）  
-  `Revoke link` (danger)
-- revoke 后展示：  
-  After revoke:
-  - `This link is disabled.`
-  - `Generate new link`
-
-### 9.3 语义与约束 / Semantics & Constraints
-- Share sheet 打开时：若存在 active share → 展示；否则生成新的 active share 并展示。  
-  On open: if an active share exists, show it; otherwise generate and show a new active share.
-- 系统保证同一用户仅一个 active share（revoked 后才可生成新 active）。  
-  System guarantees only one active share per user (must revoke before generating a new active).
-- Revoke 后：`/s/:share_id` 必须立即 404。  
-  After revoke: `/s/:share_id` must return 404 immediately.
-
-### 9.4 降级策略 / Degradation
-- 系统分享不可用 → 不展示 `Share…`，仅保留 Copy。  
-  If system share is unavailable, hide `Share…`, keep Copy only.
-- v0.3 不展示 Poster（不留空位）。  
-  No poster in v0.3 (no placeholder UI).
-
----
-
-## 10) 数据库字段设计 / Database Field Design (v0.3)
-
-> 原则 / Principle：Web 展示使用 “display snapshot” 字段；仅 `personal_note` 可由 Web 编辑。  
-> Web uses “display snapshot” fields; only `personal_note` is editable from web.
-
-### 10.1 `items` 表建议字段 / Suggested `items` columns
-
-**Owner / ownership**
-- `id` (uuid/bigint)
-- `user_id` (uuid)
-
-**Source**
-- `source_url` (text, nullable)
-
-**User editable**
-- `personal_note` (text, nullable)
-
-**Timestamps**
-- `created_at` (timestamptz) — **添加时间 / added time**
-- `updated_at` (timestamptz) — 更新记录用途，不参与排序 / not used for sorting
-
-**Sorting rule / 排序规则（防漂移）**
-- 排序仅使用 `created_at`（added time）。  
-  Sorting uses `created_at` only (added time).
-- 编辑 `personal_note` 不得影响 item 排序位置。  
-  Editing `personal_note` must not reorder items.
-
-**Soft delete**
-- `deleted_at` (timestamptz, nullable)
-
-**Display snapshot (written by GPT/backend refresh)**
-- `display_cover_image_url` (text, nullable)
-- `display_product_title` (text, nullable)
-- `display_merchant_logo_url` (text, nullable)
-- `display_merchant_domain` (text, nullable) — fallback if no logo
-- Fiat price fields:
-  - `display_price_amount_minor` (int, nullable) — e.g. $12.34 => 1234
-  - `display_currency` (text, nullable) — ISO 4217: USD/CNY/SGD...
-- Optional flexible price text (future-proof; can cover special formatting/crypto):
-  - `display_price_text` (text, nullable)
-- Optional price timestamp (for tooltip detail if needed):
-  - `display_price_updated_at` (timestamptz, nullable)
-
-**Query rule / 查询规则**
-- 所有列表读取必须过滤：`deleted_at IS NULL`  
-  All reads must filter: `deleted_at IS NULL`
-
-### 10.2 价格格式化规则 / Price Formatting Rules (v0.3)
-- 若 `display_price_amount_minor` + `display_currency` 同时存在：优先使用 `Intl.NumberFormat` 本地化格式化。  
-  If `display_price_amount_minor` + `display_currency` exist: prefer formatting via `Intl.NumberFormat`.
-- 若 `Intl` 格式化失败：回退到 `display_price_text`（若存在）。  
-  If `Intl` formatting fails: fall back to `display_price_text` (if present).
-- 否则使用 `display_price_text`。  
-  Otherwise display `display_price_text`.
-  - locale: `navigator.language`
-  - style: `currency`
-  - currency: `display_currency`
-- v0.3 默认认为 minor unit 为 2 位（amount_minor / 100）。  
-  v0.3 assumes 2 minor units for fiat (amount_minor / 100).
-
-### 10.3 `shares` 表（沿用 v0.2 能力）/ `shares` table (carry from v0.2)
-- `id` (share_id)
-- `user_id`
-- `created_at`
-- `revoked_at` (nullable)
-
-**Constraint**
-- One active share per user: unique(user_id) where revoked_at is null
-
----
-
-## 11) API / 行为要求（最小集）/ API & Behavior Requirements (Minimal)
-
-### 11.1 Items
-- List items: returns only `deleted_at IS NULL`, includes display snapshot + note.  
-- Update note: only updates `personal_note`.  
-- Delete: soft delete sets `deleted_at`.  
-- Restore: clears `deleted_at` (dedicated restore endpoint).  
-- delete/restore 必须幂等。  
-  delete/restore must be idempotent.
-
-### 11.2 Share
-- Fetch/generate active share link for current user.  
-- Revoke active share.  
-- Public share page reads items for owner and filters deleted.
-
-### 11.3 Public response allowlist（防泄露）/ Public response allowlist (anti-leak)
-- `/s/:share_id` 只允许输出（建议白名单）：  
-  `/s/:share_id` should only output (suggested allowlist):
-  - `display_cover_image_url`
-  - `display_product_title`
-  - `display_merchant_logo_url`
-  - `display_merchant_domain`
-  - `display_price_amount_minor`, `display_currency`, `display_price_text`
-  - `personal_note`
-  - `source_url`
-- 明确禁止输出：`user_id`, `email`, 以及任何内部追踪/鉴权字段。  
-  Must not include: `user_id`, `email`, or any internal tracking/auth fields.
-
----
-
-## 12) 文案选择（v0.3 英文为主）/ Microcopy (English-first v0.3)
-
-### 12.1 Empty State (空列表)
-- 中间大按钮 / Center large button:
-  - `Add items in ChatGPT. Tap here for Cheatsheet.`
-- 点击按钮：打开 Cheatsheet overlay（复用同一组件）。  
-  Tap opens Cheatsheet overlay (reuse the same component).
-
-### 12.2 Price tooltip
-- `Price tracking is best-effort.`
-
-### 12.3 Delete toast
-- `Item deleted` + `Undo`
-
-### 12.4 Decision Sheet CTA
-- Primary: `View on website`
-- Secondary: `Delete`
-- Note actions: `Save`
-- Link empty hint: `Link unavailable`
-
-### 12.5 Share sheet
-- `Share list`
-- `Copy link`
-- `Revoke link`
-- `Generate new link`
-- `This link is disabled.`
-
----
-
-## 13) UI 风格 / UI Style（消费级生活化 + 极简）
-- 生活化（消费级）但极简：更大圆角、舒适留白、图片优先。  
-  Consumer-friendly but minimal: larger radius, comfortable spacing, image-first.
-- Logo 为圆形容器，放标题旁边（更像消费品列表）。  
-  Circular merchant logo next to title.
-- v0.3 light-theme only。  
-  v0.3 is light-theme only.
-
----
-
-## 14) 验收标准 / Acceptance Criteria (v0.3)
-- `/app`：移动端优先单列卡片；桌面自适配不破版。  
-  `/app` renders single-column cards mobile-first; desktop adapts without breaking.
-- Sort：仅 Newest/Oldest 两态切换生效，且排序基于 `created_at`。  
-  Sort toggle works for Newest/Oldest only, based on `created_at`.
-- Card click 打开 Decision Sheet，包含 View on website / note inline edit+save / delete。  
-  Card click opens Decision Sheet with View on website / inline note edit+save / delete.
-- `⋯` popover 仅两项：Edit note（打开并聚焦）/ Delete（无确认）。  
-  `⋯` popover has only Edit note (opens+focus) and Delete (no confirm).
-- Delete：soft delete + toast Undo（4s）；Undo 恢复同 id；失败回滚 UI。  
-  Delete uses soft delete + Undo toast (4s); Undo restores same id; failures roll back UI.
-- Decision Sheet 中删除成功后会关闭 sheet；Undo 不自动重开 sheet。  
-  Deleting from sheet closes it on success; Undo does not auto-reopen.
-- Floating GPT icon：下滑隐藏、上滑显示；不遮挡最后卡片内容。  
-  Floating GPT icon hides on scroll down, shows on scroll up; never covers last card.
-- Cheatsheet：Header 常驻入口；overlay 轻；Got it/Back to GPT 可用；空态按钮复用同一 overlay。  
-  Cheatsheet is persistent; overlay is light; Got it/Back to GPT works; empty-state button reuses same overlay.
-- Share：一键打开；Copy link；系统 share 不可用时自动降级；revoke 后 404 生效且可 regenerate。  
-  Share is one-click; copy link works; system share degrades gracefully; revoke causes 404 and regenerate works.
-- `/s/:share_id`：只读，无 PII，过滤 deleted items，revoked 必须 404；包含 personal_note 与 View on website。  
-  `/s/:share_id` is read-only, no PII, filters deleted items, revoked returns 404; includes personal_note and View on website.
-
----
-
-# v0.4_SPEC (GPT Created Item Enrichment: display snapshot via GPT hints + server best-effort)
-
----
-
-## 0. 一句话结论 / One-line summary
-
-- CN：v0.4 让 **GPT 通过 `POST /items` 创建 item 时即可写入/回显 `display_*` 展示字段（尽量丰富）**；服务端提供 **异步 best-effort enrichment 兜底（不阻塞）**，并同步更新 Actions OpenAPI 与 GPT Instructions，形成端到端闭环。
-- EN: v0.4 enables **writing/echoing `display_*` snapshot fields during `POST /items` (best-effort enrichment)**, with **non-blocking async server enrichment** as fallback, plus Actions OpenAPI + GPT Instructions updates for an end-to-end loop.
-
----
-
-## 1. UI/UX Summary
-
-- v0.4 不新增页面与交互，沿用 v0.3 的 `/app` 与 `/s/:share_id` 信息架构与操作流。  
-  v0.4 introduces no new pages or interactions; it reuses v0.3 `/app` and `/s/:share_id`.
-- v0.4 的用户可感知变化：当 item 由 GPT 添加后，列表与分享页会更稳定地展示“商品卡片信息”（标题/商家优先；封面/价格 best-effort）。  
-  User-visible change: items created by GPT render as richer product-like cards (title/merchant prioritized; cover/price best-effort).
-- 渲染规则：当 `display_*` 字段存在时优先展示；缺失时继续沿用 v0.3 既有的渲染与兜底逻辑（不在本节重复定义）。  
-  Rendering rule: prefer `display_*` when present; otherwise reuse existing v0.3 rendering/fallback behavior (not redefined here).
-
----
-
-## 2. 数据模型语义 / Data model semantics
-
-- v0.4 **不新增**数据表与字段；复用 v0.3 已存在的 `items.display_*` 展示快照字段。  
-  v0.4 **adds no new tables/columns**; it reuses v0.3 `items.display_*` snapshot fields.
-- 若在任一环境发现 `display_*` 字段缺失，视为 **v0.3 对齐缺陷修复**（不作为 v0.4 scope 扩展），补齐 migration 以恢复 v0.3 既定模型。  
-  If any `display_*` columns are missing in an environment, treat it as a **v0.3 alignment fix** (not a v0.4 scope expansion) and backfill via migration.
-
-- `display_*` 是 **展示快照（best-effort, non-authoritative）**：  
-  `display_*` is **best-effort display snapshot**:
-  - 允许为空 / may be null
-  - 不保证实时 / not guaranteed real-time
-  - 不作为幂等键或业务主键 / not used as identity keys
-
-- `display_price_updated_at` 的语义：**价格快照的更新时间**。  
-  Semantics: **last time the price snapshot was set/updated**.
-  - 仅当写入/更新 `display_price_amount_minor` / `display_currency` / `display_price_text` 时更新；否则保持不变或为空。  
-    update only when setting/updating price fields; otherwise unchanged or null.
-  - 不应被 create/touch、note 编辑、或仅补全 title/cover/merchant 等非价格变更“误更新”。  
-    must not be bumped by create/touch, note edits, or non-price enrichment.
-
----
-
-## 3. v0.4 接口变更 / v0.4 endpoint changes
-
-### 3.1 `POST /items`（Create/touch）— 支持 GPT hints（同步回显）+ 异步 enrichment 兜底
-
-- Request body：
-  - `url`（required）
-  - `display_*`（optional，见 2. 数据模型；as GPT hints / prefill candidates）
-
-- 行为（Behavior, two-phase）：
-  1. **先完成 create/touch**（保持现有幂等与排序语义不变）  
-     create/touch first (preserve idempotency + ordering semantics)
-
-  2. 若请求包含 `display_*`：对这些字段做 **快速校验（no network）** 后写入（视为 **GPT hints**）  
-     if `display_*` provided: persist after **fast validation (no network)** as **GPT hints**
-     - 校验范围只包含：协议/长度/可解析性/显式 localhost 与私网 IP 字面量拦截等；不得做 DNS / fetch / redirect resolution  
-       validation must be local-only (protocol/length/parsing/explicit localhost & private-literal IP blocks); no DNS/fetch/redirect resolution
-     - 任意 `display_*` 字段不通过校验：**忽略该字段**，但 **不影响 item 创建成功**  
-       invalid hint fields must be ignored and must not fail the request
-
-  3.（可选但推荐）在同步阶段做“零网络”的确定性补全（不引入外部抓取）：  
-     (optional but recommended) deterministic no-network fills during sync phase:
-     - 若 `display_merchant_domain` 缺失：从 `url` 的 host 推断并写入  
-       if `display_merchant_domain` missing: derive from URL host and set
-     - 若 `display_merchant_logo_url` 缺失：基于 domain 拼 deterministic favicon service URL 并写入  
-       if `display_merchant_logo_url` missing: set via deterministic favicon service URL
-
-  4. 触发 **异步 best-effort enrichment**：对 `url` 抓取/解析以补全缺失的 `display_*`（不阻塞响应）  
-     trigger **async best-effort enrichment** to fetch/parse the URL and fill missing `display_*` (must not block response)
-     - 必须有 hard timeout / size limit / redirect limit / SSRF 防护  
-       must enforce hard timeout / size limit / redirect limit / SSRF protections
-     - 默认策略：**只补空字段，不覆盖已有字段**  
-       default policy: fill-only (no override)
-
-- Response：
-  - 返回 item（向后兼容），并 **包含 Phase 1 已写入/推断出的 `display_*`**  
-    return the item additively including `display_*` written/derived in Phase 1
-  - 不保证包含 Phase 2 异步 enrichment 的结果（需要后续 `GET /items` 才能看到）  
-    async enrichment results are not guaranteed in the same response; use `GET /items` to observe updates
-
----
-
-### 3.2 `GET /items` — 返回 display_* 字段（加法）
-
-- 在现有返回结构基础上，**追加返回** `display_*` 字段（加法，不破坏旧客户端）。  
-  Additively returns `display_*` fields.
-
-- 过滤与排序 **必须严格沿用 v0.3 既有规则**：过滤 `deleted_at IS NULL`；排序仅基于 `created_at`。  
-  Filtering/sorting must strictly reuse v0.3 rules: filter `deleted_at IS NULL`; ordering uses `created_at` only.
-
----
-
-## 4. Actions OpenAPI / GPT Instructions / Schema Sync（必须同步）
-
-- Actions OpenAPI（schema）必须更新：  
-  Actions schema must be updated (otherwise GPT cannot send/receive `display_*`).
-  - `POST /items` request body：新增可选 `display_*` 字段（GPT hints）  
-    add optional `display_*` fields in request body (as GPT hints)
-  - `POST /items` response：返回 item 时 **包含 `display_*`（Phase 1 同步写入/推断出的）**  
-    response must include `display_*` (sync written/derived in Phase 1)
-  - `GET /items` response：列表中每个 item **包含 `display_*`（含异步补全后结果）**  
-    list response must include `display_*` (including async enrichment updates)
-
-- OpenAPI 生成与发布（保持现有流程）：  
-  regenerate and publish OpenAPI per existing pipeline.
-  - 更新 `actions/openapi.template.yaml`（或项目里用于生成 OpenAPI 的模板）  
-    update the OpenAPI template used for generation
-  - 重新生成 `public/openapi.yaml`（并提交到 repo）  
-    regenerate `public/openapi.yaml` (commit it)
-
-- GPT Builder / Actions 必须重新导入：  
-  GPT Actions must re-import the updated schema.
-  - 在 GPT Builder → Actions 中 **重新导入/更新** OpenAPI，否则 GPT 仍按旧 schema 运行  
-    re-import/update OpenAPI in GPT Builder → Actions; otherwise GPT still uses old schema
-
-- GPT Instructions 必须更新（让它“会填”）：  
-  GPT Instructions must be updated so it actually populates fields.
-  - 加入规则：添加商品链接时，`createItem(POST /items)` **尽量填 `display_*`（能确定就填，不确定留空，不编造）**  
-    rule: when adding a product URL, best-effort fill `display_*` (fill if confident; otherwise omit; no fabrication)
-  - 强调：服务端会做异步兜底补全；同一次 `POST /items` 不保证拿到异步结果（可通过 `GET /items` 观察更新）  
-    server will async backfill; same POST response may not include async results; use `GET /items` to observe updates
-
----
-
-## 5. Enrichment 兜底与安全 / Enrichment fallback & security
-
-- 定义：v0.4 enrichment 是 “link preview / metadata enrichment”（单 URL 的元数据补全），不是全站爬取；失败可容忍。  
-  v0.4 enrichment is link-preview/metadata enrichment for a single URL; failures are acceptable.
-
-- **非阻塞**：enrichment 必须异步触发；`POST /items` 不等待抓取完成；解析失败/超时不影响 200/OK。  
-  Non-blocking: enrichment must be async; `POST /items` must not wait; failures/timeouts must not break 200/OK.
-
-- **抓取约束**（服务端）：
-  - 仅允许 `http/https`  
-    allow http/https only
-  - SSRF 防护：拒绝 localhost/内网/metadata 网段（含 redirect 后的再次校验）  
-    SSRF protections: block localhost/private/metadata ranges (re-validate after redirects)
-  - 限制 redirect 次数（如 ≤ 3）  
-    redirect limit (e.g. ≤ 3)
-  - 限制响应体大小（如 ≤ 1MB）  
-    response size cap (e.g. ≤ 1MB)
-  - hard timeout（如 1–2s）  
-    hard timeout (e.g. 1–2s)
-  - 不携带用户态 cookie；不记录 HTML 正文  
-    no user cookies; do not log HTML bodies
-
-- **入参校验**（GPT hints）：
-  - 所有 URL 字段（`display_cover_image_url`, `display_merchant_logo_url`）也必须通过协议与网段校验  
-    all hint URL fields must pass protocol/range validation
-
-- **地区/币种本地化（明确不做）**：v0.4 不基于用户国家/地区做本地化抓取（当前也不存 preferred country）；价格字段仅为 best-effort 展示快照，可能随抓取位置/站点策略变化。  
-  No localization in v0.4: fetch is not localized by user country/region; price is best-effort snapshot and may vary.
-
-- **安全边界不扩权**：鉴权/授权与 PII 边界沿用项目既有约束（见 SECURITY.md）；v0.4 仅新增“服务端对外抓取”的受限能力，不引入新的访问路径或数据泄露面。  
-  Security boundary unchanged (see SECURITY.md); v0.4 only adds constrained outbound fetch capability.
-
----
-
-## 6. 验收 / Acceptance
-
-- 端到端（End-to-end）：
-  1. GPT/Actions：调用 `createItem(POST /items)` 添加一个商品 URL  
-     Actions calls `createItem(POST /items)` with a product URL
-  2. `POST /items` 响应中：应包含 Phase 1 同步写入/推断出的 `display_*`（若请求提供了 hints 或可从 URL 推断）  
-     `POST /items` response includes `display_*` written/derived in Phase 1 (if hints provided or derivable)
-  3. `listItems(GET /items)`：返回该 item，且 `display_*` 字段为加法返回（异步补全后可变得更完整）  
-     `GET /items` returns the item with `display_*` additively (may become more complete after async enrichment)
-  4. `/app` 与 `/s/:share_id`：可正常渲染列表与卡片信息；不因 `display_*` 缺失而报错（沿用 v0.3 fallback）  
-     `/app` and `/s/:share_id` render without errors even when `display_*` is missing (reuse v0.3 fallback)
-  5. 异常场景：不可达 URL / 解析超时 → `POST /items` 仍成功、不 500、不阻塞；display 允许为空  
-     Failures/timeouts must not block or 500; display fields may remain null
-  6. 回归：不破坏 v0.1 Actions 闭环（`getMe → createItem → listItems`）  
-     Regression: v0.1 loop remains intact (`getMe → createItem → listItems`)
-
----
-
-# v0.6 — Privacy/Terms + Post-login Onboarding (P0 Profile)
-
-## 背景与目标
-- v0.6 的目标是补齐最小合规入口，并收集 enrich 抓取更准确所需的最小用户上下文（P0），且不影响现有 GPT Actions/Add 的成功率。  
-- The goal of v0.6 is to add minimal compliance entry points and collect the minimum user context needed for more accurate enrichment (P0), without reducing the success rate of existing GPT Actions/Add flows.
-
-## 交付范围
-1) 隐私政策与服务条款  
-Privacy Policy & Terms of Service  
-- 新增页面：`/privacy`、`/terms`。  
-  Add pages: `/privacy`, `/terms`.  
-- 入口仅要求覆盖：`/login` 页脚显示 Privacy / Terms 链接（其他页面不强制）。  
-  Only required entry point: show Privacy/Terms links in the `/login` footer (not required elsewhere).
-
-2) 登录后 Onboarding（独立页面，一屏完成）  
-Post-login Onboarding (standalone page, single-screen)  
-- 新增页面：`/onboarding`，并在登录成功后立即跳转到该页面。  
-  Add `/onboarding` and redirect to it immediately after successful login.  
-- Onboarding 一屏收集并保存（P0）：`country_code`、`preferred_language`、`preferred_currency`。  
-  Collect & persist (P0): `country_code`, `preferred_language`, `preferred_currency`.  
-- 记录合规接受信息：`accepted_at`、`policy_version`（日期字符串，例如 `2026-01-11`，写死在代码中）。  
-  Persist acceptance fields: `accepted_at` and `policy_version` (date string e.g. `2026-01-11`, hard-coded).  
-- 页面仅展示 under-13 提示文案（不需要 checkbox，不做 DOB/年龄验证，不额外落库 age 字段）。  
-  Show an under-13 notice as plain text only (no checkbox, no DOB/age verification, no extra age fields stored).
-
-3) App 设置入口 (App settings entry point)
-- `/app` 顶部 header 的最右侧（在 cheatsheet 按钮右边）增加齿轮 icon，跳转到 `/app/settings`。  
-  Add a gear icon to the far-right of the `/app` header (to the right of the cheatsheet button) linking to `/app/settings`.  
-- `/app/settings` 复用 onboarding 相同的表单，可修改并保存 country/language/currency。  
-  `/app/settings` reuses the same form as onboarding and allows editing/saving country/language/currency.
-
-4) Web 端 profile gate（只影响 Web，不影响 Actions） - Web profile gate (web-only, does not affect Actions)  
-- Web 端访问 `/app` 时，如果 profile 不完整则重定向到 `/onboarding`。  
-  When visiting `/app` on web, redirect to `/onboarding` if the profile is incomplete.  
-- GPT Actions/CreateItem 在 profile 缺失时仍必须成功（不得引入新的失败路径）。  
-  GPT Actions/CreateItem must still succeed when profile is missing (no new failure paths).
-
-5) enrich 使用 profile（最小化改动）- Enrichment uses profile (minimal change)  
-- profile 完整时：enrich 请求至少使用 `preferred_language` 作为 `Accept-Language`。  
-  If profile is complete: at minimum use `preferred_language` as `Accept-Language` for enrichment fetches.  
-- profile 缺失/不完整时：不从 URL 推断 locale，不使用“本次请求 headers/IP”作为用户代理，使用固定默认值：`language=en-US`、`currency=USD`、`country=UNKNOWN`。  
-  If profile is missing/incomplete: do not infer locale from URL and do not use request headers/IP as user proxy; use fixed defaults: `language=en-US`, `currency=USD`, `country=UNKNOWN`.
-
-## 数据模型（DB）
-- 新增表：`profiles`，用于存储最小用户上下文（P0）与合规接受信息。  
-  Add a `profiles` table to store minimum user context (P0) and acceptance fields.  
-- 字段：`user_id`(PK, references auth.users)、`country_code`、`preferred_language`、`preferred_currency`、`accepted_at`、`policy_version`、`created_at`、`updated_at`。  
-  Fields: `user_id` (PK, references auth.users), `country_code`, `preferred_language`, `preferred_currency`, `accepted_at`, `policy_version`, `created_at`, `updated_at`.  
-- RLS：仅允许已登录用户读写自己的 profile（`user_id = auth.uid()`）。  
-  RLS: authenticated users can only read/write their own profile row (`user_id = auth.uid()`).
-
-## 依赖
-- 使用 `country-to-currency`（固定版本号，不使用 `^`）提供 country→默认 currency 的轻量映射，用于 onboarding 默认值预填。  
-- Use `country-to-currency` with a pinned exact version (no `^`) to provide lightweight country→default currency mapping for onboarding defaults.
-
-## 非目标（Non-goals）
-- 不做 cookie banner。  
-  No cookie consent banner.  
-- 不做 DOB/年龄验证/KYC。  
-  No DOB/age verification/KYC.  
-- 不做 URL locale 推断策略。  
-  No URL-locale inference strategy.  
-- 不要求 GPT Actions 在无 profile 情况下失败（必须保持兼容）。  
-  No requirement for GPT Actions to fail when profile is missing (must remain compatible).
-
-### 验收（Acceptance）
-- `/login` 显示 Privacy / Terms 链接，并可访问 `/privacy`、`/terms`。  
-  `/login` shows Privacy/Terms links and `/privacy`, `/terms` are accessible.  
-- 登录成功后进入 `/onboarding`，一屏完成 country/language/currency 设置并保存。  
-  After login, `/onboarding` appears and saves country/language/currency in a single screen.  
-- Web 端访问 `/app` 且 profile 不完整时会跳转到 `/onboarding`。  
-  On web, `/app` redirects to `/onboarding` when profile is incomplete.  
-- `/app` header 的齿轮入口可进入 `/app/settings` 并保存设置。  
-  The gear icon in `/app` header opens `/app/settings` and saves settings.  
-- GPT Actions/CreateItem 在 profile 缺失时仍能成功（无回退）。  
-  GPT Actions/CreateItem still succeeds when profile is missing (no regression).  
-- enrich 在 profile 存在时使用 `Accept-Language`，profile 缺失时使用默认值且不做 URL 推断/不读请求 headers。  
-  Enrichment uses `Accept-Language` when profile exists; otherwise uses defaults without URL inference or request-header proxying.
+- Apple login (waiting for D-U-N-S / Apple Dev Program)
+- OG preview and share poster
+- Actions tracking (`actions.get_me / actions.list_items / actions.create_item`)
+- Stronger public share abuse controls (bot filtering, rate limits, richer dedupe)
