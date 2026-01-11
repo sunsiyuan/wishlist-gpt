@@ -22,6 +22,9 @@ EN: There is only one loop you must get working: **Actions Connect → getMe →
 - `OAUTH_ALLOW_AUTH_HEADER_LOGIN`
 - `BASE_URL`
 - `SUPABASE_SESSION_COOKIE_NAME`（smoke 脚本需要时覆盖 cookie 名称）
+- `TELEGRAM_BOT_TOKEN`（反馈通知 Telegram Bot token）
+- `TELEGRAM_CHAT_ID`（反馈通知 Telegram chat id）
+- `OPENGRAPH_IO_APP_ID`（opengraph.io 兜底抓取）
 
 > CN：改 `.env*` 后，务必重启终端并重启 `npm run dev`（旧进程最容易误导你）。  
 > EN: After changing `.env*`, restart your terminal and `npm run dev` (stale processes are the #1 confusion source).
