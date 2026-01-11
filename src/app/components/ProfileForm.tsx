@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import countryToCurrency from "country-to-currency";
+import { COUNTRIES, LANGUAGES, CURRENCIES } from "../../lib/options";
 
 const DEFAULT_LANGUAGE = "en-US";
 const DEFAULT_CURRENCY = "USD";
@@ -15,7 +16,6 @@ type ProfileFormProps = {
   } | null;
   submitLabel: string;
   successRedirect?: string;
-  showPolicyNotice?: boolean;
 };
 
 function extractRegionFromLanguage(language: string): string | null {
@@ -42,7 +42,6 @@ export default function ProfileForm({
   initialValues,
   submitLabel,
   successRedirect,
-  showPolicyNotice = false,
 }: ProfileFormProps) {
   const router = useRouter();
   const [countryCode, setCountryCode] = useState(initialValues?.country_code ?? "");
@@ -132,34 +131,42 @@ export default function ProfileForm({
     <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
       <label style={{ display: "grid", gap: "0.4rem" }}>
         Country code
-        <input
-          type="text"
+        <select
           name="country_code"
-          placeholder="US"
           value={countryCode}
           onChange={(event) => setCountryCode(event.target.value)}
           required
           style={{ padding: "0.5rem", borderRadius: "8px", border: "1px solid #ddd" }}
-        />
+        >
+          <option value="">Select country</option>
+          {COUNTRIES.map((country) => (
+            <option key={country.code} value={country.code}>
+              {country.name}
+            </option>
+          ))}
+        </select>
       </label>
       <label style={{ display: "grid", gap: "0.4rem" }}>
         Preferred language
-        <input
-          type="text"
+        <select
           name="preferred_language"
-          placeholder="en-US"
           value={preferredLanguage}
           onChange={(event) => setPreferredLanguage(event.target.value)}
           required
           style={{ padding: "0.5rem", borderRadius: "8px", border: "1px solid #ddd" }}
-        />
+        >
+          <option value="">Select language</option>
+          {LANGUAGES.map((language) => (
+            <option key={language.code} value={language.code}>
+              {language.name}
+            </option>
+          ))}
+        </select>
       </label>
       <label style={{ display: "grid", gap: "0.4rem" }}>
         Preferred currency
-        <input
-          type="text"
+        <select
           name="preferred_currency"
-          placeholder="USD"
           value={preferredCurrency}
           onChange={(event) => {
             currencyTouched.current = true;
@@ -167,16 +174,15 @@ export default function ProfileForm({
           }}
           required
           style={{ padding: "0.5rem", borderRadius: "8px", border: "1px solid #ddd" }}
-        />
+        >
+          <option value="">Select currency</option>
+          {CURRENCIES.map((currency) => (
+            <option key={currency.code} value={currency.code}>
+              {currency.name}
+            </option>
+          ))}
+        </select>
       </label>
-      {showPolicyNotice ? (
-        <p style={{ fontSize: "0.85rem", color: "#555", margin: 0 }}>
-          You must be 13 or older to use WishlistGPT. By continuing, you agree to the Terms and
-          acknowledge the Privacy Policy. Read the
-          {" "}
-          <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
-        </p>
-      ) : null}
       {statusMessage ? (
         <p
           style={{ color: statusTone === "error" ? "#b91c1c" : "#166534", margin: 0 }}
