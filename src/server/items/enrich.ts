@@ -183,7 +183,10 @@ async function enrichItem(params: {
           blocked_reason: failure.blockedReason,
           blocked_keyword: failure.blockedKeyword,
         };
-        if (failure.blocked) {
+        // Use errorName from failure if available, otherwise infer from status/blocked
+        if (failure.errorName) {
+          attempt.error = failure.errorName;
+        } else if (failure.blocked) {
           attempt.error = "blocked_or_rate_limited";
         } else if (failure.status) {
           attempt.error = failure.unexpectedContentType ? "unexpected_content_type" : "http_error";
@@ -609,6 +612,35 @@ function isJsonContentType(contentType: string | null): boolean {
   return contentType.toLowerCase().includes("application/json");
 }
 
+/**
+ * Check if content-type is "json-ish" (may contain JSON despite the label).
+ * Used for Shopify .js endpoints that return JSON with text/javascript.
+ */
+function isJsonishContentType(contentType: string | null): boolean {
+  if (!contentType) {
+    return false;
+  }
+  const ct = contentType.toLowerCase();
+  return (
+    ct.includes("application/json") ||
+    ct.includes("text/javascript") ||
+    ct.includes("application/javascript") ||
+    ct.includes("application/x-javascript") ||
+    ct.includes("text/plain")
+  );
+}
+
+/**
+ * Check if content-type is HTML-like.
+ */
+function isHtmlishContentType(contentType: string | null): boolean {
+  if (!contentType) {
+    return false;
+  }
+  const ct = contentType.toLowerCase();
+  return ct.includes("text/html") || ct.includes("application/xhtml");
+}
+
 function computeRetryDelayMs(retryAfterHeader: string | null): number {
   if (retryAfterHeader) {
     const parsed = Number.parseInt(retryAfterHeader, 10);
@@ -876,57 +908,131 @@ async function fetchShopifyProductJs(
       response = responseResult.response;
     }
 
-    const contentType = response.headers.get("content-type");
+    const contentType = response.headers.get("content-type") ?? "";
+    const finalUrl = response.url || endpoint;
+
     if (!response.ok) {
+      // For non-ok responses, read body only when needed (debug or blocked detection)
       const bodyPrefix = ENRICH_DEBUG
         ? await readResponsePrefix(response.clone(), SHOPIFY_BODY_PREFIX_BYTES)
         : undefined;
+      const blockedInfo = getBlockedInfo(response.status, bodyPrefix ?? null);
       lastFailure = {
         ok: false,
-        finalUrl: response.url || endpoint,
+        finalUrl,
         status: response.status,
-        contentType: contentType ?? "",
+        contentType,
         bodyPrefix,
-        ...getBlockedInfo(response.status, bodyPrefix ?? null),
+        ...blockedInfo,
+        errorName: blockedInfo.blocked ? "blocked_or_rate_limited" : "http_error",
+        errorMessage: blockedInfo.blocked
+          ? `HTTP ${response.status} (${blockedInfo.blockedReason ?? "blocked"})`
+          : `HTTP ${response.status}`,
       };
       continue;
     }
 
-    if (!isJsonContentType(contentType)) {
-      const bodyPrefix = ENRICH_DEBUG
-        ? await readResponsePrefix(response.clone(), SHOPIFY_BODY_PREFIX_BYTES)
-        : undefined;
-      lastFailure = {
-        ok: false,
-        finalUrl: response.url || endpoint,
-        status: response.status,
-        contentType: contentType ?? "",
-        bodyPrefix,
-        unexpectedContentType: true,
-        ...getBlockedInfo(response.status, bodyPrefix ?? null),
-      };
-      continue;
-    }
-
+    // Response is ok - read body ONCE and parse-first
+    let text: string;
     try {
-      const json = await response.json();
-      return {
-        ok: true,
-        finalUrl: response.url || endpoint,
-        json,
-        status: response.status,
-        contentType: contentType ?? "",
-      };
+      text = await response.text();
     } catch (error) {
       lastFailure = {
         ok: false,
-        finalUrl: response.url || endpoint,
+        finalUrl,
         status: response.status,
-        contentType: contentType ?? "",
-        errorName: error instanceof Error ? error.name : "ParseError",
-        errorMessage: error instanceof Error ? error.message : "Failed to parse JSON",
+        contentType,
+        errorName: error instanceof Error ? error.name : "ReadError",
+        errorMessage: error instanceof Error ? error.message : "Failed to read response body",
       };
       continue;
+    }
+
+    const bodyPrefix = ENRICH_DEBUG ? text.slice(0, Math.min(500, text.length)) : undefined;
+    const blockedInfo = getBlockedInfo(response.status, text);
+
+    // Parse-first logic: try JSON.parse if content-type suggests JSON, or defensively
+    if (isJsonishContentType(contentType)) {
+      try {
+        const json = JSON.parse(text);
+        // Success: JSON parsed successfully
+        return {
+          ok: true,
+          finalUrl,
+          json,
+          status: response.status,
+          contentType,
+        };
+      } catch (parseError) {
+        // JSON parse failed - check if blocked/challenge
+        if (blockedInfo.blocked) {
+          lastFailure = {
+            ok: false,
+            finalUrl,
+            status: response.status,
+            contentType,
+            bodyPrefix,
+            ...blockedInfo,
+            errorName: "blocked_or_challenge",
+            errorMessage: `JSON parse failed and response appears blocked (${blockedInfo.blockedReason ?? "blocked"})`,
+          };
+        } else {
+          lastFailure = {
+            ok: false,
+            finalUrl,
+            status: response.status,
+            contentType,
+            bodyPrefix,
+            errorName: "json_parse_error",
+            errorMessage: parseError instanceof Error ? parseError.message : "Failed to parse JSON",
+          };
+        }
+        continue;
+      }
+    } else if (isHtmlishContentType(contentType)) {
+      // HTML content-type - likely a challenge/block page
+      lastFailure = {
+        ok: false,
+        finalUrl,
+        status: response.status,
+        contentType,
+        bodyPrefix,
+        ...blockedInfo,
+        errorName: blockedInfo.blocked ? "blocked_or_challenge" : "unexpected_html",
+        errorMessage: blockedInfo.blocked
+          ? `Unexpected HTML response (${blockedInfo.blockedReason ?? "blocked"})`
+          : "Unexpected HTML response (expected JSON)",
+      };
+      continue;
+    } else {
+      // Other content-type - defensively try JSON parse
+      try {
+        const json = JSON.parse(text);
+        // Success: JSON parsed despite unexpected content-type
+        return {
+          ok: true,
+          finalUrl,
+          json,
+          status: response.status,
+          contentType,
+        };
+      } catch (parseError) {
+        // Parse failed - mark as unexpected content-type
+        lastFailure = {
+          ok: false,
+          finalUrl,
+          status: response.status,
+          contentType,
+          bodyPrefix,
+          unexpectedContentType: true,
+          ...blockedInfo,
+          errorName: blockedInfo.blocked ? "blocked_or_challenge" : "unexpected_content_type",
+          errorMessage: blockedInfo.blocked
+            ? `Unexpected content-type and response appears blocked (${blockedInfo.blockedReason ?? "blocked"})`
+            : `Unexpected content-type: ${contentType}`,
+        };
+        continue;
+      }
     }
   }
 
