@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 const MAX_MESSAGE_LENGTH = 1000;
 
@@ -97,44 +98,25 @@ export default function FeedbackModal({
     <div
       role="dialog"
       aria-modal="true"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.35)",
-        display: "flex",
-        alignItems: "flex-end",
-        zIndex: 65,
-      }}
+      className="fixed inset-0 bg-black/35 flex items-end z-[65]"
       onClick={onClose}
     >
       <div
-        style={{
-          width: "100%",
-          background: "#fff",
-          borderTopLeftRadius: "24px",
-          borderTopRightRadius: "24px",
-          padding: "1.5rem",
-          boxShadow: "0 -12px 24px rgba(0,0,0,0.2)",
-        }}
+        className="w-full bg-background-light dark:bg-background-dark-light rounded-t-[24px] p-6 shadow-modal dark:shadow-modal-dark"
         onClick={(event) => event.stopPropagation()}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ margin: 0, fontSize: "1.1rem" }}>Send feedback</h2>
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="m-0 text-lg font-semibold">Send feedback</h2>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              border: "none",
-              background: "transparent",
-              fontSize: "1.2rem",
-              cursor: "pointer",
-            }}
+            className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-background-dark rounded transition-colors duration-200"
             aria-label="Close feedback"
           >
-            ✕
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
-        <p style={{ marginTop: "0.5rem", color: "#6b6b6b", fontSize: "0.9rem" }}>
+        <p className="mt-2 text-secondary dark:text-secondary-dark text-sm">
           Share what worked or what was missing.
         </p>
         <textarea
@@ -143,41 +125,19 @@ export default function FeedbackModal({
           placeholder="Type your feedback..."
           rows={5}
           maxLength={MAX_MESSAGE_LENGTH}
-          style={{
-            width: "100%",
-            marginTop: "0.75rem",
-            borderRadius: "12px",
-            border: "1px solid #e3e3e3",
-            padding: "0.75rem",
-            fontSize: "0.95rem",
-            fontFamily: "inherit",
-          }}
+          className="w-full mt-3 rounded-button border border-border dark:border-border-dark p-3 text-[0.95rem] font-inherit resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:text-gray-200"
         />
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: "0.5rem",
-          }}
-        >
-          <span style={{ color: error ? "#b4232a" : "#6b6b6b", fontSize: "0.85rem" }}>
+        <div className="flex justify-between items-center mt-2">
+          <span
+            className={`text-xs ${error ? "text-error dark:text-error-dark" : "text-secondary dark:text-secondary-dark"}`}
+          >
             {error ?? `${remaining} characters left`}
           </span>
           <button
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            style={{
-              border: "none",
-              background: "#111",
-              color: "#fff",
-              borderRadius: "999px",
-              padding: "0.45rem 1.2rem",
-              cursor: isSubmitting ? "not-allowed" : "pointer",
-              fontWeight: 600,
-              opacity: isSubmitting ? 0.7 : 1,
-            }}
+            className="border-none bg-primary text-white rounded-pill px-5 py-2 cursor-pointer font-semibold disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
           >
             {isSubmitting ? "Sending..." : "Submit"}
           </button>

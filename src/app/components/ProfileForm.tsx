@@ -128,15 +128,15 @@ export default function ProfileForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
-      <label style={{ display: "grid", gap: "0.4rem" }}>
-        Country code
+    <form onSubmit={handleSubmit} className="grid gap-4">
+      <label className="grid gap-1">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Country code</span>
         <select
           name="country_code"
           value={countryCode}
           onChange={(event) => setCountryCode(event.target.value)}
           required
-          style={{ padding: "0.5rem", borderRadius: "8px", border: "1px solid #ddd" }}
+          className="px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200"
         >
           <option value="">Select country</option>
           {COUNTRIES.map((country) => (
@@ -146,14 +146,14 @@ export default function ProfileForm({
           ))}
         </select>
       </label>
-      <label style={{ display: "grid", gap: "0.4rem" }}>
-        Preferred language
+      <label className="grid gap-1">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Preferred language</span>
         <select
           name="preferred_language"
           value={preferredLanguage}
           onChange={(event) => setPreferredLanguage(event.target.value)}
           required
-          style={{ padding: "0.5rem", borderRadius: "8px", border: "1px solid #ddd" }}
+          className="px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200"
         >
           <option value="">Select language</option>
           {LANGUAGES.map((language) => (
@@ -163,8 +163,8 @@ export default function ProfileForm({
           ))}
         </select>
       </label>
-      <label style={{ display: "grid", gap: "0.4rem" }}>
-        Preferred currency
+      <label className="grid gap-1">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Preferred currency</span>
         <select
           name="preferred_currency"
           value={preferredCurrency}
@@ -173,7 +173,7 @@ export default function ProfileForm({
             setPreferredCurrency(event.target.value);
           }}
           required
-          style={{ padding: "0.5rem", borderRadius: "8px", border: "1px solid #ddd" }}
+          className="px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200"
         >
           <option value="">Select currency</option>
           {CURRENCIES.map((currency) => (
@@ -185,7 +185,7 @@ export default function ProfileForm({
       </label>
       {statusMessage ? (
         <p
-          style={{ color: statusTone === "error" ? "#b91c1c" : "#166534", margin: 0 }}
+          className={`m-0 ${statusTone === "error" ? "text-error dark:text-error-dark" : "text-success dark:text-success-dark"}`}
           role={statusTone === "error" ? "alert" : undefined}
         >
           {statusMessage}
@@ -194,15 +194,7 @@ export default function ProfileForm({
       <button
         type="submit"
         disabled={isSaving}
-        style={{
-          border: "none",
-          borderRadius: "999px",
-          padding: "0.75rem",
-          background: "#111",
-          color: "#fff",
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
+        className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-pill hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
       >
         {isSaving ? "Saving..." : submitLabel}
       </button>

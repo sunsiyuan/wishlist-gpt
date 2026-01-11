@@ -39,23 +39,15 @@ export default async function SharePage({ params, searchParams }: SharePageProps
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#f8f8f8",
-        color: "#111",
-        fontFamily: "\"Inter\", system-ui, -apple-system, sans-serif",
-        padding: "2rem 1.25rem 3rem",
-      }}
-    >
+    <main className="min-h-screen bg-[#f8f8f8] dark:bg-background-dark text-gray-900 dark:text-gray-100 py-8 px-5 pb-12">
       <ShareViewTracker shareId={shareId} />
-      <div style={{ maxWidth: "720px", margin: "0 auto" }}>
-        <h1 style={{ fontSize: "1.5rem", marginBottom: "0.25rem" }}>Shared Wishlist</h1>
-        <p style={{ color: "#5b5b5b", marginBottom: "1.5rem" }}>This list is read-only.</p>
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-2xl font-bold mb-1">Shared Wishlist</h1>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">This list is read-only.</p>
         {items.length === 0 ? (
-          <p style={{ color: "#6b6b6b" }}>No items yet.</p>
+          <p className="text-secondary dark:text-secondary-dark">No items yet.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div className="flex flex-col gap-4">
             {items.map((item) => {
               const title = getCardTitle(item);
               const priceText = getPriceText(item, locale);
@@ -66,42 +58,18 @@ export default async function SharePage({ params, searchParams }: SharePageProps
               return (
                 <article
                   key={item.id}
-                  style={{
-                    background: "#fff",
-                    borderRadius: "16px",
-                    padding: "1rem",
-                    boxShadow: "0 8px 20px rgba(17, 17, 17, 0.08)",
-                  }}
+                  className="bg-background-light dark:bg-background-dark-light rounded-[16px] p-4 shadow-[0_8px_20px_rgba(17,17,17,0.08)] dark:shadow-card-dark"
                 >
-                  <div style={{ display: "flex", gap: "1rem" }}>
-                    <div
-                      style={{
-                        width: "96px",
-                        height: "96px",
-                        borderRadius: "12px",
-                        background: "#f0f0f0",
-                        overflow: "hidden",
-                        flexShrink: 0,
-                        position: "relative",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <span style={{ color: "#b6b6b6", fontSize: "0.75rem" }}>
+                  <div className="flex gap-4">
+                    <div className="w-24 h-24 rounded-xl bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 relative flex items-center justify-center">
+                      <span className="text-gray-400 dark:text-gray-500 text-xs">
                         {getCoverFallbackLabel(item)}
                       </span>
                       {item.display_cover_image_url ? (
                         <img
                           src={item.display_cover_image_url}
                           alt={title}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            position: "absolute",
-                            inset: 0,
-                          }}
+                          className="w-full h-full object-cover absolute inset-0"
                           onError={(event) => {
                             event.currentTarget.onerror = null;
                             event.currentTarget.style.display = "none";
@@ -109,38 +77,18 @@ export default async function SharePage({ params, searchParams }: SharePageProps
                         />
                       ) : null}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
                         {shouldShowLogo ? (
                           <div
-                            style={{
-                              width: "22px",
-                              height: "22px",
-                              borderRadius: "50%",
-                              border: "1px solid #eee",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "0.65rem",
-                              color: "#6b6b6b",
-                              position: "relative",
-                              background: "#fff",
-                              overflow: "hidden",
-                              flexShrink: 0,
-                            }}
+                            className="w-[22px] h-[22px] rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[0.65rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
                             aria-label={domain ?? "Merchant"}
                           >
                             <span>{getLogoFallbackText(item)}</span>
                             <img
                               src={item.display_merchant_logo_url ?? ""}
                               alt={domain ?? "Merchant"}
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "contain",
-                              }}
+                              className="absolute inset-0 w-full h-full object-contain"
                               onError={(event) => {
                                 event.currentTarget.onerror = null;
                                 event.currentTarget.style.display = "none";
@@ -148,25 +96,22 @@ export default async function SharePage({ params, searchParams }: SharePageProps
                             />
                           </div>
                         ) : null}
-                        <h2 style={{ fontSize: "1rem", margin: 0 }}>{title}</h2>
+                        <h2 className="text-base font-semibold m-0 truncate">{title}</h2>
                       </div>
                       {showPriceRow ? (
-                        <div style={{ marginTop: "0.35rem", color: "#4a4a4a", fontSize: "0.9rem" }}>
+                        <div className="mt-1.5 text-gray-600 dark:text-gray-400 text-sm">
                           <span>{priceText}</span>
-                          <span
-                            title="Price may change"
-                            style={{ marginLeft: "0.4rem", color: "#8b8b8b" }}
-                          >
+                          <span title="Price may change" className="ml-1.5 text-gray-400 dark:text-gray-500">
                             ?
                           </span>
                         </div>
                       ) : null}
                       <p
-                        style={{
-                          marginTop: "0.5rem",
-                          color: notePreview.isPlaceholder ? "#9a9a9a" : "#3d3d3d",
-                          fontSize: "0.9rem",
-                        }}
+                        className={`mt-2 text-sm ${
+                          notePreview.isPlaceholder
+                            ? "text-gray-400 dark:text-gray-500"
+                            : "text-gray-700 dark:text-gray-300"
+                        }`}
                       >
                         {notePreview.text}
                       </p>
@@ -175,13 +120,7 @@ export default async function SharePage({ params, searchParams }: SharePageProps
                           href={item.source_url}
                           target="_blank"
                           rel="noreferrer"
-                          style={{
-                            display: "inline-flex",
-                            marginTop: "0.75rem",
-                            color: "#1f2937",
-                            fontWeight: 600,
-                            textDecoration: "none",
-                          }}
+                          className="inline-flex mt-3 text-gray-900 dark:text-gray-100 font-semibold no-underline hover:underline"
                         >
                           View on website
                         </a>
