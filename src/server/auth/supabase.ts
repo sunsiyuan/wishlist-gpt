@@ -1,6 +1,7 @@
-import { supabaseAdminFetch } from "../supabase/admin";
+import { NextRequest } from "next/server";
+import { createSupabaseRequestClient } from "../../lib/supabase/server";
 
-const SUPABASE_ACCESS_TOKEN_COOKIE = "sb-access-token";
+const LEGACY_ACCESS_TOKEN_COOKIE = "sb-access-token";
 
 /**
  * Supabase session lookup only.
@@ -19,20 +20,11 @@ function allowSupabaseAuthHeaderBypass(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
-function getSupabaseAccessTokenFromCookie(request: Request): string | null {
-  const cookieHeader = request.headers.get("cookie");
-  if (!cookieHeader) {
-    return null;
-  }
-  const cookies = cookieHeader.split(";").map((cookie) => cookie.trim());
-  const tokenCookie = cookies.find((cookie) => cookie.startsWith(`${SUPABASE_ACCESS_TOKEN_COOKIE}=`));
-  if (!tokenCookie) {
-    return null;
-  }
-  return decodeURIComponent(tokenCookie.split("=")[1] ?? "");
+function getLegacyAccessTokenFromCookie(request: NextRequest): string | null {
+  return request.cookies.get(LEGACY_ACCESS_TOKEN_COOKIE)?.value ?? null;
 }
 
-function getSupabaseAccessTokenFromHeaderBypass(request: Request): string | null {
+function getSupabaseAccessTokenFromHeaderBypass(request: NextRequest): string | null {
   if (!allowSupabaseAuthHeaderBypass()) {
     return null;
   }
@@ -43,23 +35,20 @@ function getSupabaseAccessTokenFromHeaderBypass(request: Request): string | null
   return authHeader.slice(7).trim();
 }
 
-export async function getSupabaseUserId(request: Request): Promise<string | null> {
+export async function getSupabaseUserId(request: NextRequest): Promise<string | null> {
+  const supabase = createSupabaseRequestClient(request);
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claimUserId = claimsData?.claims?.sub;
+  if (claimUserId) {
+    return claimUserId;
+  }
+
   const accessToken =
-    getSupabaseAccessTokenFromCookie(request) ?? getSupabaseAccessTokenFromHeaderBypass(request);
+    getLegacyAccessTokenFromCookie(request) ?? getSupabaseAccessTokenFromHeaderBypass(request);
   if (!accessToken) {
     return null;
   }
 
-  const response = await supabaseAdminFetch("/auth/v1/user", {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const data = (await response.json()) as { id?: string };
-  return data?.id ?? null;
+  const { data } = await supabase.auth.getUser(accessToken);
+  return data.user?.id ?? null;
 }

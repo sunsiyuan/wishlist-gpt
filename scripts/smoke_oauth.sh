@@ -62,6 +62,7 @@ REDIRECT_URI="${REDIRECT_URI:-$BASE_URL/dev/callback}"   # IMPORTANT: follow BAS
 STATE="${STATE:-state-123}"
 EXPECT_SUPABASE_HEADER_BYPASS="${EXPECT_SUPABASE_HEADER_BYPASS:-skip}"
 OAUTH_ALLOW_AUTH_HEADER_LOGIN="${OAUTH_ALLOW_AUTH_HEADER_LOGIN:-}"
+SUPABASE_SESSION_COOKIE_NAME="${SUPABASE_SESSION_COOKIE_NAME:-sb-access-token}"
 
 SESSION_KEY="${OAUTH_SESSION_KEY:-}"
 if [[ -z "$SESSION_KEY" ]]; then
@@ -76,6 +77,7 @@ info "CLIENT_ID=$CLIENT_ID"
 info "REDIRECT_URI=$REDIRECT_URI"
 info "EXPECT_SUPABASE_HEADER_BYPASS=$EXPECT_SUPABASE_HEADER_BYPASS"
 info "SESSION_KEY=$SESSION_KEY"
+info "SUPABASE_SESSION_COOKIE_NAME=$SUPABASE_SESSION_COOKIE_NAME"
 if [[ -z "$OAUTH_ALLOW_AUTH_HEADER_LOGIN" ]]; then
   info "OAUTH_ALLOW_AUTH_HEADER_LOGIN is unset (dev default: allow, prod default: deny)"
 else
@@ -84,25 +86,47 @@ fi
 
 AUTHZ_URL="$BASE_URL/api/oauth/authorize"
 
+# ---- A0) negative: /auth/callback without code must redirect ----
+info "Negative: /auth/callback without code must redirect to /login?error=missing_code"
+
+CALLBACK_HEADERS_PATH="$TMP_DIR/oauth_callback_headers.${SESSION_KEY}.txt"
+rm -f "$CALLBACK_HEADERS_PATH"
+
+callback_status=$(curl -sS -D "$CALLBACK_HEADERS_PATH" -o /dev/null -w "%{http_code}" \
+  "$BASE_URL/auth/callback" \
+  || true)
+
+callback_location="$(grep -i '^location:' "$CALLBACK_HEADERS_PATH" | tail -n 1 | sed -E 's/^location:\s*//I' | tr -d '\r' || true)"
+
+if [[ "$callback_status" =~ ^30[1278]$ ]] && [[ "$callback_location" == *"/login"* ]] && [[ "$callback_location" == *"error=missing_code"* ]]; then
+  pass "Callback missing code redirected"
+else
+  echo "Last headers:" >&2
+  cat "$CALLBACK_HEADERS_PATH" >&2 || true
+  fail "Expected /auth/callback to redirect to /login?error=missing_code (got status=$callback_status, location=$callback_location)"
+fi
+
 seed_cookie_jar() {
   local jar_path="$1"
   local token="$2"
-  python - "$jar_path" "$BASE_URL" "$token" <<'PY'
+  local cookie_name="$3"
+  python - "$jar_path" "$BASE_URL" "$token" "$cookie_name" <<'PY'
 import sys, urllib.parse
 jar_path = sys.argv[1]
 base_url = sys.argv[2]
 token = sys.argv[3]
+cookie_name = sys.argv[4]
 parsed = urllib.parse.urlparse(base_url)
 domain = parsed.hostname or "localhost"
 secure = "TRUE" if parsed.scheme == "https" else "FALSE"
 with open(jar_path, "w", encoding="utf-8") as fh:
     fh.write("# Netscape HTTP Cookie File\n")
-    fh.write("\t".join([domain, "TRUE", "/", secure, "0", "sb-access-token", token]) + "\n")
+    fh.write("\t".join([domain, "TRUE", "/", secure, "0", cookie_name, token]) + "\n")
 PY
 }
 
 # ---- A) Supabase password grant ----
-info "Supabase password grant -> sb-access-token"
+info "Supabase password grant -> ${SUPABASE_SESSION_COOKIE_NAME}"
 
 supabase_json=$(curl -sS \
   -H "apikey: $SUPABASE_ANON_KEY" \
@@ -190,7 +214,7 @@ info "Authorize -> code"
 COOKIES_PATH="$TMP_DIR/oauth_cookies.${SESSION_KEY}.txt"
 HEADERS_PATH="$TMP_DIR/oauth_headers.${SESSION_KEY}.txt"
 rm -f "$COOKIES_PATH" "$HEADERS_PATH"
-seed_cookie_jar "$COOKIES_PATH" "$SUPABASE_ACCESS_TOKEN"
+seed_cookie_jar "$COOKIES_PATH" "$SUPABASE_ACCESS_TOKEN" "$SUPABASE_SESSION_COOKIE_NAME"
 
 CODE=""
 LOCATION=""

@@ -9,10 +9,31 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 ## 1. “我该去哪找？”索引 / “Where do I find…?” index
 - OAuth authorize 路由 / route: `src/app/api/oauth/authorize/route.ts`（别名 / alias: `src/app/oauth/authorize/route.ts`）
 - OAuth token 路由 / route: `src/app/api/oauth/token/route.ts`（别名 / alias: `src/app/oauth/token/route.ts`）
+- /app 路由 / route: `src/app/app/page.tsx`
+- /login 路由 / route: `src/app/login/page.tsx`, `src/app/login/LoginClient.tsx`
+- /auth/callback 路由 / route: `src/app/auth/callback/route.ts`
+- /auth/signout 路由 / route: `src/app/auth/signout/route.ts`
 - Logout 路由 / routes: `src/app/logout/route.ts`, `src/app/api/logout/route.ts`
 - Bearer 认证 / auth: `src/server/auth/bearer.ts`
 - Supabase session + header bypass / gating: `src/server/auth/supabase.ts`
+- Supabase SSR clients / SSR: `src/lib/supabase/{client,server,config}.ts`
+- Middleware session refresh / 中间件刷新: `middleware.ts`
 - Items 存储 / storage: `src/server/items/`
+- Items display hint validation / enrichment: `src/server/items/displayFields.ts`, `src/server/items/enrich.ts`
+- Shares 存储 / storage: `src/server/shares/`
+- Public share helper / 分享页查询: `src/server/shares/public.ts`
+- Feedback 存储 / storage: `src/server/feedback/`
+- Items note/delete/restore routes: `src/app/api/items/[id]/note/route.ts`, `src/app/api/items/[id]/delete/route.ts`, `src/app/api/items/[id]/restore/route.ts`
+- Feedback routes: `src/app/api/feedback/route.ts`, `src/app/feedback/route.ts`
+- Shares API 路由 / routes: `src/app/api/shares/route.ts`, `src/app/api/shares/rotate/route.ts`, `src/app/api/shares/[id]/revoke/route.ts`
+- Public share page / 分享页: `src/app/s/[share_id]/page.tsx`
+- Share view tracking route / 分享页埋点路由: `src/app/api/track/share-view/route.ts`
+- Shares migration: `supabase/migrations/004_shares.sql`
+- Events migration: `supabase/migrations/005_events.sql`
+- Items v0.3 migration: `supabase/migrations/006_items_v03.sql`
+- Item enrich runs migration: `supabase/migrations/007_item_enrich_runs.sql`
+- Feedback migration: `supabase/migrations/008_feedback.sql`
+- Tracking helpers / 埋点 helpers: `src/server/tracking/`
 - OpenAPI 模板与生成 / template & generator:
   - `actions/openapi.template.yaml`
   - `scripts/gen-openapi.mjs`
@@ -21,6 +42,8 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
   - `scripts/preflight.sh`
   - `scripts/smoke_oauth.sh`
   - `scripts/smoke_items.sh`
+  - `scripts/smoke_shares.sh`
+  - `scripts/smoke_feedback.sh`
 
 ---
 
@@ -37,6 +60,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  ├─ MVP_SPEC.md                    # MVP 范围与验收 / MVP scope & acceptance
 │  ├─ PROJECT_MAP.md                 # 本文件 / this file
 │  ├─ CHEATSHEET.md                  # 速查与排障 / cheats & troubleshooting
+│  ├─ AUTH_WEB.md                    # Web auth flow / Web 登录流
 │  └─ SECURITY.md                    # 安全与生产默认 / security & prod defaults
 ├─ public/
 │  └─ openapi.yaml                   # 由模板生成（npm run gen:openapi）/ generated artifact
@@ -44,9 +68,15 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  ├─ gen-openapi.mjs                # 渲染模板 -> public/openapi.yaml / render template -> artifact
 │  ├─ smoke_oauth.sh                 # OAuth flow smoke / OAuth flow smoke
 │  ├─ smoke_items.sh                 # Items API smoke / Items API smoke
+│  ├─ smoke_feedback.sh              # Feedback API smoke / Feedback API smoke
 │  └─ preflight.sh                   # 预检查 / preflight checks
 ├─ src/
 │  ├─ app/
+│  │  ├─ app/page.tsx                # /app consumer UI (auth-gated list)
+│  │  ├─ app/AppClient.tsx           # /app client UI + sheets + toast
+│  │  ├─ app/ShareControls.tsx       # legacy share/revoke controls (client)
+│  │  ├─ auth/callback/route.ts       # /auth/callback OAuth exchange
+│  │  ├─ auth/signout/route.ts        # /auth/signout POST
 │  │  ├─ api/oauth/authorize/route.ts  # OAuth authorize / 授权码
 │  │  ├─ api/oauth/token/route.ts      # OAuth token exchange / 换 token
 │  │  ├─ oauth/authorize/route.ts      # Alias / 别名
@@ -54,16 +84,39 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ api/logout/route.ts           # POST /api/logout (clear Supabase cookies)
 │  │  ├─ api/me/route.ts               # /me handler (see MVP_SPEC) / /me 处理（以 MVP_SPEC 为准）
 │  │  ├─ api/items/route.ts            # /items handler (see MVP_SPEC) / /items 处理（以 MVP_SPEC 为准）
+│  │  ├─ api/items/[id]/note/route.ts  # /api/items/:id/note (see MVP_SPEC)
+│  │  ├─ api/items/[id]/delete/route.ts # /api/items/:id/delete (see MVP_SPEC)
+│  │  ├─ api/items/[id]/restore/route.ts # /api/items/:id/restore (see MVP_SPEC)
+│  │  ├─ api/feedback/route.ts         # /api/feedback (cookie session)
+│  │  ├─ api/shares/route.ts           # /shares handler (see MVP_SPEC) / /shares 处理（以 MVP_SPEC 为准）
+│  │  ├─ api/shares/rotate/route.ts    # /shares/rotate handler (see MVP_SPEC)
+│  │  ├─ api/shares/[id]/revoke/route.ts # /shares/:id/revoke handler (see MVP_SPEC)
+│  │  ├─ api/track/share-view/route.ts # share view tracking (public)
+│  │  ├─ feedback/route.ts             # /feedback (OAuth bearer Actions)
 │  │  ├─ logout/route.ts               # GET /logout (clear cookies + redirect)
-│  │  └─ login/                        # /login (Supabase password grant) / 登录页
+│  │  ├─ login/                        # /login (Supabase auth UI) / 登录页
+│  │  └─ s/[share_id]/page.tsx         # /s/:share_id public share page
+│  ├─ lib/
+│  │  └─ supabase/                     # Supabase SSR client setup
 │  ├─ server/
 │  │  ├─ auth/                         # bearer + supabase session / 认证层
+│  │  ├─ feedback/                     # Feedback storage + notifications
 │  │  ├─ oauth/                        # OAuth helpers / OAuth 辅助逻辑
-│  │  └─ items/                        # Items storage / items 存储
+│  │  ├─ items/                        # Items storage / items 存储
+│  │  ├─ shares/                       # Shares storage / shares 存储
+│  │  │  └─ public.ts                  # Public share queries / 分享页查询
+│  │  └─ tracking/                     # Event tracking helpers / 埋点 helper
 │  └─ supabase/                        # Admin fetch helper / 管理端请求封装
+├─ middleware.ts                      # SSR session refresh middleware
 └─ supabase/migrations/
    ├─ 001_init.sql                     # oauth_codes/oauth_tokens
-   └─ 002_items.sql                    # items
+   ├─ 002_items.sql                    # items
+   ├─ 003_rls.sql                      # RLS policies
+   ├─ 004_shares.sql                   # shares
+   ├─ 005_events.sql                   # events
+   ├─ 006_items_v03.sql                # items v0.3
+   ├─ 007_item_enrich_runs.sql         # item_enrich_runs
+   └─ 008_feedback.sql                 # feedback
 ````
 
 ---

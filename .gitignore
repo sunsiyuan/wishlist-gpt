@@ -38,6 +38,10 @@ yarn-error.log*
 # public files
 public/openapi.yaml
 
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local files
+competitor_research/

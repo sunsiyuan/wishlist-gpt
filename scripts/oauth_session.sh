@@ -52,6 +52,7 @@ CLIENT_ID="${CLIENT_ID:-wishlistgpt-dev}"
 REDIRECT_PATH="${OAUTH_REDIRECT_PATH:-/dev/callback}"
 REDIRECT_URI="${REDIRECT_URI:-${BASE_URL}${REDIRECT_PATH}}"
 STATE="${STATE:-state-123}"
+SUPABASE_SESSION_COOKIE_NAME="${SUPABASE_SESSION_COOKIE_NAME:-sb-access-token}"
 
 AUTHZ_URL="$BASE_URL/api/oauth/authorize"
 TOKEN_URL="$BASE_URL/oauth/token"
@@ -84,17 +85,19 @@ HEADERS_FILE="$TMP_DIR/oauth_headers.${SESSION_KEY}.txt"
 seed_cookie_jar() {
   local jar_path="$1"
   local token="$2"
-  python - "$jar_path" "$BASE_URL" "$token" <<'PY'
+  local cookie_name="$3"
+  python - "$jar_path" "$BASE_URL" "$token" "$cookie_name" <<'PY'
 import sys, urllib.parse
 jar_path = sys.argv[1]
 base_url = sys.argv[2]
 token = sys.argv[3]
+cookie_name = sys.argv[4]
 parsed = urllib.parse.urlparse(base_url)
 domain = parsed.hostname or "localhost"
 secure = "TRUE" if parsed.scheme == "https" else "FALSE"
 with open(jar_path, "w", encoding="utf-8") as fh:
     fh.write("# Netscape HTTP Cookie File\n")
-    fh.write("\t".join([domain, "TRUE", "/", secure, "0", "sb-access-token", token]) + "\n")
+    fh.write("\t".join([domain, "TRUE", "/", secure, "0", cookie_name, token]) + "\n")
 PY
 }
 
@@ -180,7 +183,7 @@ supabase_password_grant() {
   require_env TEST_USER_EMAIL
   require_env TEST_USER_PASSWORD
 
-  info "Supabase password grant -> sb-access-token"
+  info "Supabase password grant -> ${SUPABASE_SESSION_COOKIE_NAME}"
   local supabase_json
   supabase_json=$(curl -sS \
     -H "apikey: $SUPABASE_ANON_KEY" \
@@ -198,7 +201,7 @@ supabase_password_grant() {
 authorize_code_with_cookie() {
   local sb_access_token="$1"
   rm -f "$COOKIE_JAR" "$HEADERS_FILE"
-  seed_cookie_jar "$COOKIE_JAR" "$sb_access_token"
+  seed_cookie_jar "$COOKIE_JAR" "$sb_access_token" "$SUPABASE_SESSION_COOKIE_NAME"
 
   local code="" location=""
   for _ in 1 2; do

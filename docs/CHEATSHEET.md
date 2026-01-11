@@ -10,6 +10,8 @@ EN: There is only one loop you must get working: **Actions Connect → getMe →
 
 ### 1.1 设置环境变量 / Set env vars
 必需 / Required:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`（或 / or `NEXT_PUBLIC_SUPABASE_ANON_KEY`）
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
@@ -19,6 +21,10 @@ EN: There is only one loop you must get working: **Actions Connect → getMe →
 可选但常用 / Optional but common:
 - `OAUTH_ALLOW_AUTH_HEADER_LOGIN`
 - `BASE_URL`
+- `SUPABASE_SESSION_COOKIE_NAME`（smoke 脚本需要时覆盖 cookie 名称）
+- `TELEGRAM_BOT_TOKEN`（反馈通知 Telegram Bot token）
+- `TELEGRAM_CHAT_ID`（反馈通知 Telegram chat id）
+- `OPENGRAPH_IO_APP_ID`（opengraph.io 兜底抓取）
 
 > CN：改 `.env*` 后，务必重启终端并重启 `npm run dev`（旧进程最容易误导你）。  
 > EN: After changing `.env*`, restart your terminal and `npm run dev` (stale processes are the #1 confusion source).
@@ -28,6 +34,108 @@ EN: There is only one loop you must get working: **Actions Connect → getMe →
 npm install
 npm run dev
 ````
+
+CN：访问 `/login` → Google 登录或邮箱登录 → 回到 `/app`（显示用户信息与列表）。  
+CN：未登录访问 `/app` 会跳转 `/login`（预期）。  
+EN: Visit `/login` → Google/email login → land on `/app` (shows user info + list).  
+EN: Unauthed `/app` redirects to `/login` (expected).
+
+### 1.2.5 v0.3 /app 使用说明 / Using /app in v0.3
+
+CN：
+- 顶栏 `Cheatsheet` 打开轻量弹层；空状态按钮也会打开同一弹层。
+- 列表顶栏可切换 `Newest/Oldest`（只按 `created_at` 排序）。
+- 点击卡片打开 Decision Sheet：编辑备注 + 保存、`View on website`、`Delete`。
+- 删除成功后显示 4 秒 Undo；仅保证最近一次删除可撤销。
+- Share 按钮打开 Share Sheet（复制链接、系统 Share、撤销/重建）。
+- v0.3 仅浅色主题。
+
+EN:
+- Tap `Cheatsheet` in the header to open the lightweight sheet; empty state button opens the same sheet.
+- Toggle `Newest/Oldest` in the list top bar (sorting uses `created_at` only).
+- Tap a card to open the Decision Sheet: edit note + save, `View on website`, `Delete`.
+- After delete succeeds, a 4s Undo toast appears; only the last delete is guaranteed.
+- Share button opens the Share Sheet (copy link, system Share when available, revoke/regenerate).
+- v0.3 is light-theme only.
+
+### 1.2.6 v0.5 反馈入口 / Feedback entrypoints (v0.5)
+
+CN：
+- `/app` 打开 Cheatsheet → `Send feedback` 弹层 → 提交成功 toast “Thanks — received.”
+- `/s/<share_id>` 底部 `Feedback` 按钮：
+  - 已登录：打开反馈弹层。
+  - 未登录：跳转 `/login?next=/s/<share_id>?intent=feedback`，登录后自动打开弹层。
+- DB 验证：Supabase Table Editor 查看 `feedback` 表，或 SQL：
+  ```sql
+  select * from feedback where user_id = '<me>' order by created_at desc limit 5;
+  ```
+- 速验：
+  - 连续提交两次，第二次返回 429（1 分钟内限流）。
+  - message > 1000 字符返回 400。
+
+EN:
+- `/app` → Cheatsheet → `Send feedback` modal → success toast “Thanks — received.”
+- `/s/<share_id>` footer `Feedback` button:
+  - Logged in: opens modal.
+  - Logged out: redirects to `/login?next=/s/<share_id>?intent=feedback`, auto-opens after login.
+- DB check: use Supabase Table Editor for `feedback`, or SQL:
+  ```sql
+  select * from feedback where user_id = '<me>' order by created_at desc limit 5;
+  ```
+- Quick checks:
+  - Submit twice quickly; second returns 429 (1/min rate limit).
+  - message > 1000 chars returns 400.
+
+### 1.2.1 Google OAuth (Supabase) setup checklist
+
+CN：
+
+* Supabase Auth → Providers → Google：启用并填好 Client ID/Secret
+* Supabase Auth → URL Configuration：
+  * Site URL: `http://localhost:3000`（本地）
+  * Redirect URLs: `http://localhost:3000/auth/callback`（以及 preview/prod 域名）
+* Google Cloud Console → OAuth consent screen 已发布并允许你的测试账号
+
+EN:
+
+* Supabase Auth → Providers → Google: enable + set Client ID/Secret
+* Supabase Auth → URL Configuration:
+  * Site URL: `http://localhost:3000` (local)
+  * Redirect URLs: `http://localhost:3000/auth/callback` (plus preview/prod domains)
+* Google Cloud Console → OAuth consent screen is published + your tester is allowed
+
+### 1.2.2 Web auth flow (Supabase SSR)
+
+```text
+/login
+  └─ signInWithOAuth(provider=google, redirectTo=/auth/callback)
+      └─ Google consent
+          └─ /auth/callback?code=...
+              └─ exchangeCodeForSession
+                  └─ set sb-* cookies
+                      └─ /app
+```
+
+### 1.2.3 Callback behavior
+
+* `/auth/callback` expects `?code=...`.
+* Missing/invalid codes redirect to `/login?error=missing_code` or `/login?error=oauth_exchange_failed`.
+* Successful exchange sets `sb-*` cookies and redirects to `/app` (or `next=` when present).
+
+
+### 1.2.4 How to verify success
+
+CN：
+
+* 你会短暂看到 `/auth/callback?code=...`
+* DevTools → Application → Cookies 里有 `sb-...` cookies
+* `/app` 显示已登录邮箱，并能刷新保持登录
+
+EN:
+
+* You briefly hit `/auth/callback?code=...`
+* DevTools → Application → Cookies shows `sb-...` cookies
+* `/app` shows the logged-in email and stays logged in on refresh
 
 ### 1.3 生成 OpenAPI（需要时）/ Generate OpenAPI (when needed)
 
@@ -42,35 +150,159 @@ npm run gen:openapi
 ```bash
 npm run smoke:oauth
 npm run smoke:items
+npm run smoke:shares
+npm run smoke:feedback
 ```
 
-### 1.5 Logout（for testing）
+### 1.5 Shares（cookie session）/ Shares (cookie session)
 
 CN：
 
-* 浏览器：访问 `/logout`（清理 Supabase auth cookies 后 redirect 回 `/login`）
+1. 浏览器登录后，复制 `sb-...` cookies（DevTools → Application → Cookies）。
+2. 连续调用两次 `/api/shares`，第二次应复用同一个 `share_id`。
+3. 调用 `/api/shares/rotate` 应返回新的 `share_id`。
+4. 调用 `/api/shares/<id>/revoke` 后，再访问 `/s/<id>` 必须 404。
+
+```bash
+curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares/rotate" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares/<SHARE_ID>/revoke" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+```
+
+EN:
+
+1. After logging in via browser, copy the `sb-...` cookies (DevTools → Application → Cookies).
+2. Call `/api/shares` twice; the second response should reuse the same `share_id`.
+3. Call `/api/shares/rotate` and expect a new `share_id`.
+4. Call `/api/shares/<id>/revoke`, then `/s/<id>` must 404.
+
+```bash
+curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares/rotate" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares/<SHARE_ID>/revoke" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+curl -X POST "<BASE_URL>/api/shares" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+```
+
+### 1.5.1 Share page 手动验收 / Share page manual validation
+
+CN：
+
+1. 通过 `/api/shares` 拿到 `share_id`（见上节）。
+2. 无痕窗口打开：`<BASE_URL>/s/<share_id>`，应看到只读列表（空列表也要有 empty state）。
+3. 检查 PII：在终端执行：
+
+```bash
+curl -sL "<BASE_URL>/s/<share_id>" | grep -E "user_id|@" && echo "PII LEAK" && exit 1 || echo "OK"
+```
+
+4. 调用 revoke：`POST /api/shares/<share_id>/revoke`（见上节），再次无痕打开同链接必须 404。
+
+EN:
+
+1. Get a `share_id` from `/api/shares` (see above).
+2. Open `<BASE_URL>/s/<share_id>` in an incognito window; you should see the read-only list (empty state is OK).
+3. Check PII in the response:
+
+```bash
+curl -sL "<BASE_URL>/s/<share_id>" | grep -E "user_id|@" && echo "PII LEAK" && exit 1 || echo "OK"
+```
+
+4. Revoke via `POST /api/shares/<share_id>/revoke` (see above), then the same URL must return 404 in incognito.
+
+### 1.5.2 Tracking validation / 埋点验证
+
+CN：在浏览器访问 `/app` 与 `/s/<share_id>` 后，用 SQL 验证埋点是否写入：
+
+```sql
+select *
+from events
+where event_name = 'web.app.items_list_load'
+  and user_id = '<me>'
+order by occurred_at desc
+limit 5;
+```
+
+```sql
+select *
+from events
+where event_name = 'web.share.page_view'
+  and share_id = '<share_id>'
+order by occurred_at desc
+limit 5;
+```
+
+HEAD 不应写入事件：
+
+```bash
+curl -I "<BASE_URL>/s/<share_id>"
+```
+
+说明：`meta.request_id` 由服务器生成；`meta.x_vercel_id` 仅在 Vercel 环境可用。
+
+EN: After visiting `/app` and `/s/<share_id>`, validate the tracking writes with SQL:
+
+```sql
+select *
+from events
+where event_name = 'web.app.items_list_load'
+  and user_id = '<me>'
+order by occurred_at desc
+limit 5;
+```
+
+```sql
+select *
+from events
+where event_name = 'web.share.page_view'
+  and share_id = '<share_id>'
+order by occurred_at desc
+limit 5;
+```
+
+HEAD should not write events:
+
+```bash
+curl -I "<BASE_URL>/s/<share_id>"
+```
+
+Note: `meta.request_id` is server-generated; `meta.x_vercel_id` appears only on Vercel.
+
+### 1.6 Logout（for testing）
+
+CN：
+
+* 浏览器：访问 `/logout` 或在 `/app` 点击 **Sign out**（会 POST `/auth/signout`）
 * 程序：`curl -X POST <BASE_URL>/api/logout`（返回 `{ ok: true }`）
 * 说明：这是测试工具，不属于 Actions OpenAPI contract
 
 EN:
 
-* Browser: visit `/logout` (clears Supabase auth cookies and redirects to `/login`)
+* Browser: visit `/logout` or click **Sign out** on `/app` (POSTs to `/auth/signout`)
 * Programmatic: `curl -X POST <BASE_URL>/api/logout` (returns `{ ok: true }`)
 * Note: this is a testing utility, not part of the Actions OpenAPI contract
 
-### 1.6 Logout & GPTs 使用注意事项（必读）/ Logout & GPTs runtime notes (important)
+### 1.7 Logout & GPTs 使用注意事项（必读）/ Logout & GPTs runtime notes (important)
 
 #### 1) `/logout` 只清理“网站浏览器登录态”，不会清理 GPTs 登录态
 
 CN：
 
-* `/logout`（GET）与 `/api/logout`（POST）**仅用于测试**：清理当前网站（浏览器）里的 Supabase 登录态（cookies）。
+* `/logout`（GET）、`/auth/signout`（POST）与 `/api/logout`（POST）**仅用于测试**：清理当前网站（浏览器）里的 Supabase 登录态（cookies）。
 * ⚠️ 它们**不会**清理 GPTs / Actions 的 OAuth Connect 登录态。
 * 所以你在浏览器访问 `/logout` 后，GPTs 里仍显示“已登录 / 已 Connect”，是**预期行为**。
 
 EN:
 
-* `/logout` (GET) and `/api/logout` (POST) are **testing utilities**: they clear the website (browser) Supabase session (cookies).
+* `/logout` (GET), `/auth/signout` (POST), and `/api/logout` (POST) are **testing utilities**: they clear the website (browser) Supabase session (cookies).
 * ⚠️ They **do not** revoke/clear the GPTs / Actions OAuth connection.
 * It is expected that after visiting `/logout`, GPTs may still appear “connected”.
 
@@ -86,7 +318,7 @@ EN:
 * To truly log out at the GPTs / Actions layer, go to **GPT Builder → Actions → Privacy / Authentication settings** and **Disconnect / Remove connection**.
 * This is currently the only supported way to revoke a GPTs OAuth session.
 
-### 1.7 GPTs 当前不支持推理模型（thinking / reasoning mode）导致 Actions 异常（reminder）
+### 1.8 GPTs 当前不支持推理模型（thinking / reasoning mode）导致 Actions 异常（reminder）
 
 CN：
 

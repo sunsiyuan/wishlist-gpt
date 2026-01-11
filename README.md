@@ -30,6 +30,23 @@ WishlistGPT is a minimal **Next.js OAuth bridge + wishlist API** for ChatGPT Act
 
 ---
 
+## v0.2 additions (web)
+- Public share page (web-only):
+  - `GET /s/:share_id` renders a read-only list for anyone.
+  - Revoked shares return 404 (same as not found).
+- Minimal tracking (web-only):
+  - `/app` list load and `/s/:share_id` page view write to `events`.
+  - Public tracking endpoint: `POST /api/track/share-view`.
+
+- 公开分享页（仅 web）：
+  - `GET /s/:share_id` 任何人可读列表（只读）。
+  - revoke 后返回 404（与不存在一致）。
+- 最小埋点（仅 web）：
+  - `/app` 列表加载与 `/s/:share_id` 页面访问写入 `events`。
+  - 公开埋点接口：`POST /api/track/share-view`。
+
+---
+
 ## 文档入口（规范来源）/ Docs (normative sources)
 > 只有以下 5 个文件是“规范来源”。其他 README 或历史文档不再作为规范依据。  
 > Only the 5 files below are normative. Other READMEs or legacy docs are non-normative.

@@ -1,36 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { getBearerToken, verifyAccessToken } from "../../../server/auth/bearer";
-import { createOrTouchItem, listItems } from "../../../server/items/store";
+import { getSupabaseUserId } from "../../../server/auth/supabase";
+import type { DisplayFieldUpdate } from "../../../server/items/store";
+import {
+  createOrTouchItem,
+  listItemsForUser,
+  updateItemDisplayFields,
+  insertItemEnrichAttempt,
+} from "../../../server/items/store";
+import { enrichItemBestEffort, type EnrichAttempt } from "../../../server/items/enrich";
+import {
+  deriveDisplayDefaults,
+  extractDisplayHints,
+} from "../../../server/items/displayFields";
 
 function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
-function authenticate(request: NextRequest) {
+async function authenticate(request: NextRequest) {
+  const supabaseUserId = await getSupabaseUserId(request);
+  if (supabaseUserId) {
+    return { userId: supabaseUserId };
+  }
+
   const token = getBearerToken(request);
   if (!token) {
-    return { error: jsonError(401, "missing_bearer", "Missing bearer token") };
+    return { error: jsonError(401, "missing_auth", "Missing Supabase session or bearer token") };
   }
   const claims = verifyAccessToken(token);
   if (!claims) {
     return { error: jsonError(401, "invalid_token", "Invalid or expired token") };
   }
-  return { claims };
+  return { userId: claims.userId };
 }
 
 export async function GET(request: NextRequest) {
-  const auth = authenticate(request);
+  const auth = await authenticate(request);
   if (auth.error) {
     return auth.error;
   }
   try {
-    const items = await listItems({ userId: auth.claims.userId });
+    const items = await listItemsForUser({ userId: auth.userId });
     return NextResponse.json({
       items: items.map((item) => ({
         id: item.id,
         url_original: item.url_original,
         created_at: item.created_at,
         updated_at: item.updated_at,
+        display_cover_image_url: item.display_cover_image_url,
+        display_product_title: item.display_product_title,
+        display_merchant_logo_url: item.display_merchant_logo_url,
+        display_merchant_domain: item.display_merchant_domain,
+        display_price_amount_minor: item.display_price_amount_minor,
+        display_currency: item.display_currency,
+        display_price_text: item.display_price_text,
+        display_price_updated_at: item.display_price_updated_at,
       })),
     });
   } catch (error) {
@@ -39,7 +65,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = authenticate(request);
+  const auth = await authenticate(request);
   if (auth.error) {
     return auth.error;
   }
@@ -58,15 +84,100 @@ export async function POST(request: NextRequest) {
   }
   try {
     const item = await createOrTouchItem({
-      userId: auth.claims.userId,
+      userId: auth.userId,
       url: urlValue,
     });
+    const displayHints = extractDisplayHints(body as Record<string, unknown>);
+    const derivedDefaults = deriveDisplayDefaults({ url: urlValue, existing: displayHints });
+    const updates: DisplayFieldUpdate = { ...displayHints, ...derivedDefaults };
+    const hasPriceUpdate =
+      updates.display_price_amount_minor !== undefined ||
+      updates.display_currency !== undefined ||
+      updates.display_price_text !== undefined;
+    if (hasPriceUpdate) {
+      updates.display_price_updated_at = new Date().toISOString();
+    }
+    const updatedItem =
+      Object.keys(updates).length > 0
+        ? await updateItemDisplayFields({
+            userId: auth.userId,
+            itemId: item.id,
+            updates,
+          })
+        : item;
+
+    // Log GPTs input as first attempt (best effort, non-blocking)
+    after(async () => {
+      try {
+        const bodyRecord = body as Record<string, unknown>;
+        const providedFields: string[] = [];
+        const inputDetails: Record<string, unknown> = {};
+
+        // Whitelisted fields from request body
+        const whitelistedFields = [
+          "url",
+          "display_product_title",
+          "display_cover_image_url",
+          "display_price_text",
+          "display_price_amount_minor",
+          "display_currency",
+          "display_merchant_domain",
+          "display_merchant_logo_url",
+        ];
+
+        for (const field of whitelistedFields) {
+          if (field in bodyRecord && bodyRecord[field] !== undefined) {
+            inputDetails[field] = bodyRecord[field];
+            providedFields.push(field);
+          }
+        }
+
+        const attempt: EnrichAttempt = {
+          strategy: "gpts_input",
+          started_at: new Date().toISOString(),
+          duration_ms: 0,
+          request: {
+            source: "actions",
+            path: "/items",
+          },
+          details: {
+            input: inputDetails,
+            provided_fields: providedFields,
+          },
+        };
+
+        await insertItemEnrichAttempt({
+          userId: auth.userId,
+          itemId: item.id,
+          sourceUrl: urlValue.trim(),
+          runGroupId: crypto.randomUUID(),
+          strategy: attempt.strategy,
+          attempt,
+        });
+      } catch (error) {
+        // Silently fail - best effort
+        console.warn("[items] Failed to log GPTs input attempt", {
+          item_id: item.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+
+    enrichItemBestEffort({ userId: auth.userId, itemId: item.id, url: item.url_original });
     return NextResponse.json({
       item: {
-        id: item.id,
-        url_original: item.url_original,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
+        id: (updatedItem ?? item).id,
+        url_original: (updatedItem ?? item).url_original,
+        created_at: (updatedItem ?? item).created_at,
+        updated_at: (updatedItem ?? item).updated_at,
+        display_cover_image_url: (updatedItem ?? item).display_cover_image_url,
+        display_product_title: (updatedItem ?? item).display_product_title,
+        display_merchant_logo_url: (updatedItem ?? item).display_merchant_logo_url,
+        display_merchant_domain: (updatedItem ?? item).display_merchant_domain,
+        display_price_amount_minor: (updatedItem ?? item).display_price_amount_minor,
+        display_currency: (updatedItem ?? item).display_currency,
+        display_price_text: (updatedItem ?? item).display_price_text,
+        display_price_updated_at: (updatedItem ?? item).display_price_updated_at,
       },
     });
   } catch (error) {
