@@ -108,6 +108,11 @@ export default function LoginClient({ nextPath, errorMessage }: LoginClientProps
           Continue
         </button>
       </form>
+      <p style={{ fontSize: "0.85rem", color: "#555", marginTop: "1.5rem", margin: "1.5rem 0 0 0" }}>
+        You must be 13 or older to use WishlistGPT. By continuing, you agree to the Terms and
+        acknowledge the Privacy Policy. Read the <a href="/terms">Terms</a> and{" "}
+        <a href="/privacy">Privacy Policy</a>.
+      </p>
       <footer style={{ marginTop: "2rem", fontSize: "0.85rem", color: "#6b6b6b" }}>
         <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
       </footer>

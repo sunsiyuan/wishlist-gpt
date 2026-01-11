@@ -29,7 +29,6 @@ export default async function OnboardingPage() {
         initialValues={profile ?? undefined}
         submitLabel="Continue"
         successRedirect="/app"
-        showPolicyNotice
       />
     </main>
   );
