@@ -7,7 +7,7 @@ import {
   createOrTouchItem,
   listItemsForUser,
   updateItemDisplayFields,
-  insertItemEnrichRun,
+  insertItemEnrichAttempt,
 } from "../../../server/items/store";
 import { enrichItemBestEffort, type EnrichAttempt } from "../../../server/items/enrich";
 import {
@@ -146,13 +146,13 @@ export async function POST(request: NextRequest) {
           },
         };
 
-        await insertItemEnrichRun({
+        await insertItemEnrichAttempt({
           userId: auth.userId,
           itemId: item.id,
           sourceUrl: urlValue.trim(),
-          attempts: [attempt],
-          finalApplied: false,
-          finalUpdates: {},
+          runGroupId: crypto.randomUUID(),
+          strategy: attempt.strategy,
+          attempt,
         });
       } catch (error) {
         // Silently fail - best effort

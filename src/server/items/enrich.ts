@@ -5,7 +5,8 @@ import type { DisplayFieldUpdate, ItemRecord } from "./store";
 import {
   getItemForUser,
   updateItemDisplayFields,
-  insertItemEnrichRun,
+  insertItemEnrichAttempt,
+  insertItemEnrichFinal,
   safeJsonForDb,
 } from "./store";
 import {
@@ -125,8 +126,21 @@ async function enrichItem(params: {
   }
 
   const attempts: EnrichAttempt[] = [];
+  const runGroupId = crypto.randomUUID();
   // Working item view: start from DB item, apply updates in memory after each attempt
   let workingItem = { ...item };
+
+  const logAttempt = async (attempt: EnrichAttempt): Promise<void> => {
+    attempts.push(attempt);
+    await insertItemEnrichAttempt({
+      userId: params.userId,
+      itemId: params.itemId,
+      sourceUrl: params.url,
+      runGroupId,
+      strategy: attempt.strategy,
+      attempt,
+    });
+  };
 
   // Attempt 1: Shopify Product JS
   const shopifyInfo = isProbablyShopifyProductUrl(params.url);
@@ -178,7 +192,7 @@ async function enrichItem(params: {
       attempt.error = error instanceof Error ? error.message : "Unknown error";
     }
 
-    attempts.push(attempt);
+    await logAttempt(attempt);
   }
 
   // Attempt 2: HTML (always try)
@@ -258,7 +272,7 @@ async function enrichItem(params: {
     htmlAttempt.error = error instanceof Error ? error.message : "Unknown error";
   }
 
-  attempts.push(htmlAttempt);
+  await logAttempt(htmlAttempt);
 
   // Determine if both attempts failed
   // Shopify failed if: not a shopify URL, fetch failed, or extracted no useful fields
@@ -324,7 +338,7 @@ async function enrichItem(params: {
       ogAttempt.error = error instanceof Error ? error.message : "Unknown error";
     }
 
-    attempts.push(ogAttempt);
+    await logAttempt(ogAttempt);
   }
 
   // Compute final updates (delta from original item to working item)
@@ -382,15 +396,16 @@ async function enrichItem(params: {
     }
   }
 
-  // Log enrich run (best effort, errors swallowed in insertItemEnrichRun)
-  await insertItemEnrichRun({
-    userId: params.userId,
-    itemId: params.itemId,
-    sourceUrl: params.url,
-    attempts,
-    finalApplied,
-    finalUpdates,
-  });
+  if (finalApplied) {
+    await insertItemEnrichFinal({
+      userId: params.userId,
+      itemId: params.itemId,
+      sourceUrl: params.url,
+      runGroupId,
+      finalApplied,
+      finalUpdates,
+    });
+  }
 }
 
 export type FetchResult = {
