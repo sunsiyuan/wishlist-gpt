@@ -33,7 +33,10 @@ export async function getProfileForUser(
     return null;
   }
 
-  return (data ?? null) as ProfileRecord | null;
+  if (!data) {
+    return null;
+  }
+  return data as unknown as ProfileRecord;
 }
 
 export async function getProfileForUserAdmin(userId: string): Promise<ProfileRecord | null> {
