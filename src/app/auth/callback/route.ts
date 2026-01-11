@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sanitizeNextPath } from "../../../server/auth/next-path";
 import { createSupabaseRouteClient } from "../../../lib/supabase/server";
 
-const DEFAULT_REDIRECT = "/app";
+const DEFAULT_REDIRECT = "/onboarding";
 
 function buildLoginRedirect(request: NextRequest, nextPath: string, reason: string) {
   const loginUrl = new URL("/login", request.url);
