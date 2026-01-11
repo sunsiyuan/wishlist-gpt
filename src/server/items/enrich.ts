@@ -25,6 +25,7 @@ const FETCH_TIMEOUT_MS = Number.parseInt(process.env.ENRICH_FETCH_TIMEOUT_MS ?? 
 const OPENGRAPH_IO_TIMEOUT_MS = 2000;
 const REDIRECT_LIMIT = 3;
 const MAX_RESPONSE_BYTES = 1_000_000;
+const SHOPIFY_BODY_PREFIX_BYTES = 500;
 const BLOCKED_STATUS_CODES = new Set([403, 429, 503]);
 const BLOCKED_BODY_KEYWORDS = [
   "captcha",
@@ -35,6 +36,8 @@ const BLOCKED_BODY_KEYWORDS = [
   "challenge",
 ];
 const OPENGRAPH_IO_APP_ID = process.env.OPENGRAPH_IO_APP_ID;
+const BROWSER_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 WishlistGPT/0.4";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -66,6 +69,7 @@ export type EnrichAttempt = {
     timed_out?: boolean;
     final_url?: string;
     response_content_type?: string;
+    body_prefix?: string;
     latency_ms?: number;
     blocked?: boolean;
     blocked_reason?: string;
@@ -152,6 +156,7 @@ async function enrichItem(params: {
       duration_ms: 0,
       request: {
         url: `${shopifyInfo.origin}${shopifyInfo.localePrefix ? `/${shopifyInfo.localePrefix}` : ""}/products/${shopifyInfo.handle}.js`,
+        headers: buildShopifyJsFetchHeaders(),
       },
     };
 
@@ -164,12 +169,13 @@ async function enrichItem(params: {
       const duration = Date.now() - new Date(startedAt).getTime();
       attempt.duration_ms = duration;
 
-      if (fetchResult) {
+      if (fetchResult.ok) {
         attempt.fetch = {
           ok: true,
           final_url: fetchResult.finalUrl,
+          status: fetchResult.status,
           status_code: fetchResult.status,
-          response_content_type: fetchResult.responseContentType ?? "",
+          response_content_type: fetchResult.contentType ?? "",
           latency_ms: duration,
         };
         const extracted = extractFromShopifyProductJs(fetchResult.json, fetchResult.finalUrl);
@@ -183,8 +189,25 @@ async function enrichItem(params: {
           Object.assign(workingItem, updates);
         }
       } else {
-        attempt.fetch = { ok: false, latency_ms: duration };
-        attempt.error = "fetch_failed_or_not_found";
+        attempt.fetch = {
+          ok: false,
+          status: fetchResult.status,
+          status_code: fetchResult.status,
+          final_url: fetchResult.finalUrl,
+          response_content_type: fetchResult.contentType ?? "",
+          body_prefix: fetchResult.bodyPrefix,
+          latency_ms: duration,
+          blocked: fetchResult.blocked,
+          blocked_reason: fetchResult.blockedReason,
+          blocked_keyword: fetchResult.blockedKeyword,
+        };
+        if (fetchResult.blocked) {
+          attempt.error = "blocked_or_rate_limited";
+        } else if (fetchResult.status) {
+          attempt.error = fetchResult.unexpectedContentType ? "unexpected_content_type" : "http_error";
+        } else {
+          attempt.error = "network_or_runtime_error";
+        }
       }
     } catch (error) {
       const duration = Date.now() - new Date(startedAt).getTime();
@@ -203,11 +226,7 @@ async function enrichItem(params: {
     duration_ms: 0,
     request: {
       url: params.url,
-      headers: {
-        "User-Agent": "WishlistGPT/0.4",
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": getAcceptLanguage(),
-      },
+      headers: buildHtmlFetchHeaders(),
     },
   };
 
@@ -568,10 +587,25 @@ function isRedirectResponse(response: Response): boolean {
 
 function buildHtmlFetchHeaders(): Record<string, string> {
   return {
-    "User-Agent": "WishlistGPT/0.4",
-    Accept: "text/html,application/xhtml+xml",
+    "User-Agent": BROWSER_USER_AGENT,
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": getAcceptLanguage(),
   };
+}
+
+function buildShopifyJsFetchHeaders(): Record<string, string> {
+  return {
+    "User-Agent": BROWSER_USER_AGENT,
+    Accept: "application/json,*/*;q=0.8",
+    "Accept-Language": getAcceptLanguage(),
+  };
+}
+
+function isJsonContentType(contentType: string | null): boolean {
+  if (!contentType) {
+    return false;
+  }
+  return contentType.toLowerCase().includes("application/json");
 }
 
 function computeRetryDelayMs(retryAfterHeader: string | null): number {
@@ -611,6 +645,30 @@ async function fetchWithTimeout(
       return { response: null, timedOut: true };
     }
     return { response: null, timedOut: false };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function fetchWithTimeoutDetailed(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs: number,
+): Promise<{ response: Response | null; timedOut: boolean; error?: Error }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      redirect: "manual",
+      signal: controller.signal,
+      headers,
+    });
+    return { response, timedOut: false };
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return { response: null, timedOut: true };
+    }
+    return { response: null, timedOut: false, error: error instanceof Error ? error : undefined };
   } finally {
     clearTimeout(timeoutId);
   }
@@ -697,72 +755,185 @@ async function fetchShopifyProductJs(
   origin: string,
   localePrefix: string | null,
   handle: string,
-): Promise<{ finalUrl: string; json: unknown; status?: number; responseContentType?: string } | null> {
+): Promise<
+  | { ok: true; finalUrl: string; json: unknown; status: number; contentType?: string }
+  | {
+      ok: false;
+      finalUrl: string;
+      status?: number;
+      contentType?: string;
+      blocked?: boolean;
+      blockedReason?: string;
+      blockedKeyword?: string;
+      bodyPrefix?: string;
+      errorName?: string;
+      errorMessage?: string;
+      unexpectedContentType?: boolean;
+    }
+> {
   const endpoints = [
     localePrefix ? `${origin}/${localePrefix}/products/${handle}.js` : null,
     `${origin}/products/${handle}.js`,
   ].filter(Boolean) as string[];
 
-  for (const endpoint of endpoints) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    try {
-      const response = await fetch(endpoint, {
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          Accept: "application/json,text/plain,*/*",
-          "User-Agent": "WishlistGPT/0.4",
-        },
-      });
-      clearTimeout(timeoutId);
+  let lastFailure:
+    | {
+        ok: false;
+        finalUrl: string;
+        status?: number;
+        contentType?: string;
+        blocked?: boolean;
+        blockedReason?: string;
+        blockedKeyword?: string;
+        bodyPrefix?: string;
+        errorName?: string;
+        errorMessage?: string;
+        unexpectedContentType?: boolean;
+      }
+    | null = null;
 
-      if (isRedirectResponse(response)) {
-        const location = response.headers.get("location");
-        if (location) {
-          const nextUrl = new URL(location, endpoint);
-          // Try redirect URL once
-          const redirectResponse = await fetch(nextUrl.toString(), {
-            redirect: "manual",
-            headers: {
-              Accept: "application/json,text/plain,*/*",
-              "User-Agent": "WishlistGPT/0.4",
-            },
-          });
-          if (redirectResponse.ok) {
-            const json = await redirectResponse.json();
-            return {
-              finalUrl: nextUrl.toString(),
-              json,
-              status: redirectResponse.status,
-              responseContentType: redirectResponse.headers.get("content-type") ?? "",
-            };
-          }
+  for (const endpoint of endpoints) {
+    const requestStart = Date.now();
+    const deadline = requestStart + FETCH_TIMEOUT_MS;
+    const headers = buildShopifyJsFetchHeaders();
+    let responseResult = await fetchWithTimeoutDetailed(endpoint, headers, FETCH_TIMEOUT_MS);
+
+    if (!responseResult.response) {
+      if (responseResult.timedOut) {
+        lastFailure = {
+          ok: false,
+          finalUrl: endpoint,
+          errorName: "AbortError",
+          errorMessage: "Request timed out",
+        };
+      } else if (responseResult.error) {
+        lastFailure = {
+          ok: false,
+          finalUrl: endpoint,
+          errorName: responseResult.error.name,
+          errorMessage: responseResult.error.message,
+        };
+      } else {
+        lastFailure = { ok: false, finalUrl: endpoint, errorName: "FetchError", errorMessage: "Fetch failed" };
+      }
+      continue;
+    }
+
+    let response = responseResult.response;
+    if (isRedirectResponse(response)) {
+      const location = response.headers.get("location");
+      if (!location) {
+        const contentType = response.headers.get("content-type");
+        const bodyPrefix = ENRICH_DEBUG
+          ? await readResponsePrefix(response.clone(), SHOPIFY_BODY_PREFIX_BYTES)
+          : undefined;
+        lastFailure = {
+          ok: false,
+          finalUrl: endpoint,
+          status: response.status,
+          contentType: contentType ?? "",
+          bodyPrefix,
+          ...getBlockedInfo(response.status, bodyPrefix ?? null),
+        };
+        continue;
+      }
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        lastFailure = {
+          ok: false,
+          finalUrl: endpoint,
+          errorName: "AbortError",
+          errorMessage: "Request timed out",
+        };
+        continue;
+      }
+      const nextUrl = new URL(location, endpoint).toString();
+      responseResult = await fetchWithTimeoutDetailed(nextUrl, headers, remaining);
+      if (!responseResult.response) {
+        if (responseResult.timedOut) {
+          lastFailure = {
+            ok: false,
+            finalUrl: nextUrl,
+            errorName: "AbortError",
+            errorMessage: "Request timed out",
+          };
+        } else if (responseResult.error) {
+          lastFailure = {
+            ok: false,
+            finalUrl: nextUrl,
+            errorName: responseResult.error.name,
+            errorMessage: responseResult.error.message,
+          };
+        } else {
+          lastFailure = { ok: false, finalUrl: nextUrl, errorName: "FetchError", errorMessage: "Fetch failed" };
         }
         continue;
       }
+      response = responseResult.response;
+    }
 
-      if (!response.ok) {
-        continue;
-      }
+    const contentType = response.headers.get("content-type");
+    if (!response.ok) {
+      const bodyPrefix = ENRICH_DEBUG
+        ? await readResponsePrefix(response.clone(), SHOPIFY_BODY_PREFIX_BYTES)
+        : undefined;
+      lastFailure = {
+        ok: false,
+        finalUrl: response.url || endpoint,
+        status: response.status,
+        contentType: contentType ?? "",
+        bodyPrefix,
+        ...getBlockedInfo(response.status, bodyPrefix ?? null),
+      };
+      continue;
+    }
 
+    if (!isJsonContentType(contentType)) {
+      const bodyPrefix = ENRICH_DEBUG
+        ? await readResponsePrefix(response.clone(), SHOPIFY_BODY_PREFIX_BYTES)
+        : undefined;
+      lastFailure = {
+        ok: false,
+        finalUrl: response.url || endpoint,
+        status: response.status,
+        contentType: contentType ?? "",
+        bodyPrefix,
+        unexpectedContentType: true,
+        ...getBlockedInfo(response.status, bodyPrefix ?? null),
+      };
+      continue;
+    }
+
+    try {
       const json = await response.json();
       return {
-        finalUrl: endpoint,
+        ok: true,
+        finalUrl: response.url || endpoint,
         json,
         status: response.status,
-        responseContentType: response.headers.get("content-type") ?? "",
+        contentType: contentType ?? "",
       };
     } catch (error) {
-      clearTimeout(timeoutId);
-      if (error instanceof Error && error.name === "AbortError") {
-        continue;
-      }
+      lastFailure = {
+        ok: false,
+        finalUrl: response.url || endpoint,
+        status: response.status,
+        contentType: contentType ?? "",
+        errorName: error instanceof Error ? error.name : "ParseError",
+        errorMessage: error instanceof Error ? error.message : "Failed to parse JSON",
+      };
       continue;
     }
   }
 
-  return null;
+  return (
+    lastFailure ?? {
+      ok: false,
+      finalUrl: `${origin}/products/${handle}.js`,
+      errorName: "FetchError",
+      errorMessage: "No Shopify endpoints attempted",
+    }
+  );
 }
 
 function extractFromShopifyProductJs(
@@ -914,6 +1085,37 @@ async function readResponseText(response: Response): Promise<string | null> {
       return null;
     }
     return text;
+  } catch {
+    return null;
+  }
+}
+
+async function readResponsePrefix(response: Response, maxBytes: number): Promise<string | null> {
+  if (response.body) {
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+
+    while (received < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value) {
+        const remaining = maxBytes - received;
+        const slice = value.length > remaining ? value.slice(0, remaining) : value;
+        received += slice.length;
+        chunks.push(slice);
+      }
+    }
+
+    const buffer = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+    return buffer.toString("utf-8");
+  }
+
+  try {
+    const text = await response.text();
+    return text.slice(0, maxBytes);
   } catch {
     return null;
   }
