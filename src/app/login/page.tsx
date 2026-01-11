@@ -5,7 +5,7 @@ type LoginPageProps = {
   searchParams?: Promise<{ next?: string; error?: string }>;
 };
 
-const DEFAULT_REDIRECT = "/app";
+const DEFAULT_REDIRECT = "/onboarding";
 
 function getErrorMessage(error?: string) {
   if (!error) {

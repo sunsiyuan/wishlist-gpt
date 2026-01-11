@@ -11,7 +11,7 @@ type LoginClientProps = {
 
 function sanitizeNextPath(nextPath: string): string {
   if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
-    return "/app";
+    return "/onboarding";
   }
   return nextPath;
 }
@@ -108,6 +108,9 @@ export default function LoginClient({ nextPath, errorMessage }: LoginClientProps
           Continue
         </button>
       </form>
+      <footer style={{ marginTop: "2rem", fontSize: "0.85rem", color: "#6b6b6b" }}>
+        <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+      </footer>
     </main>
   );
 }

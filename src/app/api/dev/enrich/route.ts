@@ -10,6 +10,7 @@ import {
 } from "../../../../server/items/enrich";
 import { getItemForUser, updateItemDisplayFields } from "../../../../server/items/store";
 import type { DisplayFieldUpdate } from "../../../../server/items/store";
+import { DEFAULT_PROFILE_CONTEXT } from "../../../../lib/profile";
 
 function isDevMode(): boolean {
   return process.env.NODE_ENV !== "production" || process.env.DEV_TOOLS === "1";
@@ -59,7 +60,10 @@ export async function GET(request: NextRequest) {
   let error: string | null = null;
 
   try {
-    fetchResult = await fetchHtmlWithRedirects(url.trim());
+    fetchResult = await fetchHtmlWithRedirects(
+      url.trim(),
+      DEFAULT_PROFILE_CONTEXT.preferred_language,
+    );
     if (!fetchResult || !fetchResult.html) {
       error = "Failed to fetch HTML";
       return NextResponse.json({
@@ -117,4 +121,3 @@ export async function GET(request: NextRequest) {
     error,
   });
 }
-

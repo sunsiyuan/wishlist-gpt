@@ -1,6 +1,8 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../lib/supabase/server";
+import { DEFAULT_PROFILE_CONTEXT } from "../../lib/profile";
+import { getProfileForUser } from "../../server/profiles/store";
 import { listItemsForUser } from "../../server/items/store";
 import { getRequestMeta } from "../../server/tracking/requestMeta";
 import { trackBestEffort } from "../../server/tracking/trackBestEffort";
@@ -17,8 +19,8 @@ export default async function AppPage() {
   }
 
   const requestHeaders = await headers();
-  const acceptLanguage = requestHeaders.get("accept-language");
-  const locale = acceptLanguage?.split(",")[0]?.trim() || "en";
+  const profile = await getProfileForUser(supabase, userId);
+  const locale = profile?.preferred_language ?? DEFAULT_PROFILE_CONTEXT.preferred_language;
   const requestMeta = getRequestMeta(requestHeaders);
   const items = await listItemsForUser({ userId, sort: "created_at.desc" });
   trackBestEffort({

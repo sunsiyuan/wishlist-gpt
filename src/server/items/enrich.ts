@@ -19,6 +19,8 @@ import {
   sanitizePriceAmountMinor,
   sanitizePriceText,
 } from "./displayFields";
+import { DEFAULT_PROFILE_CONTEXT, isProfileComplete } from "../../lib/profile";
+import { getProfileForUserAdmin } from "../profiles/store";
 
 const ENRICH_DEBUG = process.env.ENRICH_DEBUG === "1";
 const FETCH_TIMEOUT_MS = Number.parseInt(process.env.ENRICH_FETCH_TIMEOUT_MS ?? "4000", 10);
@@ -43,11 +45,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-// Get Accept-Language header value (future: read from user.preferred_language)
-function getAcceptLanguage(): string {
-  // For now, default to en-US,en;q=0.9
-  // TODO: Replace with user.preferred_language when available
-  return "en-US,en;q=0.9";
+function getAcceptLanguage(preferredLanguage?: string | null): string {
+  const normalized = preferredLanguage?.trim();
+  if (normalized) {
+    return normalized;
+  }
+  return DEFAULT_PROFILE_CONTEXT.preferred_language;
 }
 
 // Enrich attempt type for logging
@@ -133,6 +136,10 @@ async function enrichItem(params: {
   const runGroupId = crypto.randomUUID();
   // Working item view: start from DB item, apply updates in memory after each attempt
   let workingItem = { ...item };
+  const profile = await getProfileForUserAdmin(params.userId);
+  const acceptLanguage = getAcceptLanguage(
+    isProfileComplete(profile) ? profile?.preferred_language : null,
+  );
 
   const logAttempt = async (attempt: EnrichAttempt): Promise<void> => {
     attempts.push(attempt);
@@ -156,7 +163,7 @@ async function enrichItem(params: {
       duration_ms: 0,
       request: {
         url: `${shopifyInfo.origin}${shopifyInfo.localePrefix ? `/${shopifyInfo.localePrefix}` : ""}/products/${shopifyInfo.handle}.js`,
-        headers: buildShopifyJsFetchHeaders(),
+        headers: buildShopifyJsFetchHeaders(acceptLanguage),
       },
     };
 
@@ -165,6 +172,7 @@ async function enrichItem(params: {
         shopifyInfo.origin,
         shopifyInfo.localePrefix,
         shopifyInfo.handle,
+        acceptLanguage,
       );
       const duration = Date.now() - new Date(startedAt).getTime();
       attempt.duration_ms = duration;
@@ -228,14 +236,14 @@ async function enrichItem(params: {
     strategy: "html",
     started_at: htmlStartedAt,
     duration_ms: 0,
-    request: {
-      url: params.url,
-      headers: buildHtmlFetchHeaders(),
-    },
-  };
+      request: {
+        url: params.url,
+        headers: buildHtmlFetchHeaders(acceptLanguage),
+      },
+    };
 
   try {
-    const fetchResult = await fetchHtmlWithRedirects(params.url);
+    const fetchResult = await fetchHtmlWithRedirects(params.url, acceptLanguage);
     const duration = Date.now() - new Date(htmlStartedAt).getTime();
     htmlAttempt.duration_ms = duration;
 
@@ -443,7 +451,10 @@ export type FetchResult = {
   blockedKeyword?: string;
 };
 
-export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchResult | null> {
+export async function fetchHtmlWithRedirects(
+  urlValue: string,
+  acceptLanguage: string,
+): Promise<FetchResult | null> {
   let currentUrl = urlValue;
   let timedOut = false;
   for (let redirectCount = 0; redirectCount <= REDIRECT_LIMIT; redirectCount += 1) {
@@ -461,7 +472,7 @@ export async function fetchHtmlWithRedirects(urlValue: string): Promise<FetchRes
 
     const requestStart = Date.now();
     const deadline = requestStart + FETCH_TIMEOUT_MS;
-    const headers = buildHtmlFetchHeaders();
+    const headers = buildHtmlFetchHeaders(acceptLanguage);
     let responseResult = await fetchWithTimeout(url.toString(), headers, FETCH_TIMEOUT_MS);
     timedOut = responseResult.timedOut;
 
@@ -589,19 +600,19 @@ function isRedirectResponse(response: Response): boolean {
   return [301, 302, 303, 307, 308].includes(response.status);
 }
 
-function buildHtmlFetchHeaders(): Record<string, string> {
+function buildHtmlFetchHeaders(acceptLanguage: string): Record<string, string> {
   return {
     "User-Agent": BROWSER_USER_AGENT,
     Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": getAcceptLanguage(),
+    "Accept-Language": acceptLanguage,
   };
 }
 
-function buildShopifyJsFetchHeaders(): Record<string, string> {
+function buildShopifyJsFetchHeaders(acceptLanguage: string): Record<string, string> {
   return {
     "User-Agent": BROWSER_USER_AGENT,
     Accept: "application/json,*/*;q=0.8",
-    "Accept-Language": getAcceptLanguage(),
+    "Accept-Language": acceptLanguage,
   };
 }
 
@@ -806,6 +817,7 @@ async function fetchShopifyProductJs(
   origin: string,
   localePrefix: string | null,
   handle: string,
+  acceptLanguage: string,
 ): Promise<ShopifyJsFetchResult> {
   const endpoints = [
     localePrefix ? `${origin}/${localePrefix}/products/${handle}.js` : null,
@@ -831,7 +843,7 @@ async function fetchShopifyProductJs(
   for (const endpoint of endpoints) {
     const requestStart = Date.now();
     const deadline = requestStart + FETCH_TIMEOUT_MS;
-    const headers = buildShopifyJsFetchHeaders();
+    const headers = buildShopifyJsFetchHeaders(acceptLanguage);
     let responseResult = await fetchWithTimeoutDetailed(endpoint, headers, FETCH_TIMEOUT_MS);
 
     if (!responseResult.response) {

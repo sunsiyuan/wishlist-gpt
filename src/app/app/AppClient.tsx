@@ -525,19 +525,32 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
           }}
         >
           <h1 style={{ fontSize: "1.4rem", margin: 0 }}>WishlistGPT</h1>
-          <button
-            type="button"
-            onClick={() => setIsCheatsheetOpen(true)}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "#6b6b6b",
-              cursor: "pointer",
-              fontSize: "0.95rem",
-            }}
-          >
-            Cheatsheet
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <button
+              type="button"
+              onClick={() => setIsCheatsheetOpen(true)}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#6b6b6b",
+                cursor: "pointer",
+                fontSize: "0.95rem",
+              }}
+            >
+              Cheatsheet
+            </button>
+            <a
+              href="/app/settings"
+              aria-label="Settings"
+              style={{
+                textDecoration: "none",
+                color: "#6b6b6b",
+                fontSize: "1.1rem",
+              }}
+            >
+              ⚙️
+            </a>
+          </div>
         </header>
         <section
           style={{

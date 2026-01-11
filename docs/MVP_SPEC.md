@@ -2,6 +2,84 @@
 
 ---
 
+# v0.6_SPEC (Privacy/Terms + Onboarding + Settings)
+
+## 0. 一句话结论 / One-line summary
+- CN：v0.6 新增登录页隐私/条款入口、登录后一次性偏好收集（国家/语言/货币）与应用设置页，并在资料缺失时使用固定默认值。  
+  EN: v0.6 adds login footer links for privacy/terms, a lightweight post-login preference capture (country/language/currency), an app settings page, and fixed defaults when profile data is missing.
+
+---
+
+## 1. 目标与非目标 / Goals & non-goals
+
+### 1.1 目标 / Goals
+- CN：新增公开页面 `/privacy` 与 `/terms`。  
+  EN: Add public pages at `/privacy` and `/terms`.
+- CN：登录成功后引导到 `/onboarding`，单屏完成国家/语言/货币采集。  
+  EN: Redirect after login to `/onboarding` for a single-screen country/language/currency form.
+- CN：新增 `/app/settings` 并在 `/app` 顶栏加入设置入口。  
+  EN: Add `/app/settings` and a header entry point in `/app`.
+- CN：`/app` 在资料不完整时重定向至 `/onboarding`。  
+  EN: Redirect `/app` to `/onboarding` when the profile is incomplete.
+- CN：富化请求优先使用用户偏好，否则回退到固定默认值。  
+  EN: Use profile preferences for enrichment requests, otherwise fall back to fixed defaults.
+
+### 1.2 非目标 / Non-goals
+- CN：不做 Cookie 同意弹窗或年龄验证流程。  
+  EN: No cookie consent banner or age verification flow.
+- CN：不使用 URL 或请求头推断缺失资料。  
+  EN: Do not infer missing profile data from URL or request headers.
+
+---
+
+## 2. 路由与体验 / Routes & UX
+- CN：`/login` 页脚仅展示隐私与条款链接。  
+  EN: The `/login` footer displays only the privacy and terms links.
+- CN：`/onboarding` 未登录重定向 `/login`，已完成资料则重定向 `/app`。  
+  EN: `/onboarding` redirects unauthenticated users to `/login` and completed profiles to `/app`.
+- CN：`/onboarding` 展示 13 岁以上提示文字（无勾选框），并包含隐私/条款链接。  
+  EN: `/onboarding` shows a 13+ notice as plain text (no checkbox) with privacy/terms links.
+- CN：`/app/settings` 复用同一表单更新偏好，不覆盖已存在的同意时间与版本。  
+  EN: `/app/settings` reuses the same form and preserves existing acceptance timestamps/versions.
+
+---
+
+## 3. 数据模型 / Data model
+- CN：新增 `profiles` 表：`user_id`、`country_code`、`preferred_language`、`preferred_currency`、`accepted_at`、`policy_version`、`created_at`、`updated_at`。  
+  EN: Add a `profiles` table with `user_id`, `country_code`, `preferred_language`, `preferred_currency`, `accepted_at`, `policy_version`, `created_at`, and `updated_at`.
+- CN：启用 RLS，仅允许认证用户读写自己的记录。  
+  EN: Enable RLS so authenticated users can read/write their own row.
+
+---
+
+## 4. APIs / APIs
+- CN：`GET /api/profile` 返回当前用户资料（仅 cookie session）。  
+  EN: `GET /api/profile` returns the current user profile (cookie session only).
+- CN：`POST /api/profile` upsert 用户资料，并在首次写入时设置同意时间与版本。  
+  EN: `POST /api/profile` upserts the profile and sets acceptance metadata on first write.
+
+---
+
+## 5. 富化与默认值 / Enrichment defaults
+- CN：资料完整时将 `preferred_language` 写入 fetch 的 `Accept-Language`。  
+  EN: When the profile is complete, set fetch `Accept-Language` to `preferred_language`.
+- CN：资料缺失时固定使用 `language=en-US`、`currency=USD`、`country=UNKNOWN`。  
+  EN: When the profile is missing, use fixed defaults: `language=en-US`, `currency=USD`, `country=UNKNOWN`.
+
+---
+
+## 6. 验收标准 / Acceptance criteria
+- CN：登录页显示隐私/条款链接且仅在 `/login`。  
+  EN: Privacy/terms links appear on `/login` only.
+- CN：登录后跳转 `/onboarding`，完成后进入 `/app`。  
+  EN: Post-login redirects to `/onboarding`, which routes to `/app` on completion.
+- CN：`/app` 在资料缺失时强制前往 `/onboarding`。  
+  EN: `/app` forces navigation to `/onboarding` when the profile is incomplete.
+- CN：设置页可更新国家/语言/货币且不覆盖同意记录。  
+  EN: Settings can update country/language/currency without overwriting acceptance metadata.
+
+---
+
 # v0.5_SPEC (Feedback Loop)
 
 ## 0. 一句话结论 / One-line summary
