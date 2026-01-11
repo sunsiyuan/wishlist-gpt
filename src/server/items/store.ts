@@ -295,20 +295,92 @@ export function safeJsonForDb(
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function sanitizeAttemptHeaders(headers: unknown): Record<string, string> | undefined {
+  if (!isRecord(headers)) {
+    return undefined;
+  }
+  const allowed = new Set(["accept", "user-agent", "accept-language", "referer"]);
+  const sanitized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value !== "string") {
+      continue;
+    }
+    if (allowed.has(key.toLowerCase())) {
+      sanitized[key] = value;
+    }
+  }
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+function sanitizeAttemptForDb(attempt: unknown): unknown {
+  if (!isRecord(attempt)) {
+    return attempt;
+  }
+  const sanitized: Record<string, unknown> = { ...attempt };
+  if (isRecord(attempt.request)) {
+    const request: Record<string, unknown> = { ...attempt.request };
+    if ("headers" in request) {
+      const sanitizedHeaders = sanitizeAttemptHeaders(request.headers);
+      if (sanitizedHeaders) {
+        request.headers = sanitizedHeaders;
+      } else {
+        delete request.headers;
+      }
+    }
+    sanitized.request = request;
+  }
+  if (typeof sanitized.raw === "string") {
+    sanitized.raw = {
+      truncated: true,
+      note: "raw_payload_omitted",
+    };
+  }
+  const maxBytes = 32768;
+  const serialized = JSON.stringify(sanitized);
+  if (Buffer.byteLength(serialized, "utf8") <= maxBytes) {
+    return sanitized;
+  }
+  const trimmed: Record<string, unknown> = { ...sanitized };
+  if ("raw" in trimmed) {
+    trimmed.raw = {
+      truncated: true,
+      note: "raw_payload_omitted",
+    };
+  }
+  if ("details" in trimmed) {
+    trimmed.details = {
+      truncated: true,
+      note: "details_omitted",
+    };
+  }
+  if ("computed_updates" in trimmed) {
+    trimmed.computed_updates = {
+      truncated: true,
+      note: "computed_updates_omitted",
+    };
+  }
+  return safeJsonForDb(trimmed, { maxBytes });
+}
+
 /**
  * Insert an item enrich run log (best effort, errors are swallowed).
  */
-export async function insertItemEnrichRun(params: {
+export async function insertItemEnrichAttempt(params: {
   userId: string;
   itemId: string;
   sourceUrl: string;
-  attempts: unknown;
-  finalApplied: boolean;
-  finalUpdates: unknown;
+  runGroupId: string;
+  strategy: string;
+  attempt: unknown;
 }): Promise<void> {
   try {
-    const attemptsSafe = safeJsonForDb(params.attempts);
-    const finalUpdatesSafe = safeJsonForDb(params.finalUpdates);
+    const attemptsSafe = safeJsonForDb([sanitizeAttemptForDb(params.attempt)], {
+      maxBytes: 32768,
+    });
 
     const response = await supabaseAdminFetch("/rest/v1/item_enrich_runs", {
       method: "POST",
@@ -319,8 +391,10 @@ export async function insertItemEnrichRun(params: {
         user_id: params.userId,
         item_id: params.itemId,
         source_url: params.sourceUrl,
-        final_applied: params.finalApplied,
-        final_updates: finalUpdatesSafe,
+        run_group_id: params.runGroupId,
+        strategy: params.strategy,
+        final_applied: false,
+        final_updates: {},
         attempts: attemptsSafe,
       }),
     });
@@ -334,6 +408,49 @@ export async function insertItemEnrichRun(params: {
   } catch (error) {
     // Silently fail - this is best effort
     console.warn("[enrich] Error logging enrich run", {
+      item_id: params.itemId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}
+
+export async function insertItemEnrichFinal(params: {
+  userId: string;
+  itemId: string;
+  sourceUrl: string;
+  runGroupId: string;
+  finalApplied: boolean;
+  finalUpdates: unknown;
+}): Promise<void> {
+  try {
+    const finalUpdatesSafe = safeJsonForDb(params.finalUpdates);
+
+    const response = await supabaseAdminFetch("/rest/v1/item_enrich_runs", {
+      method: "POST",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        user_id: params.userId,
+        item_id: params.itemId,
+        source_url: params.sourceUrl,
+        run_group_id: params.runGroupId,
+        strategy: "final",
+        final_applied: params.finalApplied,
+        final_updates: finalUpdatesSafe,
+        attempts: [],
+      }),
+    });
+    if (!response.ok) {
+      // Silently fail - this is best effort
+      console.warn("[enrich] Failed to log enrich final", {
+        item_id: params.itemId,
+        status: response.status,
+      });
+    }
+  } catch (error) {
+    // Silently fail - this is best effort
+    console.warn("[enrich] Error logging enrich final", {
       item_id: params.itemId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
