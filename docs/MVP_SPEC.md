@@ -352,8 +352,8 @@ Response:
 CN：仅 cookie session；delete/restore 幂等；列表语义遵循 §2.1.1。  
 EN: Cookie-only; idempotent delete/restore; list semantics follow §2.1.1.
 
-### 4.4.3 Tracking endpoint（v0.2）
-#### `POST /api/track/share-view`（public）
+### 4.4.3 Tracking endpoints（v0.2 + v0.7）
+#### `POST /api/track/share-view`（public, v0.2）
 CN：
 - 在浏览器访问 `/s/:share_id` 时 fire-and-forget 调用。  
 - 写入 `events`：`event_name='web.share.page_view'`，`share_id` 必填，`user_id` 若已登录则填，否则 null。  
@@ -363,6 +363,21 @@ EN:
 - Fire-and-forget from `/s/:share_id`.  
 - Writes `events`: `event_name='web.share.page_view'`, `share_id` required, `user_id` set if authenticated otherwise null.  
 - **HEAD must not write events**.
+
+#### `POST /api/track/event`（cookie session, v0.7）
+CN：
+- 通用客户端事件追踪端点，接收 `{ event_name: string, meta?: Record<string, unknown> }`。  
+- 从 session 获取 `user_id`（如果已登录）。  
+- 客户端生成 `request_id`（UUID）放入 meta，服务端通过 unique index 去重。  
+- 使用 `trackBestEffort` 确保非阻塞。  
+- 返回 204 No Content（成功）或 400（参数错误）。
+
+EN:
+- Generic client-side event tracking endpoint, accepts `{ event_name: string, meta?: Record<string, unknown> }`.  
+- Gets `user_id` from session (if authenticated).  
+- Client generates `request_id` (UUID) in meta; server dedupes via unique index.  
+- Uses `trackBestEffort` to ensure non-blocking.  
+- Returns 204 No Content (success) or 400 (invalid params).
 
 ### 4.4.4 Feedback（v0.5）
 #### `POST /api/feedback`（cookie session）
@@ -627,6 +642,91 @@ EN: v0.5 adds feedback entrypoints (Web + Actions), persistence, and minimal rat
 - Actions `POST /feedback` works and OpenAPI is importable
 - 60s repeat → 429; >1000 chars → 400
 - Docs sync: PROJECT_MAP + CHEATSHEET + MVP_SPEC updated (normative docs stay aligned)
+
+---
+
+## v0.6_SPEC (UI Upgrade: Tailwind CSS + Dark Mode + Heroicons)
+
+### 0) 一句话结论 / One-line summary
+CN：v0.6 引入 Tailwind CSS、暗黑模式、Heroicons 图标库，统一 UI 组件系统，提升视觉一致性与交互体验。  
+EN: v0.6 introduces Tailwind CSS, dark mode, Heroicons library, and unified UI components for improved visual consistency and UX.
+
+### 1) Goals
+- Migrate all inline styles to Tailwind CSS utility classes
+- Implement dark mode toggle (class strategy, localStorage persistence)
+- Replace text/emoji icons with Heroicons (@heroicons/react/24/outline)
+- Extract reusable UI components (Button, Card, DarkModeToggle)
+- Optimize existing styles with subtle animations and transitions
+
+### 2) Non-goals
+- No design system overhaul (keep existing visual language)
+- No new pages or major feature additions
+- No icon library beyond Heroicons
+
+### 3) Key changes
+- Tailwind config: custom theme colors, dark mode class strategy, @tailwindcss/forms plugin
+- Dark mode: toggle in settings page, persists in localStorage, respects system preference
+- Icons: settings gear, sort arrows, share, price tooltip question mark → Heroicons
+- Components: extracted Button, Card, DarkModeToggle for reuse
+
+### 4) 验收 / Acceptance
+- All pages render correctly in light and dark modes
+- Dark mode toggle works and persists across sessions
+- Icons display correctly (no emoji/text fallbacks)
+- No visual regressions from v0.3 baseline
+- Tailwind classes replace all inline styles
+
+---
+
+## v0.7_SPEC (User Behavior Tracking: Comprehensive Event Logging)
+
+### 0) 一句话结论 / One-line summary
+CN：v0.7 扩展埋点覆盖核心用户行为（认证、Item 操作、Share 操作、UI 交互），并实现日常指标推送（Telegram Bot + Vercel Cron）。  
+EN: v0.7 extends tracking to cover core user behaviors (auth, item operations, share operations, UI interactions) and implements daily metrics push (Telegram Bot + Vercel Cron).
+
+### 1) Goals
+- Track user lifecycle events (login, onboarding)
+- Track item operations (create, delete, restore, note update, view detail, click source URL)
+- Track share operations (create, rotate, revoke, copy/native share)
+- Track UI interactions (sort toggle, cheatsheet open)
+- Daily metrics aggregation and Telegram push via Vercel Cron Jobs
+
+### 2) Non-goals
+- No analytics dashboard (SQL queries only)
+- No real-time monitoring (daily batch only)
+- No PII in event meta (minimal fields only)
+
+### 3) Event naming convention (Locked)
+Format: `{source}.{entity}.{action}`
+- source: `web`, `actions`
+- entity: `auth`, `item`, `share`, `app`, `settings`
+- action: `create`, `update`, `delete`, `restore`, `view`, `click`, `toggle`, `share_action`
+
+### 4) Meta fields (Locked)
+- Minimal strategy: only IDs (`item_id`, `share_id`) and simple flags (`is_new_user`, `sort_order`, `action_type`)
+- No PII: no URLs, text content, user input, sensitive info
+- Dedupe: `request_id` (UUID) in meta, unique index `(event_name, meta->>'request_id')`
+
+### 5) Daily metrics endpoint
+#### `GET /api/metrics/daily` (Vercel Cron)
+CN：
+- Vercel Cron Jobs 每天 09:00 UTC 自动调用（`vercel.json` 配置）。  
+- 查询基于事件的指标（DAU、新用户、Item/Share 操作数等）和基于数据表的指标（总 Item 数、Enrichment 成功率等）。  
+- 通过 Telegram Bot API 发送格式化消息到指定 chat_id。  
+- 验证：检查 `Authorization: Bearer ${CRON_SECRET}`（可选，Vercel 会自动添加 header）。
+
+EN:
+- Vercel Cron Jobs calls daily at 09:00 UTC (configured in `vercel.json`).  
+- Queries event-based metrics (DAU, new users, item/share operations) and table-based metrics (total items, enrichment success rate).  
+- Sends formatted message via Telegram Bot API to configured chat_id.  
+- Auth: checks `Authorization: Bearer ${CRON_SECRET}` (optional, Vercel adds header automatically).
+
+### 6) 验收 / Acceptance
+- P0 events fire correctly: `web.auth.login_success`, `actions.item.create`, `web.item.delete`, `web.share.create`
+- Client-side events work via `/api/track/event` endpoint
+- Daily metrics endpoint returns 200 and sends Telegram message
+- Vercel Cron Job executes daily (verify in Vercel dashboard)
+- No blocking: all tracking uses `trackBestEffort` (non-blocking)
 
 ---
 
