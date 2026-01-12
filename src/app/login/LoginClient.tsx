@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 
 type LoginClientProps = {
   nextPath: string;
-  errorMessage?: string | null;
 };
+
+type Step = "enter_email" | "code_sent" | "verifying";
 
 function sanitizeNextPath(nextPath: string): string {
   if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
@@ -16,11 +17,15 @@ function sanitizeNextPath(nextPath: string): string {
   return nextPath;
 }
 
-export default function LoginClient({ nextPath, errorMessage }: LoginClientProps) {
+export default function LoginClient({ nextPath }: LoginClientProps) {
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const safeNextPath = sanitizeNextPath(nextPath);
-  const [statusMessage, setStatusMessage] = useState<string | null>(errorMessage ?? null);
+  const [step, setStep] = useState<Step>("enter_email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -35,9 +40,28 @@ export default function LoginClient({ nextPath, errorMessage }: LoginClientProps
     };
   }, [router, safeNextPath, supabase]);
 
+  useEffect(() => {
+    if (cooldown <= 0) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setCooldown((prev) => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const startCooldown = useCallback((seconds: number) => {
+    setCooldown(seconds);
+  }, []);
+
   const handleGoogleLogin = async () => {
     setIsLoading(true);
-    setStatusMessage(null);
+    setErrorMsg(null);
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
       safeNextPath,
     )}`;
@@ -46,38 +70,93 @@ export default function LoginClient({ nextPath, errorMessage }: LoginClientProps
       options: { redirectTo },
     });
     if (error) {
-      setStatusMessage(error.message ?? "Google login failed. Please try again.");
+      setErrorMsg(error.message ?? "Google login failed. Please try again.");
       setIsLoading(false);
     }
   };
 
-  const handleEmailLogin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setStatusMessage(null);
-
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") ?? "").trim();
-    const password = String(formData.get("password") ?? "");
-
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setStatusMessage(error.message ?? "Login failed. Please try again.");
-      setIsLoading(false);
+  const requestCode = useCallback(async () => {
+    setErrorMsg(null);
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setErrorMsg("Email is required.");
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setErrorMsg("Please enter a valid email address.");
+      return;
+    }
+    setIsLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: trimmedEmail,
+      options: { shouldCreateUser: true },
+    });
+    setIsLoading(false);
+    if (error) {
+      setErrorMsg(error.message ?? "Failed to send code. Please try again.");
+      return;
+    }
+    setStep("code_sent");
+    startCooldown(45);
+  }, [email, supabase, startCooldown]);
 
-    router.replace(safeNextPath);
+  const handleRequestCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await requestCode();
+  };
+
+  const verifyCode = useCallback(async () => {
+    setErrorMsg(null);
+    const trimmedCode = code.trim();
+    if (!trimmedCode || trimmedCode.length !== 6) {
+      setErrorMsg("Please enter a 6-digit code.");
+      return;
+    }
+    setStep("verifying");
+    setIsLoading(true);
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: trimmedCode,
+      type: "email",
+    });
+    setIsLoading(false);
+    if (error) {
+      setStep("code_sent");
+      setErrorMsg(error.message ?? "Invalid code. Please try again.");
+      return;
+    }
+    if (data.session) {
+      router.replace(safeNextPath);
+    }
+  }, [code, email, supabase, router, safeNextPath]);
+
+  const handleVerifyCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await verifyCode();
+  };
+
+  const handleResend = async () => {
+    if (cooldown > 0) {
+      return;
+    }
+    setErrorMsg(null);
+    await requestCode();
+  };
+
+  const handleChangeEmail = () => {
+    setStep("enter_email");
+    setCode("");
+    setErrorMsg(null);
   };
 
   return (
     <main className="p-8 max-w-md mx-auto">
       <h1 className="text-2xl font-bold mb-2">Sign in</h1>
       <p className="text-gray-600 dark:text-gray-400 mb-6">Use your Supabase account to continue.</p>
-      {statusMessage ? (
+      {errorMsg ? (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-800">
           <p className="text-sm text-error dark:text-error-dark" role="alert">
-            {statusMessage}
+            {errorMsg}
           </p>
         </div>
       ) : null}
@@ -117,35 +196,88 @@ export default function LoginClient({ nextPath, errorMessage }: LoginClientProps
           </span>
         </div>
       </div>
-      <form onSubmit={handleEmailLogin} className="space-y-3">
-        <label className="block">
-          <span className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Email</span>
-          <input
-            type="email"
-            name="email"
-            autoComplete="email"
-            required
-            className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200"
-          />
-        </label>
-        <label className="block">
-          <span className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Password</span>
-          <input
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            required
-            className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-pill hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
-        >
-          {isLoading ? "Signing in..." : "Continue"}
-        </button>
-      </form>
+      {step === "enter_email" ? (
+        <form onSubmit={handleRequestCode} className="space-y-3">
+          <label className="block">
+            <span className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+              Email
+            </span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+              disabled={isLoading}
+              className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-full hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
+          >
+            {isLoading ? "Sending code..." : "Request code"}
+          </button>
+        </form>
+      ) : step === "code_sent" || step === "verifying" ? (
+        <div className="space-y-3">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              Code sent to <strong>{email}</strong>
+            </p>
+          </div>
+          <form onSubmit={handleVerifyCode} className="space-y-3">
+            <label className="block">
+              <span className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                Verification code
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={code}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  setCode(value);
+                  setErrorMsg(null);
+                }}
+                autoComplete="one-time-code"
+                required
+                disabled={isLoading || step === "verifying"}
+                className="w-full px-4 py-2 border border-border rounded-lg text-center text-2xl tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                placeholder="000000"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={isLoading || step === "verifying"}
+              className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-full hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
+            >
+              {step === "verifying" ? "Verifying..." : "Verify"}
+            </button>
+          </form>
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={cooldown > 0 || isLoading || step === "verifying"}
+              className="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              {cooldown > 0 ? `Resend code (${cooldown}s)` : "Resend code"}
+            </button>
+            <button
+              type="button"
+              onClick={handleChangeEmail}
+              disabled={isLoading || step === "verifying"}
+              className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              Change email
+            </button>
+          </div>
+        </div>
+      ) : null}
       <p className="mt-6 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
         You must be 13 or older to use WishlistGPT. By continuing, you agree to the Terms and
         acknowledge the Privacy Policy. Read the{" "}
