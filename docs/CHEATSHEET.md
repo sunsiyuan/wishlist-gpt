@@ -449,6 +449,81 @@ CN：
 * Smoke：`scripts/preflight.sh`, `scripts/smoke_openapi.sh`, `scripts/smoke_oauth.sh`, `scripts/smoke_items.sh`
   * 本地可能会跳过：`BASE_URL=http://localhost:3000 npm run smoke:openapi` 在未生成 `public/openapi.yaml` 时会提示跳过
   * 远端验证：`BASE_URL=https://<preview-or-prod-domain> npm run smoke:openapi`
+* 日常指标推送：`src/app/api/metrics/daily/route.ts`, `vercel.json`（Vercel Cron Jobs 配置）
+
+---
+
+## 6) Vercel Cron Jobs 配置 / Vercel Cron Jobs configuration
+
+### 6.1 配置 vercel.json
+
+CN：在项目根目录创建或更新 `vercel.json`，配置定时任务：
+
+EN: Create or update `vercel.json` in project root to configure scheduled tasks:
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/metrics/daily",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}
+```
+
+CN：
+- `path`: API route 路径（相对于项目根目录）
+- `schedule`: Cron 表达式（UTC 时间）
+  - `0 9 * * *` = 每天 09:00 UTC
+  - 格式：`分钟 小时 日 月 星期`
+  - 示例：`0 0 * * *`（每天 00:00 UTC）、`0 */6 * * *`（每 6 小时）
+
+EN:
+- `path`: API route path (relative to project root)
+- `schedule`: Cron expression (UTC time)
+  - `0 9 * * *` = daily at 09:00 UTC
+  - Format: `minute hour day month weekday`
+  - Examples: `0 0 * * *` (daily at 00:00 UTC), `0 */6 * * *` (every 6 hours)
+
+### 6.2 环境变量配置
+
+CN：在 Vercel 项目设置中添加以下环境变量：
+
+EN: Add the following environment variables in Vercel project settings:
+
+- `TELEGRAM_BOT_TOKEN` - Bot token（从 @BotFather 获取 / Get from @BotFather）
+- `TELEGRAM_CHAT_ID` - 接收消息的 chat_id（个人或群组 / Personal or group chat）
+- `CRON_SECRET`（可选 / Optional）- 如果设置，API route 会验证 Authorization header
+
+### 6.3 验证 Cron Job
+
+CN：
+1. 部署到 Vercel 后，在 Vercel Dashboard → Settings → Cron Jobs 查看配置
+2. 手动触发：在 Vercel Dashboard 点击 "Run Now" 测试
+3. 查看日志：Vercel Dashboard → Functions → `/api/metrics/daily` → Logs
+
+EN:
+1. After deploying to Vercel, check configuration in Vercel Dashboard → Settings → Cron Jobs
+2. Manual trigger: Click "Run Now" in Vercel Dashboard to test
+3. View logs: Vercel Dashboard → Functions → `/api/metrics/daily` → Logs
+
+### 6.4 本地测试
+
+CN：本地开发时，可以手动调用 API endpoint 测试：
+
+EN: For local development, manually call the API endpoint to test:
+
+```bash
+# 需要设置环境变量
+export TELEGRAM_BOT_TOKEN="your_bot_token"
+export TELEGRAM_CHAT_ID="your_chat_id"
+export CRON_SECRET="optional_secret"
+
+# 调用 endpoint（需要 Authorization header）
+curl -X GET http://localhost:3000/api/metrics/daily \
+  -H "Authorization: Bearer ${CRON_SECRET}"
+```
 
 EN:
 
