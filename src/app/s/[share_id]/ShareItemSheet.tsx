@@ -1,7 +1,7 @@
 "use client";
 
 import { QuestionMarkCircleIcon } from "@heroicons/react/24/outline";
-import type { PublicShareItem } from "../../../../server/shares";
+import type { PublicShareItem } from "../../../server/shares";
 import {
   getCardTitle,
   getCoverFallbackLabel,
