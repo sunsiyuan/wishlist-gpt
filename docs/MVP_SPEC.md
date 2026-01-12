@@ -303,8 +303,11 @@ EN: Same shape/validation/response as `POST /api/feedback`.
 ## 4.3 Web Pages（页面语义，非纯 API）/ Web pages (semantic contract)
 
 ### 4.3.1 `/login`
-CN：支持 Supabase Google 登录（email 可选）；成功后进入 `/app`（或 `next=`）。  
-EN: Supports Supabase Google login (email optional); lands on `/app` (or `next=`).
+CN：支持 Supabase Google 登录和 Email OTP（6 位码）登录；成功后进入 `/onboarding`（或 `next=`）。  
+EN: Supports Supabase Google login and Email OTP (6-digit code) login; lands on `/onboarding` (or `next=`).
+
+CN：Email OTP 流程：输入 email → 请求 6 位码 → 输入 code → 验证登录/注册。  
+EN: Email OTP flow: enter email → request 6-digit code → enter code → verify login/signup.
 
 ### 4.3.2 `/app`（cookie session gated）
 CN：显示单列列表 + sort toggle + share controls + cheatsheet + decision sheet（详见 v0.3）。  

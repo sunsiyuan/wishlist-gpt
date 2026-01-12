@@ -453,9 +453,66 @@ CN：
 
 ---
 
-## 6) Vercel Cron Jobs 配置 / Vercel Cron Jobs configuration
+## 6) Email OTP 登录（无密码）/ Email OTP Login (Passwordless)
 
-### 6.1 配置 vercel.json
+CN：`/login` 支持 Email OTP（6 位码）登录，无需密码。  
+EN: `/login` supports Email OTP (6-digit code) login, no password required.
+
+### 6.1 Supabase Custom SMTP（SMTP2GO 示例）/ Supabase Custom SMTP (SMTP2GO Example)
+
+CN：Supabase 使用 SMTP 凭证发送邮件，不使用 SMTP2GO API key。  
+EN: Supabase uses SMTP credentials to send emails, not SMTP2GO API key.
+
+**SMTP2GO 配置 / SMTP2GO Configuration：**
+- SMTP server: `mail.smtp2go.com`
+- Port: `2525`（推荐，多数网络更通 / recommended, works on most networks）或 `587`（STARTTLS 常用 / common for STARTTLS）
+- Username/Password：在 SMTP2GO Dashboard → Sending → SMTP Users 里创建/查看
+- TLS：启用 / Enabled
+
+**Supabase Dashboard 路径 / Supabase Dashboard Path：**
+- Authentication → Emails → SMTP Settings → Enable Custom SMTP
+- 填写 Host/Port/User/Pass + 设置默认 From（如 `no-reply@yourdomain.com`）
+- Fill in Host/Port/User/Pass + set default From (e.g., `no-reply@yourdomain.com`)
+
+### 6.2 Supabase 需要打开的开关 / Required Supabase Toggles
+
+CN：在 Supabase Dashboard 中确保以下开关已启用：  
+EN: Ensure the following toggles are enabled in Supabase Dashboard:
+
+- ✅ Authentication → Providers：Email enabled
+- ✅ Authentication → General：Allow new users to sign up（允许注册）
+- ✅ Authentication → Emails：Enable Custom SMTP（生产建议必开 / recommended for production）
+
+### 6.3 Email 模板需要怎么改（OTP）/ Email Template Changes (OTP)
+
+CN：Supabase Email 模板需要改为显示 6 位 OTP 码，而不是 magic link。  
+EN: Supabase Email templates need to display 6-digit OTP code instead of magic link.
+
+**重要 / Important：** 新用户第一次可能走 "Confirm sign up" 模板，不一定只走 "Magic link" 模板，所以建议两个模板都改成 OTP 风格。  
+**Important:** New users may use the "Confirm sign up" template on first signup, not just "Magic link", so update both templates to OTP style.
+
+**需要修改的模板 / Templates to Update：**
+- Authentication → Emails → Templates → **Confirm sign up**
+- Authentication → Emails → Templates → **Magic link**
+
+**模板变量更改 / Template Variable Change：**
+- 将 `{{ .ConfirmationURL }}` 替换为 `{{ .Token }}`
+- Replace `{{ .ConfirmationURL }}` with `{{ .Token }}`
+- `{{ .Token }}` 是 6 位 OTP 码
+- `{{ .Token }}` is the 6-digit OTP code
+
+**建议模板片段 / Suggested Template Snippet：**
+```html
+<p>Your sign-in code:</p>
+<p style="font-size:24px;letter-spacing:4px;"><strong>{{ .Token }}</strong></p>
+<p>This code expires soon.</p>
+```
+
+---
+
+## 7) Vercel Cron Jobs 配置 / Vercel Cron Jobs configuration
+
+### 7.1 配置 vercel.json
 
 CN：在项目根目录创建或更新 `vercel.json`，配置定时任务：
 
@@ -496,7 +553,7 @@ EN: Add the following environment variables in Vercel project settings:
 - `TELEGRAM_CHAT_ID` - 接收消息的 chat_id（个人或群组 / Personal or group chat）
 - `CRON_SECRET`（可选 / Optional）- 如果设置，API route 会验证 Authorization header
 
-### 6.3 验证 Cron Job
+### 7.3 验证 Cron Job
 
 CN：
 1. 部署到 Vercel 后，在 Vercel Dashboard → Settings → Cron Jobs 查看配置
@@ -508,7 +565,7 @@ EN:
 2. Manual trigger: Click "Run Now" in Vercel Dashboard to test
 3. View logs: Vercel Dashboard → Functions → `/api/metrics/daily` → Logs
 
-### 6.4 本地测试
+### 7.4 本地测试
 
 CN：本地开发时，可以手动调用 API endpoint 测试：
 
