@@ -39,6 +39,7 @@ async function queryEventsMetrics(): Promise<{
   shareCreates: number;
   sharePageViews: number;
   shareActions: { total: number; copy: number; native: number };
+  aiWaitlistJoins: { total: number; byIntent: { buy: number; gift: number }; bySurface: { card: number; sheet: number } };
 }> {
   const today = new Date().toISOString().split("T")[0];
   const todayStart = `${today}T00:00:00Z`;
@@ -127,6 +128,24 @@ async function queryEventsMetrics(): Promise<{
     native: shareActionsData.filter((e: { meta: { action_type?: string } }) => e.meta?.action_type === "native").length,
   };
 
+  // AI Waitlist Joins
+  const aiWaitlistJoinsRes = await supabaseAdminFetch(
+    `/rest/v1/events?event_name=eq.web.ai.waitlist_join&occurred_at=gte.${todayStart}&select=meta`,
+    { method: "GET" },
+  );
+  const aiWaitlistJoinsData = aiWaitlistJoinsRes.ok ? await aiWaitlistJoinsRes.json() : [];
+  const aiWaitlistJoins = {
+    total: aiWaitlistJoinsData.length,
+    byIntent: {
+      buy: aiWaitlistJoinsData.filter((e: { meta: { intent?: string } }) => e.meta?.intent === "buy").length,
+      gift: aiWaitlistJoinsData.filter((e: { meta: { intent?: string } }) => e.meta?.intent === "gift").length,
+    },
+    bySurface: {
+      card: aiWaitlistJoinsData.filter((e: { meta: { surface?: string } }) => e.meta?.surface === "card").length,
+      sheet: aiWaitlistJoinsData.filter((e: { meta: { surface?: string } }) => e.meta?.surface === "sheet").length,
+    },
+  };
+
   return {
     newUsers,
     dau,
@@ -138,6 +157,7 @@ async function queryEventsMetrics(): Promise<{
     shareCreates,
     sharePageViews,
     shareActions,
+    aiWaitlistJoins,
   };
 }
 
@@ -289,6 +309,10 @@ function formatMetricsMessage(
 • Share 创建: ${eventsMetrics.shareCreates}
 • Share 查看: ${eventsMetrics.sharePageViews}
 • Share 操作: ${eventsMetrics.shareActions.total} (复制: ${eventsMetrics.shareActions.copy}, 原生: ${eventsMetrics.shareActions.native})
+
+*【AI 功能】*
+• Waitlist 加入: ${eventsMetrics.aiWaitlistJoins.total} (Buy: ${eventsMetrics.aiWaitlistJoins.byIntent.buy}, Gift: ${eventsMetrics.aiWaitlistJoins.byIntent.gift})
+• 来源: Card ${eventsMetrics.aiWaitlistJoins.bySurface.card}, Sheet ${eventsMetrics.aiWaitlistJoins.bySurface.sheet}
 
 *【数据表统计】*
 • 总 Item 数: ${tableMetrics.totalItems}

@@ -730,6 +730,55 @@ EN:
 
 ---
 
+## v0.8_SPEC (Buy with AI / Gift with AI: Early Access Waitlist)
+
+### 0) 一句话结论 / One-line summary
+CN：v0.8 在 4 个位置（App Item Card/Sheet、Share Item Card/Sheet）添加 "Buy with AI" / "Gift with AI" 按钮，使用统一的 Early Access Modal 收集 waitlist，并加入每日监控指标。  
+EN: v0.8 adds "Buy with AI" / "Gift with AI" buttons in 4 locations (App Item Card/Sheet, Share Item Card/Sheet), uses unified Early Access Modal for waitlist collection, and includes daily metrics tracking.
+
+### 1) Goals
+- Add "Buy with AI" buttons in App Item Card and Item Sheet (owner context)
+- Add "Gift with AI" buttons in Share Item Card and Share Item Sheet (viewer context)
+- Unified Early Access Modal with waitlist join functionality
+- Event tracking: `web.ai.waitlist_join` with context (owner|share), surface (card|sheet), intent (buy|gift)
+- Daily metrics: track AI waitlist joins (total, byIntent, bySurface)
+
+### 2) Non-goals
+- No actual Buy/Gift functionality implementation
+- No payment or checkout integration
+- No waitlist management UI beyond modal
+
+### 3) UI/UX details (Locked)
+- Button layout: "View on website" (primary) and "Buy/Gift with AI" (secondary) on same row for cards
+- Early access badge: small label in top-right corner of button (iOS-style)
+- Modal description: "Buy with AI / Gift with AI is coming soon. Join the waitlist to be notified when it's available."
+- Button click events: use `event.stopPropagation()` to prevent card click triggering
+- Disabled state: "View on website" button disabled when source_url is missing
+
+### 4) Event tracking
+- Event name: `web.ai.waitlist_join`
+- Meta fields:
+  - `context`: "owner" | "share"
+  - `surface`: "card" | "sheet"
+  - `intent`: "buy" | "gift"
+  - `item_id`: string (optional)
+  - `source_url`: string (optional, full URL) - **Note**: Exception to v0.7 minimal principle; used for AI waitlist analysis
+  - `request_id`: string (UUID, client-generated)
+- Daily metrics: query `web.ai.waitlist_join` events, group by `intent` and `surface`
+
+### 5) Acceptance criteria
+- All 4 locations show correct button ("Buy with AI" for owner, "Gift with AI" for share)
+- Clicking button opens Early Access Modal
+- Modal "Join waitlist & continue on website" button:
+  - Tracks event `web.ai.waitlist_join` with correct meta fields
+  - Opens source_url
+  - Closes modal
+- Button clicks do not trigger card click events (stopPropagation)
+- "View on website" button disabled when source_url is missing
+- Daily metrics Telegram message includes AI function metrics (total, byIntent, bySurface)
+
+---
+
 ## 6) Parking Lot（future / 暂缓项）
 CN：
 - Apple 登录（等待 D-U-N-S / Apple Dev Program）
