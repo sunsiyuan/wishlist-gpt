@@ -50,13 +50,6 @@ async function queryEventsMetrics(): Promise<{
   );
   const newUsers = newUsersRes.ok ? (await newUsersRes.json()).length : 0;
 
-  // 新用户数
-  const newUsersRes = await supabaseAdminFetch(
-    `/rest/v1/events?event_name=eq.web.auth.login_success&occurred_at=gte.${todayStart}&meta->>is_new_user=eq.true&select=id`,
-    { method: "GET" },
-  );
-  const newUsers = newUsersRes.ok ? (await newUsersRes.json()).length : 0;
-
   // DAU
   const dauRes = await supabaseAdminFetch(
     `/rest/v1/events?occurred_at=gte.${todayStart}&user_id=not.is.null&select=user_id`,
