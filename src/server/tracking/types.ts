@@ -6,6 +6,14 @@ export type RequestMeta = {
   [key: string]: unknown; // Allow additional fields in meta
 };
 
+export type TrackEventInput = {
+  event_name: string;
+  user_id: string | null;
+  share_id: string | null;
+  client_id: string | null;
+  meta: RequestMeta;
+};
+
 export type TrackEventResult = {
   ok: true;
   deduped: boolean;
