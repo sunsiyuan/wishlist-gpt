@@ -634,7 +634,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                         {notePreview.text}
                       </p>
                       <div
-                        className="flex gap-2 mt-3"
+                        className="flex gap-0 mt-3"
                         onClick={(event) => event.stopPropagation()}
                       >
                         <button
@@ -646,7 +646,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                               openSourceUrl(sourceUrl);
                             }
                           }}
-                          className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-full py-2 font-medium text-sm ${
+                          className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-button py-2 font-medium text-sm ${
                             getSourceUrl(item)
                               ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
                               : "cursor-not-allowed opacity-60"
@@ -664,7 +664,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                               itemId: item.id,
                             });
                           }}
-                          className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-2 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                          className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                         >
                           Buy with AI
                           <SparklesIcon
@@ -764,7 +764,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                 </button>
               </div>
             ) : null}
-            <div className="flex gap-3 mt-4">
+            <div className="flex gap-0 mt-4">
               <button
                 type="button"
                 onClick={(event) => {
@@ -773,7 +773,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                     openSourceUrl(activeItemSourceUrl);
                   }
                 }}
-                className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-full py-3 font-medium text-sm ${
+                className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-button py-3 font-medium text-sm ${
                   activeItemSourceUrl
                     ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
                     : "cursor-not-allowed opacity-60"
@@ -791,7 +791,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                     itemId: activeItem.id,
                   });
                 }}
-                className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-3 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
               >
                 Buy with AI
               </button>

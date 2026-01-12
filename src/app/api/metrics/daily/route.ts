@@ -30,6 +30,8 @@ async function sendTelegramMessage(text: string): Promise<void> {
 
 async function queryEventsMetrics(): Promise<{
   newUsers: number;
+  newUsersGoogle: number;
+  newUsersEmail: number;
   dau: number;
   onboardingComplete: number;
   itemCreates: number;
@@ -44,12 +46,26 @@ async function queryEventsMetrics(): Promise<{
   const today = new Date().toISOString().split("T")[0];
   const todayStart = `${today}T00:00:00Z`;
 
-  // 新用户数
+  // 新用户数（总数）
   const newUsersRes = await supabaseAdminFetch(
     `/rest/v1/events?event_name=eq.web.auth.login_success&occurred_at=gte.${todayStart}&meta->>is_new_user=eq.true&select=id`,
     { method: "GET" },
   );
   const newUsers = newUsersRes.ok ? (await newUsersRes.json()).length : 0;
+
+  // Google 新用户数
+  const newUsersGoogleRes = await supabaseAdminFetch(
+    `/rest/v1/events?event_name=eq.web.auth.login_success&occurred_at=gte.${todayStart}&meta->>is_new_user=eq.true&meta->>auth_method=eq.google&select=id`,
+    { method: "GET" },
+  );
+  const newUsersGoogle = newUsersGoogleRes.ok ? (await newUsersGoogleRes.json()).length : 0;
+
+  // Email 新用户数
+  const newUsersEmailRes = await supabaseAdminFetch(
+    `/rest/v1/events?event_name=eq.web.auth.login_success&occurred_at=gte.${todayStart}&meta->>is_new_user=eq.true&meta->>auth_method=eq.email_otp&select=id`,
+    { method: "GET" },
+  );
+  const newUsersEmail = newUsersEmailRes.ok ? (await newUsersEmailRes.json()).length : 0;
 
   // DAU
   const dauRes = await supabaseAdminFetch(
@@ -148,6 +164,8 @@ async function queryEventsMetrics(): Promise<{
 
   return {
     newUsers,
+    newUsersGoogle,
+    newUsersEmail,
     dau,
     onboardingComplete,
     itemCreates,
@@ -297,7 +315,7 @@ function formatMetricsMessage(
   return `📊 *WishlistGPT 日报 - ${today}*
 
 *【用户增长】*
-• 新用户: ${eventsMetrics.newUsers}
+• 新用户: ${eventsMetrics.newUsers} (Google: ${eventsMetrics.newUsersGoogle}, Email: ${eventsMetrics.newUsersEmail})
 • 活跃用户: ${eventsMetrics.dau}
 • 完成 onboarding: ${eventsMetrics.onboardingComplete}
 

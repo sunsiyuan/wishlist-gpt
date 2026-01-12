@@ -151,7 +151,7 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
                       >
                         {notePreview.text}
                       </p>
-                      <div className="flex gap-2 mt-3" onClick={(event) => event.stopPropagation()}>
+                      <div className="flex gap-0 mt-3" onClick={(event) => event.stopPropagation()}>
                         <button
                           type="button"
                           onClick={(event) => {
@@ -160,7 +160,7 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
                               openSourceUrl(sourceUrl);
                             }
                           }}
-                          className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill py-2 font-medium text-sm ${
+                          className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-button py-2 font-medium text-sm ${
                             sourceUrl
                               ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
                               : "cursor-not-allowed opacity-60"
@@ -175,7 +175,7 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
                             event.stopPropagation();
                             handleOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
                           }}
-                          className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-2 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                          className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                         >
                           Gift with AI
                           <SparklesIcon
