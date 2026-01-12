@@ -126,6 +126,27 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
       return;
     }
     if (data.session) {
+      // Track login success event
+      const isNewUser =
+        data.user.created_at &&
+        new Date(data.user.created_at).getTime() > Date.now() - 60 * 60 * 1000; // 1 hour
+      try {
+        await fetch("/api/track/event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event_name: "web.auth.login_success",
+            meta: {
+              auth_method: "email_otp",
+              is_new_user: isNewUser,
+              request_id: crypto.randomUUID(),
+            },
+          }),
+        });
+      } catch (err) {
+        // Best effort tracking, ignore errors
+        console.error("Failed to track login event:", err);
+      }
       router.replace(safeNextPath);
     }
   }, [code, email, supabase, router, safeNextPath]);
@@ -215,7 +236,7 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-full hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
+            className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-button hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
           >
             {isLoading ? "Sending code..." : "Request code"}
           </button>
@@ -253,7 +274,7 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
             <button
               type="submit"
               disabled={isLoading || step === "verifying"}
-              className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-full hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
+              className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-button hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
             >
               {step === "verifying" ? "Verifying..." : "Verify"}
             </button>
