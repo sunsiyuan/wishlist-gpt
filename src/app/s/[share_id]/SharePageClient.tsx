@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { QuestionMarkCircleIcon } from "@heroicons/react/24/outline";
+import { QuestionMarkCircleIcon, SparklesIcon } from "@heroicons/react/24/outline";
 import type { PublicShareItem } from "../../../server/shares";
 import {
   getCardTitle,
@@ -160,7 +160,7 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
                               openSourceUrl(sourceUrl);
                             }
                           }}
-                          className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill py-2 font-semibold text-sm ${
+                          className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill py-2 font-medium text-sm ${
                             sourceUrl
                               ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
                               : "cursor-not-allowed opacity-60"
@@ -175,12 +175,13 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
                             event.stopPropagation();
                             handleOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
                           }}
-                          className="relative border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-2 px-3 font-semibold text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                          className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-2 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                         >
                           Gift with AI
-                          <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                            Early access
-                          </span>
+                          <SparklesIcon
+                            className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
+                            title="Early access"
+                          />
                         </button>
                       </div>
                     </div>
