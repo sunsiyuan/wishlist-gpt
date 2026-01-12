@@ -129,7 +129,7 @@ export default function ShareItemSheet({
           </div>
         ) : null}
 
-        <div className="flex gap-3 mt-4">
+        <div className="flex gap-0 mt-4">
           <button
             type="button"
             onClick={(event) => {
@@ -138,7 +138,7 @@ export default function ShareItemSheet({
                 openSourceUrl(sourceUrl);
               }
             }}
-            className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-full py-3 font-medium text-sm ${
+            className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-button py-3 font-medium text-sm ${
               sourceUrl
                 ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
                 : "cursor-not-allowed opacity-60"
@@ -153,7 +153,7 @@ export default function ShareItemSheet({
               event.stopPropagation();
               onOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
             }}
-            className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-3 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+            className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
           >
             Gift with AI
           </button>
