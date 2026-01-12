@@ -8,6 +8,7 @@ export const TRACKING_TIMEOUT_MS = 400;
 
 function buildEventMeta(meta: RequestMeta): RequestMeta {
   return {
+    ...meta,
     request_id: meta.request_id || crypto.randomUUID(),
     x_vercel_id: meta.x_vercel_id ?? null,
   };
