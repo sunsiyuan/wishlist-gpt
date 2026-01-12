@@ -648,9 +648,9 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                           openSourceUrl(sourceUrl);
                         }
                       }}
-                      className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-button py-2 font-medium text-sm ${
+                      className={`flex-1 border border-border dark:border-border-dark bg-white text-gray-900 rounded-button py-2 font-medium text-sm ${
                         getSourceUrl(item)
-                          ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
+                          ? "cursor-pointer hover:bg-gray-100"
                           : "cursor-not-allowed opacity-60"
                       } transition-colors duration-200`}
                       disabled={!getSourceUrl(item)}
@@ -773,9 +773,9 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                     openSourceUrl(activeItemSourceUrl);
                   }
                 }}
-                className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-button py-3 font-medium text-sm ${
+                className={`flex-1 border border-border dark:border-border-dark bg-white text-gray-900 rounded-button py-3 font-medium text-sm ${
                   activeItemSourceUrl
-                    ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
+                    ? "cursor-pointer hover:bg-gray-100"
                     : "cursor-not-allowed opacity-60"
                 } transition-colors duration-200`}
                 disabled={!activeItemSourceUrl}
