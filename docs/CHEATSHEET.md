@@ -25,6 +25,7 @@ EN: There is only one loop you must get working: **Actions Connect → getMe →
 - `TELEGRAM_BOT_TOKEN`（反馈通知 Telegram Bot token）
 - `TELEGRAM_CHAT_ID`（反馈通知 Telegram chat id）
 - `OPENGRAPH_IO_APP_ID`（opengraph.io 兜底抓取）
+- `CRON_SECRET`（Vercel Cron Jobs 安全密钥，可选）
 
 > CN：改 `.env*` 后，务必重启终端并重启 `npm run dev`（旧进程最容易误导你）。  
 > EN: After changing `.env*`, restart your terminal and `npm run dev` (stale processes are the #1 confusion source).

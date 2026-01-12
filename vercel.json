@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/metrics/daily",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}
