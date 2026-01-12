@@ -10,6 +10,7 @@ import {
   QuestionMarkCircleIcon,
 } from "@heroicons/react/24/outline";
 import FeedbackModal from "../components/FeedbackModal";
+import EarlyAccessModal from "../components/EarlyAccessModal";
 import {
   getCardTitle,
   getCoverFallbackLabel,
@@ -200,6 +201,11 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
   const [isCheatsheetOpen, setIsCheatsheetOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
+  const [earlyAccessModalProps, setEarlyAccessModalProps] = useState<{
+    sourceUrl: string | null;
+    itemId: string;
+  } | null>(null);
   const [shareState, setShareState] = useState<ShareState>({
     shareId: null,
     shareUrl: null,
@@ -456,6 +462,19 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
     setActiveItemId(item.id);
   }, []);
 
+  const handleOpenEarlyAccessModal = useCallback(
+    (props: { sourceUrl: string | null; itemId: string }) => {
+      setEarlyAccessModalProps(props);
+      setIsEarlyAccessModalOpen(true);
+    },
+    [],
+  );
+
+  const handleCloseEarlyAccessModal = useCallback(() => {
+    setIsEarlyAccessModalOpen(false);
+    setEarlyAccessModalProps(null);
+  }, []);
+
   const hasItems = items.length > 0;
   const activeItemSourceUrl = activeItem ? getSourceUrl(activeItem) : null;
   const activePriceText = activeItem ? getPriceText(activeItem, locale) : null;
@@ -613,6 +632,45 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                       >
                         {notePreview.text}
                       </p>
+                      <div
+                        className="flex gap-2 mt-3"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            const sourceUrl = getSourceUrl(item);
+                            if (sourceUrl) {
+                              openSourceUrl(sourceUrl);
+                            }
+                          }}
+                          className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-full py-2 font-semibold text-sm ${
+                            getSourceUrl(item)
+                              ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
+                              : "cursor-not-allowed opacity-60"
+                          } transition-colors duration-200`}
+                          disabled={!getSourceUrl(item)}
+                        >
+                          View on website
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleOpenEarlyAccessModal({
+                              sourceUrl: getSourceUrl(item),
+                              itemId: item.id,
+                            });
+                          }}
+                          className="relative border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-2 px-3 font-semibold text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                        >
+                          Buy with AI
+                          <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            Early access
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -707,17 +765,33 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
             <div className="flex gap-3 mt-4">
               <button
                 type="button"
-                onClick={() => {
+                onClick={(event) => {
+                  event.stopPropagation();
                   if (activeItemSourceUrl) {
                     openSourceUrl(activeItemSourceUrl);
                   }
                 }}
-                className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill py-3 font-semibold ${
-                  activeItemSourceUrl ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200" : "cursor-not-allowed opacity-60"
+                className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-full py-3 font-semibold ${
+                  activeItemSourceUrl
+                    ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
+                    : "cursor-not-allowed opacity-60"
                 } transition-colors duration-200`}
                 disabled={!activeItemSourceUrl}
               >
                 {activeItemSourceUrl ? "View on website" : "Link unavailable"}
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleOpenEarlyAccessModal({
+                    sourceUrl: activeItemSourceUrl,
+                    itemId: activeItem.id,
+                  });
+                }}
+                className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-3 px-4 font-semibold cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+              >
+                Buy with AI
               </button>
             </div>
             <button
@@ -897,10 +971,22 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
           setIsCheatsheetOpen(false);
         }}
         onError={() => {
-          showToast({ message: "Couldn’t send. Try again.", tone: "error" });
+          showToast({ message: "Couldn't send. Try again.", tone: "error" });
           setIsCheatsheetOpen(false);
         }}
       />
+
+      {earlyAccessModalProps ? (
+        <EarlyAccessModal
+          isOpen={isEarlyAccessModalOpen}
+          onClose={handleCloseEarlyAccessModal}
+          sourceUrl={earlyAccessModalProps.sourceUrl}
+          context="owner"
+          surface={activeItemId !== null ? "sheet" : "card"}
+          intent="buy"
+          itemId={earlyAccessModalProps.itemId}
+        />
+      ) : null}
     </div>
   );
 }
