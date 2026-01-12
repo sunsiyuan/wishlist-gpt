@@ -8,6 +8,7 @@ import {
   BarsArrowDownIcon,
   ShareIcon,
   QuestionMarkCircleIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import FeedbackModal from "../components/FeedbackModal";
 import EarlyAccessModal from "../components/EarlyAccessModal";
@@ -645,7 +646,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                               openSourceUrl(sourceUrl);
                             }
                           }}
-                          className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-full py-2 font-semibold text-sm ${
+                          className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-full py-2 font-medium text-sm ${
                             getSourceUrl(item)
                               ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
                               : "cursor-not-allowed opacity-60"
@@ -663,12 +664,13 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                               itemId: item.id,
                             });
                           }}
-                          className="relative border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-2 px-3 font-semibold text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                          className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-2 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                         >
                           Buy with AI
-                          <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                            Early access
-                          </span>
+                          <SparklesIcon
+                            className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
+                            title="Early access"
+                          />
                         </button>
                       </div>
                     </div>
@@ -771,7 +773,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                     openSourceUrl(activeItemSourceUrl);
                   }
                 }}
-                className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-full py-3 font-semibold ${
+                className={`flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-full py-3 font-medium text-sm ${
                   activeItemSourceUrl
                     ? "cursor-pointer hover:bg-primary/90 dark:hover:bg-gray-200"
                     : "cursor-not-allowed opacity-60"
@@ -789,7 +791,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                     itemId: activeItem.id,
                   });
                 }}
-                className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-3 px-4 font-semibold cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-full py-3 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
               >
                 Buy with AI
               </button>
