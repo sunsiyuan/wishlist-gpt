@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-export async function PATCH(request: NextRequest) {
+async function handleProfileUpdate(request: NextRequest) {
   const userId = await getSupabaseUserId(request);
   if (!userId) {
     return jsonError(401, "unauthorized", "Supabase session required");
@@ -146,4 +146,14 @@ export async function PATCH(request: NextRequest) {
       avatar_name: data.avatar_name,
     },
   });
+}
+
+// PATCH for updating profile (standard REST)
+export async function PATCH(request: NextRequest) {
+  return handleProfileUpdate(request);
+}
+
+// POST for updating profile (compatibility - treated as PATCH)
+export async function POST(request: NextRequest) {
+  return handleProfileUpdate(request);
 }
