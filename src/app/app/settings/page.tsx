@@ -20,7 +20,11 @@ export default async function SettingsPage() {
       </header>
       <div className="space-y-4">
         <DarkModeToggle />
-        <ProfileForm initialValues={profile ?? undefined} submitLabel="Save settings" />
+        <ProfileForm
+          initialValues={profile ?? undefined}
+          submitLabel="Save settings"
+          successRedirect="/app"
+        />
       </div>
     </main>
   );
