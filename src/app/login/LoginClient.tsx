@@ -29,18 +29,6 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (isMounted && data.session) {
-        router.replace(safeNextPath);
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [router, safeNextPath, supabase]);
-
-  useEffect(() => {
     if (cooldown <= 0) {
       return;
     }
