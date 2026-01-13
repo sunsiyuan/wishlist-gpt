@@ -587,10 +587,10 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-3">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-start gap-2">
                             {shouldShowLogo ? (
                               <div
-                                className="w-[22px] h-[22px] rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[0.65rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
+                                className="w-[18px] h-[18px] mt-[2px] rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[0.6rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
                                 aria-label={domain ?? "Merchant"}
                               >
                                 <span>{logoFallback}</span>
