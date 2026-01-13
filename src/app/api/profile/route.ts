@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseUserId } from "../../../server/auth/supabase";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { getProfileForUser } from "../../../server/profiles/store";
-import { DEFAULT_PROFILE_CONTEXT, POLICY_VERSION } from "../../../lib/profile";
+import {
+  DEFAULT_PROFILE_CONTEXT,
+  POLICY_VERSION,
+  normalizeCountryCode,
+  normalizeCurrencyCode,
+  normalizeLanguage,
+} from "../../../lib/profile";
 import { supabaseAdminFetch } from "../../../server/supabase/admin";
 
 function jsonError(status: number, code: string, message: string) {
@@ -34,7 +40,13 @@ async function handleProfileUpdate(request: NextRequest) {
     return jsonError(401, "unauthorized", "Supabase session required");
   }
 
-  let body: { nickname?: string; avatar_name?: string };
+  let body: {
+    nickname?: string;
+    avatar_name?: string;
+    country_code?: string;
+    preferred_language?: string;
+    preferred_currency?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -83,7 +95,14 @@ async function handleProfileUpdate(request: NextRequest) {
     }
   }
 
-  const updates: { nickname?: string; avatar_name?: string; updated_at?: string } = {};
+  const updates: {
+    nickname?: string;
+    avatar_name?: string;
+    country_code?: string;
+    preferred_language?: string;
+    preferred_currency?: string;
+    updated_at?: string;
+  } = {};
 
   // Validate and update nickname
   if (body.nickname !== undefined) {
@@ -106,6 +125,39 @@ async function handleProfileUpdate(request: NextRequest) {
     updates.avatar_name = trimmed;
   }
 
+  // Validate and update country_code
+  if (body.country_code !== undefined) {
+    const normalized = normalizeCountryCode(body.country_code);
+    if (normalized.length === 0) {
+      return jsonError(400, "invalid_country_code", "Country code cannot be empty");
+    }
+    if (normalized.length !== 2) {
+      return jsonError(400, "invalid_country_code", "Country code must be 2 characters");
+    }
+    updates.country_code = normalized;
+  }
+
+  // Validate and update preferred_language
+  if (body.preferred_language !== undefined) {
+    const normalized = normalizeLanguage(body.preferred_language);
+    if (normalized.length === 0) {
+      return jsonError(400, "invalid_preferred_language", "Preferred language cannot be empty");
+    }
+    updates.preferred_language = normalized;
+  }
+
+  // Validate and update preferred_currency
+  if (body.preferred_currency !== undefined) {
+    const normalized = normalizeCurrencyCode(body.preferred_currency);
+    if (normalized.length === 0) {
+      return jsonError(400, "invalid_preferred_currency", "Preferred currency cannot be empty");
+    }
+    if (normalized.length !== 3) {
+      return jsonError(400, "invalid_preferred_currency", "Preferred currency must be 3 characters");
+    }
+    updates.preferred_currency = normalized;
+  }
+
   if (Object.keys(updates).length === 0) {
     return jsonError(400, "no_updates", "No valid fields to update");
   }
@@ -117,7 +169,7 @@ async function handleProfileUpdate(request: NextRequest) {
     .from("profiles")
     .update(updates)
     .eq("user_id", userId)
-    .select("nickname, avatar_name, updated_at")
+    .select("nickname, avatar_name, country_code, preferred_language, preferred_currency, updated_at")
     .single();
 
   if (error) {
@@ -144,6 +196,9 @@ async function handleProfileUpdate(request: NextRequest) {
     profile: {
       nickname: data.nickname,
       avatar_name: data.avatar_name,
+      country_code: data.country_code,
+      preferred_language: data.preferred_language,
+      preferred_currency: data.preferred_currency,
     },
   });
 }
