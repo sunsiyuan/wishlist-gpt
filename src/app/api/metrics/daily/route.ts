@@ -42,6 +42,8 @@ async function queryEventsMetrics(): Promise<{
   sharePageViews: number;
   shareActions: { total: number; copy: number; native: number };
   aiWaitlistJoins: { total: number; byIntent: { buy: number; gift: number }; bySurface: { card: number; sheet: number } };
+  followCreates: number;
+  followDeletes: number;
 }> {
   const today = new Date().toISOString().split("T")[0];
   const todayStart = `${today}T00:00:00Z`;
@@ -75,9 +77,9 @@ async function queryEventsMetrics(): Promise<{
   const dauData = dauRes.ok ? await dauRes.json() : [];
   const dau = new Set(dauData.map((e: { user_id: string }) => e.user_id)).size;
 
-  // 完成 onboarding
+  // 完成 onboarding (v0.9: profile onboarding)
   const onboardingRes = await supabaseAdminFetch(
-    `/rest/v1/events?event_name=eq.web.onboarding.complete&occurred_at=gte.${todayStart}&select=id`,
+    `/rest/v1/events?event_name=eq.web.profile.onboarding_complete&occurred_at=gte.${todayStart}&select=id`,
     { method: "GET" },
   );
   const onboardingComplete = onboardingRes.ok
@@ -176,6 +178,8 @@ async function queryEventsMetrics(): Promise<{
     sharePageViews,
     shareActions,
     aiWaitlistJoins,
+    followCreates,
+    followDeletes,
   };
 }
 
