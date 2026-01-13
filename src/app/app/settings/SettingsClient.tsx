@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import SettingsSection from "../../components/SettingsSection";
 import ProfileSettings from "../../components/ProfileSettings";
 import PreferencesSettings from "../../components/PreferencesSettings";
@@ -8,9 +10,11 @@ import type { ProfileRecord } from "../../../lib/profile";
 
 type SettingsClientProps = {
   profile: ProfileRecord | null;
+  nextPath: string;
 };
 
-export default function SettingsClient({ profile }: SettingsClientProps) {
+export default function SettingsClient({ profile, nextPath }: SettingsClientProps) {
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState<"profile" | "preferences">("profile");
 
   const handleToggle = (section: "profile" | "preferences") => {
@@ -25,6 +29,17 @@ export default function SettingsClient({ profile }: SettingsClientProps) {
   return (
     <main className="max-w-xl mx-auto my-8 px-6">
       <header className="mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <button
+            type="button"
+            onClick={() => router.push(nextPath)}
+            className="flex items-center gap-1 text-secondary dark:text-secondary-dark hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
+            aria-label="Back"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+        </div>
         <p className="m-0 text-gray-600 dark:text-gray-400">Settings</p>
         <h1 className="mt-1 mb-0 text-2xl font-bold">App preferences</h1>
       </header>
