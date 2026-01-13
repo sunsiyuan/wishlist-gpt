@@ -632,7 +632,10 @@ export default function AppClient({
 
             {/* Switcher Dropdown */}
             {isSwitcherOpen && (
-              <div className="absolute top-12 left-0 bg-background-light dark:bg-background-dark-light border border-border dark:border-border-dark rounded-button shadow-lg min-w-[240px] z-30">
+              <div
+                ref={switcherRef}
+                className="absolute top-12 left-0 bg-background-light dark:bg-background-dark-light border border-border dark:border-border-dark rounded-button shadow-lg min-w-[240px] z-30"
+              >
                 {/* Me section */}
                 <div className="p-2">
                   <button
@@ -1106,23 +1109,23 @@ export default function AppClient({
                 </label>
                 <textarea
                   ref={noteInputRef}
-              value={noteDraft}
-              onChange={(event) => setNoteDraft(event.target.value)}
-              placeholder={NOTE_PLACEHOLDER}
-              rows={3}
-              className="w-full mt-2 rounded-button border border-border dark:border-border-dark p-3 text-[0.95rem] font-inherit resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:text-gray-200"
-            />
-            {isNoteDirty ? (
-              <div className="flex justify-end mt-3">
-                <button
-                  type="button"
-                  onClick={handleSaveNote}
-                  className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-4 py-1.5 font-semibold cursor-pointer text-gray-900 dark:text-gray-100 text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
-                >
-                  Save
-                </button>
-              </div>
-            ) : null}
+                  value={noteDraft}
+                  onChange={(event) => setNoteDraft(event.target.value)}
+                  placeholder={NOTE_PLACEHOLDER}
+                  rows={3}
+                  className="w-full mt-2 rounded-button border border-border dark:border-border-dark p-3 text-[0.95rem] font-inherit resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:text-gray-200"
+                />
+                {isNoteDirty ? (
+                  <div className="flex justify-end mt-3">
+                    <button
+                      type="button"
+                      onClick={handleSaveNote}
+                      className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-4 py-1.5 font-semibold cursor-pointer text-gray-900 dark:text-gray-100 text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : null}
               </>
             ) : (
               /* Read-only note display in Following view */
