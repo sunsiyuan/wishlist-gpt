@@ -636,7 +636,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                     </div>
                   </div>
                   <div
-                    className="flex gap-0 mt-3"
+                    className="flex gap-2 mt-3"
                     onClick={(event) => event.stopPropagation()}
                   >
                     <button
@@ -764,7 +764,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                 </button>
               </div>
             ) : null}
-            <div className="flex gap-0 mt-4">
+            <div className="flex gap-2 mt-4">
               <button
                 type="button"
                 onClick={(event) => {
