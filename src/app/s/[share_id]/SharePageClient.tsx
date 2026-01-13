@@ -131,7 +131,16 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
                             />
                           </div>
                         ) : null}
-                        <h2 className="text-base font-semibold m-0 truncate">{title}</h2>
+                        <h2
+                          className="text-base font-medium m-0 leading-snug overflow-hidden"
+                          style={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                          }}
+                        >
+                          {title}
+                        </h2>
                       </div>
                       {showPriceRow ? (
                         <div className="mt-1.5 text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
