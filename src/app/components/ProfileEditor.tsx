@@ -46,11 +46,11 @@ export default function ProfileEditor({
   const router = useRouter();
   const isOnboarding = mode === "onboarding";
 
-  // If nickname is "Me" or empty, use empty string for settings; onboarding uses "Me" as default
+  // If nickname is "Nickname" or empty, use empty string for settings; onboarding uses "Nickname" as default
   const defaultNickname =
     isOnboarding
-      ? initialNickname || "Me"
-      : initialNickname && initialNickname !== "Me"
+      ? initialNickname || "Nickname"
+      : initialNickname && initialNickname !== "Nickname"
         ? initialNickname
         : "";
   const defaultAvatar = initialAvatarName || "default";
@@ -165,7 +165,7 @@ export default function ProfileEditor({
     }
 
     // Skip still saves default values
-    const defaultNickname = "Me";
+    const defaultNickname = "Nickname";
     const defaultAvatar = displayAvatars[0] || "default";
 
     setIsSaving(true);
@@ -250,7 +250,7 @@ export default function ProfileEditor({
               }}
             />
           </div>
-          {currentNickname && currentNickname !== "Me" && (
+          {currentNickname && currentNickname !== "Nickname" && (
             <p className="text-base font-medium text-gray-900 dark:text-gray-100 m-0">
               {currentNickname}
             </p>
@@ -274,7 +274,7 @@ export default function ProfileEditor({
               type="text"
               value={nickname}
               onChange={(event) => setNickname(event.target.value)}
-              placeholder={isOnboarding ? "Me" : "Nickname"}
+              placeholder="Nickname"
               maxLength={50}
               className="px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200"
             />

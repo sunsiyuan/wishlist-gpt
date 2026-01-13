@@ -34,7 +34,7 @@ export default async function ProfileOnboardingPage({ searchParams }: ProfileOnb
         Choose a nickname and avatar to personalize your wishlist.
       </p>
       <ProfileOnboardingClient
-        initialNickname={profile?.nickname ?? "Me"}
+        initialNickname={profile?.nickname ?? "Nickname"}
         initialAvatarName={profile?.avatar_name ?? ""}
         nextPath={nextPath}
       />
