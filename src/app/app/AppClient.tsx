@@ -7,7 +7,6 @@ import {
   BarsArrowUpIcon,
   BarsArrowDownIcon,
   ShareIcon,
-  QuestionMarkCircleIcon,
   SparklesIcon,
   ChevronDownIcon,
   UserIcon,
@@ -63,7 +62,6 @@ type ShareState = {
   isRevoked: boolean;
 };
 
-const PRICE_TOOLTIP = "Price may change";
 const RETURN_URL_FALLBACK = "https://chatgpt.com";
 const SCROLL_THRESHOLD = 16;
 const TOAST_DURATION_MS = 4000;
@@ -982,12 +980,8 @@ export default function AppClient({
                             </h2>
                           </div>
                           {showPriceRow ? (
-                            <div className="mt-1.5 text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                            <div className="mt-1.5 text-gray-600 dark:text-gray-400">
                               <span>{priceText}</span>
-                              <QuestionMarkCircleIcon
-                                title={PRICE_TOOLTIP}
-                                className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500"
-                              />
                             </div>
                           ) : null}
                         </div>
@@ -1109,12 +1103,8 @@ export default function AppClient({
                   <h2 className="m-0 text-lg font-semibold">{getCardTitle(activeItem)}</h2>
                 </div>
                 {shouldShowPriceRow(activeItem) && activePriceText ? (
-                  <div className="mt-1.5 text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                  <div className="mt-1.5 text-gray-600 dark:text-gray-400">
                     <span>{activePriceText}</span>
-                    <QuestionMarkCircleIcon
-                      title={PRICE_TOOLTIP}
-                      className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500"
-                    />
                   </div>
                 ) : null}
               </div>

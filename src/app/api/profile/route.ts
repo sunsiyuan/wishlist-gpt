@@ -67,7 +67,7 @@ async function handleProfileUpdate(request: NextRequest) {
       preferred_currency: DEFAULT_PROFILE_CONTEXT.preferred_currency,
       accepted_at: now,
       policy_version: POLICY_VERSION,
-      nickname: "Me",
+      nickname: "Nickname",
       avatar_name: "default",
     };
 

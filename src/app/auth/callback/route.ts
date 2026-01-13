@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         preferred_currency: DEFAULT_PROFILE_CONTEXT.preferred_currency,
         accepted_at: now,
         policy_version: POLICY_VERSION,
-        nickname: "Me", // Default nickname (will be updated in onboarding)
+        nickname: "Nickname", // Default nickname (will be updated in onboarding)
         avatar_name: "default", // Default avatar (will be updated in onboarding)
       };
 

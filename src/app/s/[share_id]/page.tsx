@@ -43,14 +43,54 @@ export default async function SharePage({ params }: SharePageProps) {
   const { data: claimsData } = await supabase.auth.getClaims();
   const currentUserId = claimsData?.claims?.sub;
 
-  // Check if current user is already following this list
+  // Check if current user is the owner
+  const isOwner = currentUserId === share.user_id;
+
+  // Get current list ref for this share
+  const { createListRef } = await import("../../../server/follows/store");
+  const currentListRef = createListRef(share.user_id);
+
+  // Get user profile and follows if logged in
+  let userProfile: { nickname: string; avatar_name: string } | null = null;
+  let follows: Array<{ list_ref: string; owner: { nickname: string; avatar_name: string } }> = [];
+  let followingCount = 0;
   let isFollowing = false;
+
   if (currentUserId) {
-    const { createListRef } = await import("../../../server/follows/store");
-    const listRef = createListRef(share.user_id);
-    const supabaseClient = await createSupabaseServerClient();
-    const { checkFollow } = await import("../../../server/follows/store");
-    isFollowing = await checkFollow(supabaseClient, currentUserId, listRef);
+    const { getProfileForUser } = await import("../../../server/profiles/store");
+    const profile = await getProfileForUser(supabase, currentUserId);
+    if (profile) {
+      userProfile = {
+        nickname: profile.nickname,
+        avatar_name: profile.avatar_name,
+      };
+    }
+
+    const { getFollowsForUser, checkFollow } = await import("../../../server/follows/store");
+    follows = await getFollowsForUser(supabase, currentUserId);
+    followingCount = follows.length;
+
+    // Check if current user is already following this list
+    isFollowing = await checkFollow(supabase, currentUserId, currentListRef);
+
+    return (
+      <>
+        <ShareViewTracker shareId={shareId} />
+        <SharePageClient
+          items={items}
+          shareId={shareId}
+          locale={locale}
+          ownerProfile={ownerProfile}
+          isLoggedIn={true}
+          isFollowing={isFollowing}
+          isOwner={isOwner}
+          userProfile={userProfile}
+          follows={follows}
+          followingCount={followingCount}
+          currentListRef={currentListRef}
+        />
+      </>
+    );
   }
 
   return (
@@ -61,8 +101,13 @@ export default async function SharePage({ params }: SharePageProps) {
         shareId={shareId}
         locale={locale}
         ownerProfile={ownerProfile}
-        isLoggedIn={!!currentUserId}
-        isFollowing={isFollowing}
+        isLoggedIn={false}
+        isFollowing={false}
+        isOwner={false}
+        userProfile={null}
+        follows={[]}
+        followingCount={0}
+        currentListRef={currentListRef}
       />
     </>
   );
