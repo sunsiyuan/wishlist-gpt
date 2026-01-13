@@ -56,9 +56,9 @@ export async function POST(request: NextRequest) {
         share_id: body.share_id,
         client_id: null,
         meta: {
+          ...requestMeta,
           list_ref: follow.list_ref,
           share_id: body.share_id,
-          request_id: requestMeta.request_id,
         },
       });
     });
@@ -120,8 +120,8 @@ export async function DELETE(request: NextRequest) {
         share_id: null,
         client_id: null,
         meta: {
+          ...requestMeta,
           list_ref: body.list_ref,
-          request_id: requestMeta.request_id,
         },
       });
     });
