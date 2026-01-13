@@ -88,6 +88,21 @@ export default function ProfileOnboardingClient({
         return;
       }
 
+      // Track onboarding completion
+      fetch("/api/track/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_name: "web.profile.onboarding_complete",
+          meta: {
+            has_skipped: false,
+            request_id: crypto.randomUUID(),
+          },
+        }),
+      }).catch(() => {
+        // Best effort, ignore errors
+      });
+
       router.replace(nextPath);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -121,6 +136,21 @@ export default function ProfileOnboardingClient({
         setIsSaving(false);
         return;
       }
+
+      // Track onboarding completion (skipped)
+      fetch("/api/track/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_name: "web.profile.onboarding_complete",
+          meta: {
+            has_skipped: true,
+            request_id: crypto.randomUUID(),
+          },
+        }),
+      }).catch(() => {
+        // Best effort, ignore errors
+      });
 
       router.replace(nextPath);
     } catch (error) {

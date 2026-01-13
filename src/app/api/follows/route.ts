@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { getSupabaseUserId } from "../../../server/auth/supabase";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { getFollowsForUser, createFollow, deleteFollow } from "../../../server/follows/store";
+import { trackBestEffort } from "../../../server/tracking/trackBestEffort";
+import { getRequestMeta } from "../../../server/tracking/requestMeta";
 
 function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ ok: false, error: { code, message } }, { status });
@@ -40,8 +43,26 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = await createSupabaseServerClient();
+  const requestMeta = getRequestMeta(request.headers);
+  
   try {
     const follow = await createFollow(supabase, userId, body.share_id);
+    
+    // Track follow event (best effort, non-blocking)
+    after(async () => {
+      trackBestEffort({
+        event_name: "web.follow.create",
+        user_id: userId,
+        share_id: body.share_id,
+        client_id: null,
+        meta: {
+          list_ref: follow.list_ref,
+          share_id: body.share_id,
+          request_id: requestMeta.request_id,
+        },
+      });
+    });
+    
     return NextResponse.json({
       ok: true,
       list_ref: follow.list_ref,
@@ -86,8 +107,25 @@ export async function DELETE(request: NextRequest) {
   }
 
   const supabase = await createSupabaseServerClient();
+  const requestMeta = getRequestMeta(request.headers);
+  
   try {
     await deleteFollow(supabase, userId, body.list_ref);
+    
+    // Track unfollow event (best effort, non-blocking)
+    after(async () => {
+      trackBestEffort({
+        event_name: "web.follow.delete",
+        user_id: userId,
+        share_id: null,
+        client_id: null,
+        meta: {
+          list_ref: body.list_ref,
+          request_id: requestMeta.request_id,
+        },
+      });
+    });
+    
     return NextResponse.json({ ok: true });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "unknown_error";
