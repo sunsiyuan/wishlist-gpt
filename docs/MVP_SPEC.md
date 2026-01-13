@@ -539,7 +539,7 @@ EN: (mirrors CN; see detailed UI spec below.)
   - else `Untitled item`
 - Price row:
   - render only when price exists (`display_price_text` or (`display_price_amount_minor` + `display_currency`))
-  - otherwise omit the whole row (and omit `?` tooltip)
+  - **不显示价格问号图标**（UI 简化，v0.9+）
 - Personal note preview:
   - if present: show 1–2 lines
   - else show secondary placeholder `Add a note…`
@@ -880,14 +880,24 @@ EN:
 
 #### 5.4 `/s/:share_id` → 登录/关注 → `/app` 衔接
 CN：
-* 未登录：显示主 CTA `Sign in to follow this list`。
-* 登录后回到 share 页：显示 `Follow this list`。
+* Header 布局：登录后显示选择器 UI（与 `/app` 对齐），包含 Me 和 Following 列表；未登录显示简单 header。
+* 未登录：底部悬浮 CTA 显示 `Sign In`；点击跳转到登录页。
+* 登录后未 follow：底部悬浮 CTA 显示 `Follow`（带 UserPlusIcon）；点击后 follow 并跳转到 `/app`。
+* 已 follow 或 isOwner：不显示底部悬浮 CTA。
 * Follow 成功后跳转到 `/app`，并默认选中该 owner 的 list（用户不会迷路）。
+* 选择器列表：不包含当前 share 页面（除非已 follow），切换后无法通过选择器返回（只能通过链接）。
+* 移除 "This list is read-only." 副标题（UI 简化）。
+* Header 右侧：登录后显示 Settings 按钮；已 follow 时显示 "Following ✓" 状态。
 
 EN:
-* Logged-out: show `Sign in to follow this list`.
-* After login returning to share page: show `Follow this list`.
-* On success, deep-link to `/app` with the owner selected by default.
+* Header layout: logged-in shows switcher UI (aligned with `/app`) with Me and Following sections; logged-out shows simple header.
+* Logged-out: bottom floating CTA shows `Sign In`; click redirects to login.
+* Logged-in not following: bottom floating CTA shows `Follow` (with UserPlusIcon); click follows and redirects to `/app`.
+* Already following or isOwner: no bottom floating CTA.
+* On follow success, deep-link to `/app` with the owner selected by default.
+* Switcher list: excludes current share page (unless following); switching away requires link to return.
+* Removed "This list is read-only." subtitle (UI simplification).
+* Header right: logged-in shows Settings button; shows "Following ✓" when following.
 
 ### 6) Sharing semantics for followers / 分享语义（影响 follower 访问，Locked）
 CN：
@@ -928,6 +938,7 @@ EN:
 
 ### 3) UI/UX details (Locked)
 - Button layout: "View on website" (primary) and "Buy/Gift with AI" (secondary) on same row for cards
+- Button spacing: `flex gap-2` (aligned across all pages, v0.9+)
 - Early access badge: small label in top-right corner of button (iOS-style)
 - Modal description: "Buy with AI / Gift with AI is coming soon. Join the waitlist to be notified when it's available."
 - Button click events: use `event.stopPropagation()` to prevent card click triggering
@@ -944,8 +955,21 @@ EN:
   - `request_id`: string (UUID, client-generated)
 - Daily metrics: query `web.ai.waitlist_join` events, group by `intent` and `surface`
 
-### 5) Acceptance criteria
-- All 4 locations show correct button ("Buy with AI" for owner, "Gift with AI" for share)
+### 5) Button text logic (Locked)
+CN：
+- `/app` 查看自己的 list：显示 "Buy with AI"
+- `/app` 查看 followed list：显示 "Gift with AI"
+- `/s/:share_id` 查看自己的 share（isOwner=true）：显示 "Buy with AI"
+- `/s/:share_id` 查看别人的 share（isOwner=false）：显示 "Gift with AI"
+
+EN:
+- `/app` viewing own list: "Buy with AI"
+- `/app` viewing followed list: "Gift with AI"
+- `/s/:share_id` viewing own share (isOwner=true): "Buy with AI"
+- `/s/:share_id` viewing others' share (isOwner=false): "Gift with AI"
+
+### 6) Acceptance criteria
+- All 4 locations show correct button based on context (see §5)
 - Clicking button opens Early Access Modal
 - Modal "Join waitlist & continue on website" button:
   - Tracks event `web.ai.waitlist_join` with correct meta fields
