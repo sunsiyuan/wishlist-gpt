@@ -1,7 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { QuestionMarkCircleIcon, SparklesIcon } from "@heroicons/react/24/outline";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  SparklesIcon,
+  UserPlusIcon,
+  ChevronDownIcon,
+  Cog6ToothIcon,
+} from "@heroicons/react/24/outline";
 import type { PublicShareItem } from "../../../server/shares";
 import {
   getCardTitle,
@@ -18,12 +24,26 @@ import ShareItemSheet from "./ShareItemSheet";
 import ShareFeedbackEntry from "./ShareFeedbackEntry";
 import EarlyAccessModal from "../../components/EarlyAccessModal";
 
-const PRICE_TOOLTIP = "Price may change";
+type FollowWithOwner = {
+  list_ref: string;
+  owner: {
+    nickname: string;
+    avatar_name: string;
+  };
+};
 
 type SharePageClientProps = {
   items: PublicShareItem[];
   shareId: string;
   locale: string;
+  ownerProfile: { nickname: string; avatar_name: string } | null;
+  isLoggedIn: boolean;
+  isFollowing: boolean;
+  isOwner: boolean;
+  userProfile: { nickname: string; avatar_name: string } | null;
+  follows: FollowWithOwner[];
+  followingCount: number;
+  currentListRef: string | null;
 };
 
 function openSourceUrl(url: string) {
@@ -38,13 +58,46 @@ function openSourceUrl(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-export default function SharePageClient({ items, shareId, locale }: SharePageClientProps) {
+export default function SharePageClient({
+  items,
+  shareId,
+  locale,
+  ownerProfile,
+  isLoggedIn,
+  isFollowing: initialIsFollowing,
+  isOwner,
+  userProfile,
+  follows,
+  followingCount,
+  currentListRef,
+}: SharePageClientProps) {
+  const router = useRouter();
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
   const [earlyAccessModalProps, setEarlyAccessModalProps] = useState<{
     sourceUrl: string | null;
     itemId: string;
   } | null>(null);
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [isFollowingLoading, setIsFollowingLoading] = useState(false);
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+  const switcherRef = useRef<HTMLDivElement | null>(null);
+
+  // Close switcher when clicking outside
+  useEffect(() => {
+    if (!isSwitcherOpen) {
+      return;
+    }
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (switcherRef.current?.contains(target)) {
+        return;
+      }
+      setIsSwitcherOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isSwitcherOpen]);
 
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeItemId) ?? null,
@@ -65,11 +118,204 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
     setEarlyAccessModalProps(null);
   };
 
+  const handleFollow = async () => {
+    if (!isLoggedIn) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/login?next=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+
+    if (isFollowing) {
+      return; // Already following
+    }
+
+    setIsFollowingLoading(true);
+    try {
+      const response = await fetch("/api/follows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ share_id: shareId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsFollowing(true);
+        // Deep-link to /app with the followed list
+        const listRef = data.list_ref;
+        router.push(`/app?list_ref=${encodeURIComponent(listRef)}`);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error?.message || "Could not follow this list. Please try again.");
+      }
+    } catch (error) {
+      alert("Could not follow this list. Please try again.");
+    } finally {
+      setIsFollowingLoading(false);
+    }
+  };
+
+  // Filter follows - exclude current share from switcher list
+  // User is viewing it via share link, so don't show it in switcher
+  const filteredFollows = currentListRef
+    ? follows.filter((f) => f.list_ref !== currentListRef)
+    : follows;
+
   return (
     <main className="min-h-screen bg-background dark:bg-background-dark text-gray-900 dark:text-gray-100 py-8 px-5 pb-12">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold mb-1">Shared Wishlist</h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">This list is read-only.</p>
+        <header className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2 relative">
+            {/* List Owner Switcher - only show if logged in */}
+            {isLoggedIn ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsSwitcherOpen((prev) => !prev)}
+                  className="flex items-center gap-2 border-none bg-transparent cursor-pointer hover:opacity-80 transition-opacity duration-200"
+                >
+                  {ownerProfile ? (
+                    <>
+                      <img
+                        src={`https://tapback.co/api/avatar/${ownerProfile.avatar_name}.webp`}
+                        alt={ownerProfile.nickname}
+                        className="w-8 h-8 rounded-full"
+                        onError={(event) => {
+                          const target = event.currentTarget;
+                          target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect fill='%23ddd' width='32' height='32'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='16'%3E" +
+                            (ownerProfile.nickname.charAt(0).toUpperCase() || "?") +
+                            "%3C/text%3E%3C/svg%3E";
+                        }}
+                      />
+                      <span className="text-lg font-semibold">{ownerProfile.nickname}</span>
+                    </>
+                  ) : (
+                    <span className="text-lg font-semibold">WishlistGPT</span>
+                  )}
+                  {followingCount > 0 && (
+                    <ChevronDownIcon className="w-4 h-4 text-secondary dark:text-secondary-dark" />
+                  )}
+                </button>
+
+                {/* Switcher Dropdown */}
+                {isSwitcherOpen && (
+                  <div
+                    ref={switcherRef}
+                    className="absolute top-12 left-0 bg-background-light dark:bg-background-dark-light border border-border dark:border-border-dark rounded-button shadow-lg min-w-[240px] z-30"
+                  >
+                    {/* Me section */}
+                    <div className="p-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.push("/app");
+                          setIsSwitcherOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-button text-left hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                      >
+                        {userProfile && (
+                          <>
+                            <img
+                              src={`https://tapback.co/api/avatar/${userProfile.avatar_name}.webp`}
+                              alt={userProfile.nickname}
+                              className="w-6 h-6 rounded-full"
+                              onError={(event) => {
+                                const target = event.currentTarget;
+                                target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect fill='%23ddd' width='24' height='24'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='12'%3E" +
+                                  (userProfile.nickname.charAt(0).toUpperCase() || "?") +
+                                  "%3C/text%3E%3C/svg%3E";
+                              }}
+                            />
+                            <span className="text-sm font-medium">{userProfile.nickname}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Following section */}
+                    {followingCount > 0 && (
+                      <>
+                        <div className="border-t border-border dark:border-border-dark my-1" />
+                        <div className="p-2">
+                          <div className="px-3 py-1 text-xs text-secondary dark:text-secondary-dark font-medium">
+                            Following
+                          </div>
+                          {filteredFollows.length === 0 ? (
+                            <div className="px-3 py-2 text-sm text-secondary dark:text-secondary-dark">
+                              No lists followed yet
+                            </div>
+                          ) : (
+                            filteredFollows.map((follow) => (
+                              <button
+                                key={follow.list_ref}
+                                type="button"
+                                onClick={() => {
+                                  router.push(`/app?list_ref=${encodeURIComponent(follow.list_ref)}`);
+                                  setIsSwitcherOpen(false);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-button text-left hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                              >
+                                <img
+                                  src={`https://tapback.co/api/avatar/${follow.owner.avatar_name}.webp`}
+                                  alt={follow.owner.nickname}
+                                  className="w-6 h-6 rounded-full"
+                                  onError={(event) => {
+                                    const target = event.currentTarget;
+                                    target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect fill='%23ddd' width='24' height='24'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='12'%3E" +
+                                      (follow.owner.nickname.charAt(0).toUpperCase() || "?") +
+                                      "%3C/text%3E%3C/svg%3E";
+                                  }}
+                                />
+                                <span className="text-sm font-medium">{follow.owner.nickname}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              // Not logged in - show simple header
+              <div className="flex items-center gap-2">
+                {ownerProfile && (
+                  <img
+                    src={`https://tapback.co/api/avatar/${ownerProfile.avatar_name}.webp`}
+                    alt={ownerProfile.nickname}
+                    className="w-8 h-8 rounded-full"
+                    onError={(event) => {
+                      const target = event.currentTarget;
+                      target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect fill='%23ddd' width='32' height='32'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='16'%3E" +
+                        (ownerProfile.nickname.charAt(0).toUpperCase() || "?") +
+                        "%3C/text%3E%3C/svg%3E";
+                    }}
+                  />
+                )}
+                <span className="text-lg font-semibold">
+                  {ownerProfile ? ownerProfile.nickname : "WishlistGPT"}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Header right button: Following status or Settings */}
+            {isLoggedIn && isFollowing && !isOwner ? (
+              <div className="text-sm text-secondary dark:text-secondary-dark">Following ✓</div>
+            ) : null}
+            {isLoggedIn && (
+              <a
+                href={`/app/settings?next=${encodeURIComponent(
+                  typeof window !== "undefined" ? window.location.pathname : "/s/" + shareId,
+                )}`}
+                aria-label="Settings"
+                className="no-underline text-secondary dark:text-secondary-dark text-lg hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
+              >
+                <Cog6ToothIcon className="w-5 h-5" />
+              </a>
+            )}
+          </div>
+        </header>
         {items.length === 0 ? (
           <p className="text-secondary dark:text-secondary-dark">No items yet.</p>
         ) : (
@@ -143,12 +389,8 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
                         </h2>
                       </div>
                       {showPriceRow ? (
-                        <div className="mt-1.5 text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                        <div className="mt-1.5 text-gray-600 dark:text-gray-400">
                           <span>{priceText}</span>
-                          <QuestionMarkCircleIcon
-                            title={PRICE_TOOLTIP}
-                            className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500"
-                          />
                         </div>
                       ) : null}
                       <p
@@ -160,40 +402,43 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
                       >
                         {notePreview.text}
                       </p>
-                      <div className="flex gap-0 mt-3" onClick={(event) => event.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (sourceUrl) {
-                              openSourceUrl(sourceUrl);
-                            }
-                          }}
-                          className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm ${
-                            sourceUrl
-                              ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark"
-                              : "cursor-not-allowed opacity-60"
-                          } transition-colors duration-200`}
-                          disabled={!sourceUrl}
-                        >
-                          View on website
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
-                          }}
-                          className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
-                        >
-                          Gift with AI
-                          <SparklesIcon
-                            className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
-                            title="Early access"
-                          />
-                        </button>
-                      </div>
                     </div>
+                  </div>
+                  <div
+                    className="flex gap-2 mt-3"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (sourceUrl) {
+                          openSourceUrl(sourceUrl);
+                        }
+                      }}
+                      className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap ${
+                        sourceUrl
+                          ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark"
+                          : "cursor-not-allowed opacity-60"
+                      } transition-colors duration-200`}
+                      disabled={!sourceUrl}
+                    >
+                      View on website
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
+                      }}
+                      className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                    >
+                      {isOwner ? "Buy with AI" : "Gift with AI"}
+                      <SparklesIcon
+                        className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
+                        title="Early access"
+                      />
+                    </button>
                   </div>
                 </article>
               );
@@ -210,6 +455,7 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
           onClose={() => setActiveItemId(null)}
           shareId={shareId}
           locale={locale}
+          isOwner={isOwner}
           onOpenEarlyAccessModal={handleOpenEarlyAccessModal}
         />
       ) : null}
@@ -221,10 +467,36 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
           sourceUrl={earlyAccessModalProps.sourceUrl}
           context="share"
           surface={activeItemId !== null ? "sheet" : "card"}
-          intent="gift"
+          intent={isOwner ? "buy" : "gift"}
           itemId={earlyAccessModalProps.itemId}
         />
       ) : null}
+
+      {/* Bottom floating CTA button */}
+      {(!isLoggedIn || (!isFollowing && !isOwner)) && (
+        <button
+          type="button"
+          onClick={() => {
+            if (!isLoggedIn) {
+              const currentPath = window.location.pathname + window.location.search;
+              router.push(`/login?next=${encodeURIComponent(currentPath)}`);
+            } else {
+              handleFollow();
+            }
+          }}
+          disabled={isFollowingLoading}
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 min-w-[200px] px-8 py-3 bg-primary text-white font-semibold rounded-button hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200 shadow-toast dark:shadow-toast-dark z-[60] flex items-center justify-center gap-2"
+        >
+          {!isLoggedIn ? (
+            "Sign In"
+          ) : (
+            <>
+              <UserPlusIcon className="w-4 h-4" />
+              Follow
+            </>
+          )}
+        </button>
+      )}
     </main>
   );
 }

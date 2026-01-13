@@ -7,9 +7,11 @@ import {
   BarsArrowUpIcon,
   BarsArrowDownIcon,
   ShareIcon,
-  QuestionMarkCircleIcon,
   SparklesIcon,
+  ChevronDownIcon,
+  UserIcon,
 } from "@heroicons/react/24/outline";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import FeedbackModal from "../components/FeedbackModal";
 import EarlyAccessModal from "../components/EarlyAccessModal";
 import {
@@ -43,6 +45,8 @@ export type AppItem = {
 type AppClientProps = {
   items: AppItem[];
   locale: string;
+  userProfile: { nickname: string; avatar_name: string } | null;
+  initialListRef: string | null;
 };
 
 type ToastState = {
@@ -58,7 +62,6 @@ type ShareState = {
   isRevoked: boolean;
 };
 
-const PRICE_TOOLTIP = "Price may change";
 const RETURN_URL_FALLBACK = "https://chatgpt.com";
 const SCROLL_THRESHOLD = 16;
 const TOAST_DURATION_MS = 4000;
@@ -193,7 +196,25 @@ function OverflowMenuPopover({
   );
 }
 
-export default function AppClient({ items: initialItems, locale }: AppClientProps) {
+type FollowWithOwner = {
+  list_ref: string;
+  owner: {
+    nickname: string;
+    avatar_name: string;
+  };
+};
+
+export default function AppClient({
+  items: initialItems,
+  locale,
+  userProfile,
+  initialListRef,
+}: AppClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const currentListRef = searchParams.get("list_ref") || initialListRef;
+
   const [items, setItems] = useState<AppItem[]>(initialItems);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -217,9 +238,118 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
   const [showReturnButton, setShowReturnButton] = useState(true);
   const lastDeletedRef = useRef<AppItem | null>(null);
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Switcher state
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+  const [follows, setFollows] = useState<FollowWithOwner[]>([]);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [currentOwner, setCurrentOwner] = useState<{ nickname: string; avatar_name: string } | null>(
+    userProfile,
+  );
+  const [isFollowingView, setIsFollowingView] = useState(currentListRef !== null);
+  const [sharingDisabled, setSharingDisabled] = useState(false);
+  const [isLoadingFollowedItems, setIsLoadingFollowedItems] = useState(false);
   const focusNoteRef = useRef(false);
   const noteInputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollStateRef = useRef({ lastY: 0, ticking: false });
+  const switcherRef = useRef<HTMLDivElement | null>(null);
+
+  // Close switcher when clicking outside
+  useEffect(() => {
+    if (!isSwitcherOpen) {
+      return;
+    }
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (switcherRef.current?.contains(target)) {
+        return;
+      }
+      setIsSwitcherOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isSwitcherOpen]);
+
+  // Load follows on mount
+  useEffect(() => {
+    fetch("/api/follows")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.following) {
+          setFollows(data.following);
+          setFollowingCount(data.following_count || 0);
+        }
+      })
+      .catch(() => {
+        // Best effort, ignore errors
+      });
+  }, []);
+
+  // Load followed list items when list_ref changes
+  useEffect(() => {
+    if (currentListRef && currentListRef.startsWith("u:")) {
+      setIsFollowingView(true);
+      setIsLoadingFollowedItems(true);
+      setSharingDisabled(false);
+
+      // Find owner info from follows
+      const follow = follows.find((f) => f.list_ref === currentListRef);
+      if (follow) {
+        setCurrentOwner(follow.owner);
+      }
+
+      // Load items
+      fetch(`/api/items?scope=followed&list_ref=${encodeURIComponent(currentListRef)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.sharing_disabled) {
+            setSharingDisabled(true);
+            setItems([]);
+            if (data.owner) {
+              setCurrentOwner(data.owner);
+            }
+          } else if (data.items) {
+            setItems(data.items);
+            setSharingDisabled(false);
+          } else {
+            setItems([]);
+          }
+        })
+        .catch(() => {
+          setItems([]);
+        })
+        .finally(() => {
+          setIsLoadingFollowedItems(false);
+        });
+    } else {
+      // Own view
+      setIsFollowingView(false);
+      setCurrentOwner(userProfile);
+      setItems(initialItems);
+      setSharingDisabled(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentListRef, follows.length, initialItems.length, userProfile?.nickname, userProfile?.avatar_name]);
+
+  // Track list switch
+  useEffect(() => {
+    if (currentListRef) {
+      fetch("/api/track/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_name: "web.app.list_switch",
+          meta: {
+            list_ref: currentListRef,
+            from: isFollowingView ? "following" : "me",
+            request_id: crypto.randomUUID(),
+          },
+        }),
+      }).catch(() => {
+        // Best effort
+      });
+    }
+  }, [currentListRef, isFollowingView]);
 
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeItemId) ?? null,
@@ -486,17 +616,181 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
     <div className="min-h-screen bg-background dark:bg-background-dark text-gray-900 dark:text-gray-100 pb-28">
       <div className="max-w-3xl mx-auto px-5 pt-6">
         <header className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold m-0">WishlistGPT</h1>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 relative">
+            {/* List Owner Switcher */}
             <button
               type="button"
-              onClick={() => setIsCheatsheetOpen(true)}
-              className="border-none bg-transparent text-secondary dark:text-secondary-dark cursor-pointer text-[0.95rem] hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
+              onClick={() => setIsSwitcherOpen((prev) => !prev)}
+              className="flex items-center gap-2 border-none bg-transparent cursor-pointer hover:opacity-80 transition-opacity duration-200"
             >
-              Cheatsheet
+              {currentOwner ? (
+                <>
+                  <img
+                    src={`https://tapback.co/api/avatar/${currentOwner.avatar_name}.webp`}
+                    alt={currentOwner.nickname}
+                    className="w-8 h-8 rounded-full"
+                    onError={(event) => {
+                      const target = event.currentTarget;
+                      target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect fill='%23ddd' width='32' height='32'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='16'%3E" +
+                        (currentOwner.nickname.charAt(0).toUpperCase() || "?") +
+                        "%3C/text%3E%3C/svg%3E";
+                    }}
+                  />
+                  <span className="text-lg font-semibold">{currentOwner.nickname}</span>
+                </>
+              ) : (
+                <span className="text-lg font-semibold">WishlistGPT</span>
+              )}
+              {followingCount > 0 && (
+                <ChevronDownIcon className="w-4 h-4 text-secondary dark:text-secondary-dark" />
+              )}
             </button>
+
+            {/* Switcher Dropdown */}
+            {isSwitcherOpen && (
+              <div
+                ref={switcherRef}
+                className="absolute top-12 left-0 bg-background-light dark:bg-background-dark-light border border-border dark:border-border-dark rounded-button shadow-lg min-w-[240px] z-30"
+              >
+                {/* Me section */}
+                <div className="p-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      router.push("/app");
+                      setIsSwitcherOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-button text-left ${
+                      !isFollowingView
+                        ? "bg-primary/10 dark:bg-primary-dark/10"
+                        : "hover:bg-gray-50 dark:hover:bg-background-dark"
+                    } transition-colors duration-200`}
+                  >
+                    {userProfile && (
+                      <>
+                        <img
+                          src={`https://tapback.co/api/avatar/${userProfile.avatar_name}.webp`}
+                          alt={userProfile.nickname}
+                          className="w-6 h-6 rounded-full"
+                          onError={(event) => {
+                            const target = event.currentTarget;
+                            target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect fill='%23ddd' width='24' height='24'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='12'%3E" +
+                              (userProfile.nickname.charAt(0).toUpperCase() || "?") +
+                              "%3C/text%3E%3C/svg%3E";
+                          }}
+                        />
+                        <span className="text-sm font-medium">{userProfile.nickname}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Following section */}
+                {followingCount > 0 && (
+                  <>
+                    <div className="border-t border-border dark:border-border-dark my-1" />
+                    <div className="p-2">
+                      <div className="px-3 py-1 text-xs text-secondary dark:text-secondary-dark font-medium">
+                        Following
+                      </div>
+                      {follows.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-secondary dark:text-secondary-dark">
+                          No lists followed yet
+                        </div>
+                      ) : (
+                        follows.map((follow) => (
+                          <button
+                            key={follow.list_ref}
+                            type="button"
+                            onClick={() => {
+                              router.push(`/app?list_ref=${encodeURIComponent(follow.list_ref)}`);
+                              setIsSwitcherOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-button text-left ${
+                              currentListRef === follow.list_ref
+                                ? "bg-primary/10 dark:bg-primary-dark/10"
+                                : "hover:bg-gray-50 dark:hover:bg-background-dark"
+                            } transition-colors duration-200`}
+                          >
+                            <img
+                              src={`https://tapback.co/api/avatar/${follow.owner.avatar_name}.webp`}
+                              alt={follow.owner.nickname}
+                              className="w-6 h-6 rounded-full"
+                              onError={(event) => {
+                                const target = event.currentTarget;
+                                target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect fill='%23ddd' width='24' height='24'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='12'%3E" +
+                                  (follow.owner.nickname.charAt(0).toUpperCase() || "?") +
+                                  "%3C/text%3E%3C/svg%3E";
+                              }}
+                            />
+                            <span className="text-sm font-medium">{follow.owner.nickname}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Header right button: Cheatsheet (Me) or Unfollow (Following) */}
+            {isFollowingView ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!currentListRef) return;
+                  if (
+                    !confirm(
+                      "Unfollow this list?\n\nYou'll stop seeing updates from this list. You can follow it again later if the owner shares it.",
+                    )
+                  ) {
+                    return;
+                  }
+
+                  try {
+                    const response = await fetch("/api/follows", {
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ list_ref: currentListRef }),
+                    });
+
+                    if (response.ok) {
+                      // Update follows list
+                      const newFollows = follows.filter((f) => f.list_ref !== currentListRef);
+                      setFollows(newFollows);
+                      setFollowingCount(newFollows.length);
+                      // Switch back to Me
+                      router.push("/app");
+                    } else {
+                      setToast({
+                        message: "Could not unfollow. Please try again.",
+                        tone: "error",
+                      });
+                    }
+                  } catch {
+                    setToast({
+                      message: "Could not unfollow. Please try again.",
+                      tone: "error",
+                    });
+                  }
+                }}
+                className="border-none bg-transparent text-secondary dark:text-secondary-dark cursor-pointer text-[0.95rem] hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
+              >
+                Following ✓
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsCheatsheetOpen(true)}
+                className="border-none bg-transparent text-secondary dark:text-secondary-dark cursor-pointer text-[0.95rem] hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
+              >
+                Cheatsheet
+              </button>
+            )}
             <a
-              href="/app/settings"
+              href={`/app/settings?next=${encodeURIComponent(pathname + (searchParams.toString() ? `?${searchParams.toString()}` : ""))}`}
               aria-label="Settings"
               className="no-underline text-secondary dark:text-secondary-dark text-lg hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
             >
@@ -504,14 +798,78 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
             </a>
           </div>
         </header>
-        <section className="flex justify-between items-center mb-5">
-          <button
-            type="button"
-            onClick={() => setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))}
-            className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-3.5 py-1.5 cursor-pointer text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200 flex items-center gap-1.5"
-          >
-            {sortOrder === "desc" ? (
-              <>
+        {/* Sharing disabled status page */}
+        {sharingDisabled && currentOwner ? (
+          <div className="max-w-md mx-auto mt-12 text-center">
+            <div className="mb-4">
+              <img
+                src={`https://tapback.co/api/avatar/${currentOwner.avatar_name}.webp`}
+                alt={currentOwner.nickname}
+                className="w-16 h-16 rounded-full mx-auto mb-4"
+                onError={(event) => {
+                  const target = event.currentTarget;
+                  target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect fill='%23ddd' width='64' height='64'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='24'%3E" +
+                    (currentOwner.nickname.charAt(0).toUpperCase() || "?") +
+                    "%3C/text%3E%3C/svg%3E";
+                }}
+              />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Owner has made it private</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              This list is no longer shared. Ask the owner to re-share if you'd like to see it again.
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!currentListRef) return;
+                if (
+                  !confirm(
+                    "Unfollow this list?\n\nYou'll stop seeing updates from this list. You can follow it again later if the owner shares it.",
+                  )
+                ) {
+                  return;
+                }
+
+                try {
+                  const response = await fetch("/api/follows", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ list_ref: currentListRef }),
+                  });
+
+                  if (response.ok) {
+                    const newFollows = follows.filter((f) => f.list_ref !== currentListRef);
+                    setFollows(newFollows);
+                    setFollowingCount(newFollows.length);
+                    router.push("/app");
+                  } else {
+                    setToast({
+                      message: "Could not unfollow. Please try again.",
+                      tone: "error",
+                    });
+                  }
+                } catch {
+                  setToast({
+                    message: "Could not unfollow. Please try again.",
+                    tone: "error",
+                  });
+                }
+              }}
+              className="px-4 py-2 bg-primary text-white font-semibold rounded-pill hover:bg-primary/90 transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
+            >
+              Remove from following
+            </button>
+          </div>
+        ) : (
+          <>
+            <section className="flex justify-between items-center mb-5">
+              <button
+                type="button"
+                onClick={() => setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))}
+                className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-3.5 py-1.5 cursor-pointer text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200 flex items-center gap-1.5"
+              >
+                {sortOrder === "desc" ? (
+                  <>
                 <BarsArrowUpIcon className="w-4 h-4" />
                 Newest
               </>
@@ -522,16 +880,21 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
               </>
             )}
           </button>
-          <button
-            type="button"
-            onClick={handleOpenShare}
-            className="border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill px-5 py-2 cursor-pointer text-[0.95rem] font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200 flex items-center gap-1.5"
-          >
-            <ShareIcon className="w-4 h-4" />
-            Share
-          </button>
+          {/* Share button only shown in Me view */}
+          {!isFollowingView && (
+            <button
+              type="button"
+              onClick={handleOpenShare}
+              className="border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill px-5 py-2 cursor-pointer text-[0.95rem] font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200 flex items-center gap-1.5"
+            >
+              <ShareIcon className="w-4 h-4" />
+              Share
+            </button>
+          )}
         </section>
-        {!hasItems ? (
+          </>
+        )}
+        {!hasItems && !isLoadingFollowedItems && !sharingDisabled ? (
           <div className="text-center bg-background-light dark:bg-background-dark-light rounded-card p-10 shadow-card dark:shadow-card-dark">
             <p className="text-gray-600 dark:text-gray-400 mb-5">
               Add items in ChatGPT. Tap here for Cheatsheet.
@@ -544,7 +907,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
               Open Cheatsheet
             </button>
           </div>
-        ) : (
+        ) : !isLoadingFollowedItems && !sharingDisabled ? (
           <div className="flex flex-col gap-4">
             {sortedItems.map((item) => {
               const title = getCardTitle(item);
@@ -617,20 +980,19 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                             </h2>
                           </div>
                           {showPriceRow ? (
-                            <div className="mt-1.5 text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                            <div className="mt-1.5 text-gray-600 dark:text-gray-400">
                               <span>{priceText}</span>
-                              <QuestionMarkCircleIcon
-                                title={PRICE_TOOLTIP}
-                                className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500"
-                              />
                             </div>
                           ) : null}
                         </div>
                         <div onClick={(event) => event.stopPropagation()}>
-                          <OverflowMenuPopover
-                            onEdit={() => handleEditNote(item)}
-                            onDelete={() => handleDelete(item)}
-                          />
+                          {/* Overflow menu only shown in Me view */}
+                          {!isFollowingView && (
+                            <OverflowMenuPopover
+                              onEdit={() => handleEditNote(item)}
+                              onDelete={() => handleDelete(item)}
+                            />
+                          )}
                         </div>
                       </div>
                       <p
@@ -657,7 +1019,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                           openSourceUrl(sourceUrl);
                         }
                       }}
-                      className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm ${
+                      className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap ${
                         getSourceUrl(item)
                           ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark"
                           : "cursor-not-allowed opacity-60"
@@ -675,9 +1037,9 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                           itemId: item.id,
                         });
                       }}
-                      className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                      className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                     >
-                      Buy with AI
+                      {isFollowingView ? "Gift with AI" : "Buy with AI"}
                       <SparklesIcon
                         className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
                         title="Early access"
@@ -688,7 +1050,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
               );
             })}
           </div>
-        )}
+        ) : null}
       </div>
 
       {activeItem ? (
@@ -741,38 +1103,51 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                   <h2 className="m-0 text-lg font-semibold">{getCardTitle(activeItem)}</h2>
                 </div>
                 {shouldShowPriceRow(activeItem) && activePriceText ? (
-                  <div className="mt-1.5 text-gray-600 dark:text-gray-400 flex items-center gap-1.5">
+                  <div className="mt-1.5 text-gray-600 dark:text-gray-400">
                     <span>{activePriceText}</span>
-                    <QuestionMarkCircleIcon
-                      title={PRICE_TOOLTIP}
-                      className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500"
-                    />
                   </div>
                 ) : null}
               </div>
             </div>
-            <label className="block text-sm text-secondary dark:text-secondary-dark">
-              Personal note
-            </label>
-            <textarea
-              ref={noteInputRef}
-              value={noteDraft}
-              onChange={(event) => setNoteDraft(event.target.value)}
-              placeholder={NOTE_PLACEHOLDER}
-              rows={3}
-              className="w-full mt-2 rounded-button border border-border dark:border-border-dark p-3 text-[0.95rem] font-inherit resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:text-gray-200"
-            />
-            {isNoteDirty ? (
-              <div className="flex justify-end mt-3">
-                <button
-                  type="button"
-                  onClick={handleSaveNote}
-                  className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-4 py-1.5 font-semibold cursor-pointer text-gray-900 dark:text-gray-100 text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
-                >
-                  Save
-                </button>
-              </div>
-            ) : null}
+            {/* Note editor only shown in Me view */}
+            {!isFollowingView ? (
+              <>
+                <label className="block text-sm text-secondary dark:text-secondary-dark">
+                  Personal note
+                </label>
+                <textarea
+                  ref={noteInputRef}
+                  value={noteDraft}
+                  onChange={(event) => setNoteDraft(event.target.value)}
+                  placeholder={NOTE_PLACEHOLDER}
+                  rows={3}
+                  className="w-full mt-2 rounded-button border border-border dark:border-border-dark p-3 text-[0.95rem] font-inherit resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:text-gray-200"
+                />
+                {isNoteDirty ? (
+                  <div className="flex justify-end mt-3">
+                    <button
+                      type="button"
+                      onClick={handleSaveNote}
+                      className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-4 py-1.5 font-semibold cursor-pointer text-gray-900 dark:text-gray-100 text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              /* Read-only note display in Following view */
+              activeItem.personal_note && (
+                <div className="mt-4">
+                  <label className="block text-sm text-secondary dark:text-secondary-dark mb-2">
+                    Note
+                  </label>
+                  <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
+                    {activeItem.personal_note}
+                  </p>
+                </div>
+              )
+            )}
             <div className="flex gap-2 mt-4">
               <button
                 type="button"
@@ -782,7 +1157,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                     openSourceUrl(activeItemSourceUrl);
                   }
                 }}
-                className={`flex-1 border border-border dark:border-border-dark bg-white text-gray-900 rounded-button py-3 font-medium text-sm ${
+                className={`flex-1 border border-border dark:border-border-dark bg-white text-gray-900 rounded-button py-3 font-medium text-sm whitespace-nowrap ${
                   activeItemSourceUrl
                     ? "cursor-pointer hover:bg-gray-100"
                     : "cursor-not-allowed opacity-60"
@@ -800,18 +1175,25 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                     itemId: activeItem.id,
                   });
                 }}
-                className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
               >
-                Buy with AI
+                {isFollowingView ? "Gift with AI" : "Buy with AI"}
+                <SparklesIcon
+                  className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
+                  title="Early access"
+                />
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => handleDelete(activeItem, true)}
-              className="w-full mt-3 border-none bg-transparent text-red-600 dark:text-red-400 py-1.5 font-semibold underline cursor-pointer hover:text-red-700 dark:hover:text-red-300 transition-colors duration-200"
-            >
-              Delete
-            </button>
+            {/* Delete button only shown in Me view */}
+            {!isFollowingView && (
+              <button
+                type="button"
+                onClick={() => handleDelete(activeItem, true)}
+                className="w-full mt-3 border-none bg-transparent text-red-600 dark:text-red-400 py-1.5 font-semibold underline cursor-pointer hover:text-red-700 dark:hover:text-red-300 transition-colors duration-200"
+              >
+                Delete
+              </button>
+            )}
           </div>
         </div>
       ) : null}
@@ -919,7 +1301,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
                   onClick={handleRevoke}
                   className="flex-1 border-none bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-pill py-3 cursor-pointer font-semibold hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors duration-200"
                 >
-                  Revoke link
+                  Stop sharing
                 </button>
               </div>
             ) : (
@@ -994,7 +1376,7 @@ export default function AppClient({ items: initialItems, locale }: AppClientProp
           sourceUrl={earlyAccessModalProps.sourceUrl}
           context="owner"
           surface={activeItemId !== null ? "sheet" : "card"}
-          intent="buy"
+          intent={isFollowingView ? "gift" : "buy"}
           itemId={earlyAccessModalProps.itemId}
         />
       ) : null}

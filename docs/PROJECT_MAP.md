@@ -22,17 +22,24 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Items display hint validation / enrichment: `src/server/items/displayFields.ts`, `src/server/items/enrich.ts`
 - Shares 存储 / storage: `src/server/shares/`
 - Public share helper / 分享页查询: `src/server/shares/public.ts`
+- Profiles 存储 / storage: `src/server/profiles/store.ts`
+- Follows 存储 / storage: `src/server/follows/store.ts`, `src/server/follows/items.ts`
 - Feedback 存储 / storage: `src/server/feedback/`
 - Items note/delete/restore routes: `src/app/api/items/[id]/note/route.ts`, `src/app/api/items/[id]/delete/route.ts`, `src/app/api/items/[id]/restore/route.ts`
 - Feedback routes: `src/app/api/feedback/route.ts`, `src/app/feedback/route.ts`
 - Shares API 路由 / routes: `src/app/api/shares/route.ts`, `src/app/api/shares/rotate/route.ts`, `src/app/api/shares/[id]/revoke/route.ts`
+- Profile API 路由 / route: `src/app/api/profile/route.ts`
+- Follows API 路由 / route: `src/app/api/follows/route.ts`
 - Public share page / 分享页: `src/app/s/[share_id]/page.tsx`
 - Share view tracking route / 分享页埋点路由: `src/app/api/track/share-view/route.ts`
+- Onboarding profile page / 个人资料设置页: `src/app/onboarding/profile/page.tsx`
 - Shares migration: `supabase/migrations/004_shares.sql`
 - Events migration: `supabase/migrations/005_events.sql`
 - Items v0.3 migration: `supabase/migrations/006_items_v03.sql`
 - Item enrich runs migration: `supabase/migrations/007_item_enrich_runs.sql`
 - Feedback migration: `supabase/migrations/008_feedback.sql`
+- Profiles social migration: `supabase/migrations/011_profiles_social.sql` (v0.9)
+- Follows migration: `supabase/migrations/012_follows.sql` (v0.9)
 - Tracking helpers / 埋点 helpers: `src/server/tracking/`
 - OpenAPI 模板与生成 / template & generator:
   - `actions/openapi.template.yaml`

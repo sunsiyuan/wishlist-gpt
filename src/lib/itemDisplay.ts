@@ -55,15 +55,20 @@ export function getPriceText(item: DisplayItem, locale?: string): string | null 
   const hasAmount = item.display_price_amount_minor !== null && !!item.display_currency;
   const priceText = item.display_price_text?.trim();
   if (hasAmount) {
-    const safeLocale = locale || "en";
+    // Use locale from user's preferred_language, fallback to "en-US"
+    // Ensure locale format is correct (e.g., "en-US" not just "en")
+    const safeLocale = locale || "en-US";
     try {
       const formatter = new Intl.NumberFormat(safeLocale, {
         style: "currency",
         currency: item.display_currency ?? "",
+        // Use narrow symbol format (e.g., "$" instead of "USD")
+        currencyDisplay: "symbol",
       });
       const amount = (item.display_price_amount_minor ?? 0) / 100;
       return formatter.format(amount);
     } catch (error) {
+      // Fallback to price_text if formatting fails
       return priceText || null;
     }
   }
