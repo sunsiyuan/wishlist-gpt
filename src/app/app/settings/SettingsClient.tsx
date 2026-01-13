@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import SettingsSection from "../../../components/SettingsSection";
-import ProfileSettings from "../../../components/ProfileSettings";
-import PreferencesSettings from "../../../components/PreferencesSettings";
+import SettingsSection from "../../components/SettingsSection";
+import ProfileSettings from "../../components/ProfileSettings";
+import PreferencesSettings from "../../components/PreferencesSettings";
 import type { ProfileRecord } from "../../../lib/profile";
 
 type SettingsClientProps = {
