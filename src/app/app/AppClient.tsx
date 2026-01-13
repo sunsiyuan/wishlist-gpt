@@ -12,7 +12,7 @@ import {
   ChevronDownIcon,
   UserIcon,
 } from "@heroicons/react/24/outline";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import FeedbackModal from "../components/FeedbackModal";
 import EarlyAccessModal from "../components/EarlyAccessModal";
 import {
@@ -214,6 +214,7 @@ export default function AppClient({
 }: AppClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const currentListRef = searchParams.get("list_ref") || initialListRef;
 
   const [items, setItems] = useState<AppItem[]>(initialItems);
@@ -791,7 +792,7 @@ export default function AppClient({
               </button>
             )}
             <a
-              href="/app/settings"
+              href={`/app/settings?next=${encodeURIComponent(pathname + (searchParams.toString() ? `?${searchParams.toString()}` : ""))}`}
               aria-label="Settings"
               className="no-underline text-secondary dark:text-secondary-dark text-lg hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
             >
