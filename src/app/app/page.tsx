@@ -10,7 +10,11 @@ import AppClient from "./AppClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function AppPage() {
+type AppPageProps = {
+  searchParams?: Promise<{ list_ref?: string }>;
+};
+
+export default async function AppPage({ searchParams }: AppPageProps) {
   const supabase = await createSupabaseServerClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
@@ -22,14 +26,50 @@ export default async function AppPage() {
   const profile = await getProfileForUser(supabase, userId);
   const locale = profile?.preferred_language ?? DEFAULT_PROFILE_CONTEXT.preferred_language;
   const requestMeta = getRequestMeta(requestHeaders);
-  const items = await listItemsForUser({ userId, sort: "created_at.desc" });
-  trackBestEffort({
-    event_name: "web.app.items_list_load",
-    user_id: userId,
-    share_id: null,
-    client_id: null,
-    meta: requestMeta,
-  });
+  
+  const resolvedParams = searchParams ? await searchParams : undefined;
+  const listRef = resolvedParams?.list_ref;
 
-  return <AppClient items={items} locale={locale} />;
+  // Get user's own profile for switcher
+  const userProfile = profile
+    ? {
+        nickname: profile.nickname,
+        avatar_name: profile.avatar_name,
+      }
+    : null;
+
+  // Load items based on list_ref
+  let items: Awaited<ReturnType<typeof listItemsForUser>> = [];
+  let currentListRef: string | null = null;
+  let currentOwner: { nickname: string; avatar_name: string } | null = null;
+  let isFollowingView = false;
+  let sharingDisabled = false;
+
+  if (listRef && listRef.startsWith("u:")) {
+    // Following view - load followed list items
+    isFollowingView = true;
+    currentListRef = listRef;
+    // Items will be loaded client-side via API
+  } else {
+    // Own view - load own items
+    items = await listItemsForUser({ userId, sort: "created_at.desc" });
+    currentListRef = null;
+    currentOwner = userProfile;
+    trackBestEffort({
+      event_name: "web.app.items_list_load",
+      user_id: userId,
+      share_id: null,
+      client_id: null,
+      meta: requestMeta,
+    });
+  }
+
+  return (
+    <AppClient
+      items={items}
+      locale={locale}
+      userProfile={userProfile}
+      initialListRef={listRef ?? null}
+    />
+  );
 }

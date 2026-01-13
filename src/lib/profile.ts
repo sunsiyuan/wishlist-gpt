@@ -13,6 +13,8 @@ export type ProfileRecord = {
   preferred_currency: string;
   accepted_at: string;
   policy_version: string;
+  nickname: string;
+  avatar_name: string;
   created_at: string;
   updated_at: string;
 };
@@ -26,7 +28,9 @@ export function isProfileComplete(profile: ProfileRecord | null | undefined): bo
       profile.preferred_language &&
       profile.preferred_currency &&
       profile.accepted_at &&
-      profile.policy_version,
+      profile.policy_version &&
+      profile.nickname &&
+      profile.avatar_name,
   );
 }
 

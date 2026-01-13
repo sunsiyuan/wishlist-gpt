@@ -41,6 +41,74 @@ export async function GET(request: NextRequest) {
   if (auth.error) {
     return auth.error;
   }
+
+  const { searchParams } = new URL(request.url);
+  const scope = searchParams.get("scope");
+  const listRef = searchParams.get("list_ref");
+
+  // Handle followed list scope
+  if (scope === "followed" && listRef) {
+    try {
+      const { listItemsForFollowedList, checkSharingEnabled } = await import(
+        "../../../server/follows/items"
+      );
+      const items = await listItemsForFollowedList({
+        followerUserId: auth.userId,
+        listRef,
+      });
+
+      // Check if sharing is enabled
+      const sharingEnabled = await checkSharingEnabled(listRef);
+      if (!sharingEnabled) {
+        // Return sharing disabled status
+        const { parseListRef } = await import("../../../server/follows/store");
+        const parsed = parseListRef(listRef);
+        if (parsed) {
+          const { getProfileForUserAdmin } = await import("../../../server/profiles/store");
+          const ownerProfile = await getProfileForUserAdmin(parsed.ownerUserId);
+          if (ownerProfile) {
+            return NextResponse.json({
+              sharing_disabled: true,
+              owner: {
+                nickname: ownerProfile.nickname,
+                avatar_name: ownerProfile.avatar_name,
+              },
+            });
+          }
+        }
+        return jsonError(403, "sharing_disabled", "This list is no longer shared");
+      }
+
+      // Return items (same format as share page - non-PII, read-only)
+      return NextResponse.json({
+        items: items.map((item) => ({
+          id: item.id,
+          url_original: item.url_original,
+          source_url: item.url_original, // For share page compatibility
+          personal_note: item.personal_note,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          display_cover_image_url: item.display_cover_image_url,
+          display_product_title: item.display_product_title,
+          display_merchant_logo_url: item.display_merchant_logo_url,
+          display_merchant_domain: item.display_merchant_domain,
+          display_price_amount_minor: item.display_price_amount_minor,
+          display_currency: item.display_currency,
+          display_price_text: item.display_price_text,
+          display_price_updated_at: item.display_price_updated_at,
+        })),
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "unknown_error";
+      if (errorMessage === "not_following" || errorMessage.includes("follow")) {
+        return jsonError(403, "not_following", "You are not following this list");
+      }
+      console.error("[items] followed list failed", { error: errorMessage });
+      return jsonError(500, "items_list_failed", "Failed to list items");
+    }
+  }
+
+  // Default: return user's own items
   try {
     const items = await listItemsForUser({ userId: auth.userId });
     return NextResponse.json({

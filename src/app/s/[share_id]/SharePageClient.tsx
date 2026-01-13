@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { QuestionMarkCircleIcon, SparklesIcon } from "@heroicons/react/24/outline";
+import { useRouter } from "next/navigation";
+import { QuestionMarkCircleIcon, SparklesIcon, UserPlusIcon } from "@heroicons/react/24/outline";
 import type { PublicShareItem } from "../../../server/shares";
 import {
   getCardTitle,
@@ -24,6 +25,9 @@ type SharePageClientProps = {
   items: PublicShareItem[];
   shareId: string;
   locale: string;
+  ownerProfile: { nickname: string; avatar_name: string } | null;
+  isLoggedIn: boolean;
+  isFollowing: boolean;
 };
 
 function openSourceUrl(url: string) {
@@ -38,13 +42,23 @@ function openSourceUrl(url: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-export default function SharePageClient({ items, shareId, locale }: SharePageClientProps) {
+export default function SharePageClient({
+  items,
+  shareId,
+  locale,
+  ownerProfile,
+  isLoggedIn,
+  isFollowing: initialIsFollowing,
+}: SharePageClientProps) {
+  const router = useRouter();
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
   const [earlyAccessModalProps, setEarlyAccessModalProps] = useState<{
     sourceUrl: string | null;
     itemId: string;
   } | null>(null);
+  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
+  const [isFollowingLoading, setIsFollowingLoading] = useState(false);
 
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeItemId) ?? null,
@@ -65,11 +79,85 @@ export default function SharePageClient({ items, shareId, locale }: SharePageCli
     setEarlyAccessModalProps(null);
   };
 
+  const handleFollow = async () => {
+    if (!isLoggedIn) {
+      const currentPath = window.location.pathname + window.location.search;
+      router.push(`/login?next=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+
+    if (isFollowing) {
+      return; // Already following
+    }
+
+    setIsFollowingLoading(true);
+    try {
+      const response = await fetch("/api/follows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ share_id: shareId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsFollowing(true);
+        // Deep-link to /app with the followed list
+        const listRef = data.list_ref;
+        router.push(`/app?list_ref=${encodeURIComponent(listRef)}`);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error?.message || "Could not follow this list. Please try again.");
+      }
+    } catch (error) {
+      alert("Could not follow this list. Please try again.");
+    } finally {
+      setIsFollowingLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-background dark:bg-background-dark text-gray-900 dark:text-gray-100 py-8 px-5 pb-12">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold mb-1">Shared Wishlist</h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">This list is read-only.</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              {ownerProfile && (
+                <img
+                  src={`https://tapback.co/api/avatar/${ownerProfile.avatar_name}.webp`}
+                  alt={ownerProfile.nickname}
+                  className="w-6 h-6 rounded-full"
+                  onError={(event) => {
+                    const target = event.currentTarget;
+                    target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect fill='%23ddd' width='24' height='24'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='12'%3E" +
+                      (ownerProfile.nickname.charAt(0).toUpperCase() || "?") +
+                      "%3C/text%3E%3C/svg%3E";
+                  }}
+                />
+              )}
+              <h1 className="text-2xl font-bold m-0">
+                {ownerProfile ? `${ownerProfile.nickname}'s Wishlist` : "Shared Wishlist"}
+              </h1>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400">This list is read-only.</p>
+          </div>
+          {/* Follow button - only show if not already following */}
+          {!isFollowing && (
+            <button
+              type="button"
+              onClick={handleFollow}
+              disabled={isFollowingLoading}
+              className="flex items-center gap-2 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-4 py-2 cursor-pointer text-sm font-semibold hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <UserPlusIcon className="w-4 h-4" />
+              {isLoggedIn ? "Follow this list" : "Sign in to follow this list"}
+            </button>
+          )}
+          {isFollowing && (
+            <div className="text-sm text-secondary dark:text-secondary-dark">
+              Following ✓
+            </div>
+          )}
+        </div>
         {items.length === 0 ? (
           <p className="text-secondary dark:text-secondary-dark">No items yet.</p>
         ) : (

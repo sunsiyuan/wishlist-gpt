@@ -1,120 +1,91 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseRequestClient } from "../../../lib/supabase/server";
-import {
-  POLICY_VERSION,
-  normalizeCountryCode,
-  normalizeCurrencyCode,
-  normalizeLanguage,
-  type ProfileRecord,
-} from "../../../lib/profile";
+import { getSupabaseUserId } from "../../../server/auth/supabase";
+import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { getProfileForUser } from "../../../server/profiles/store";
 
-function isValidCountryCode(value: string): boolean {
-  return /^[A-Z]{2}$/.test(value);
-}
-
-function isValidCurrencyCode(value: string): boolean {
-  return /^[A-Z]{3}$/.test(value);
+function jsonError(status: number, code: string, message: string) {
+  return NextResponse.json({ ok: false, error: { code, message } }, { status });
 }
 
 export async function GET(request: NextRequest) {
-  const supabase = createSupabaseRequestClient(request);
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims?.sub;
+  const userId = await getSupabaseUserId(request);
   if (!userId) {
-    return NextResponse.json({ error: "missing session" }, { status: 401 });
+    return jsonError(401, "unauthorized", "Supabase session required");
   }
+
+  const supabase = await createSupabaseServerClient();
+  const profile = await getProfileForUser(supabase, userId);
+
+  if (!profile) {
+    return jsonError(404, "profile_not_found", "Profile not found");
+  }
+
+  return NextResponse.json({
+    nickname: profile.nickname,
+    avatar_name: profile.avatar_name,
+  });
+}
+
+export async function PATCH(request: NextRequest) {
+  const userId = await getSupabaseUserId(request);
+  if (!userId) {
+    return jsonError(401, "unauthorized", "Supabase session required");
+  }
+
+  let body: { nickname?: string; avatar_name?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError(400, "invalid_json", "Invalid JSON body");
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const updates: { nickname?: string; avatar_name?: string; updated_at?: string } = {};
+
+  // Validate and update nickname
+  if (body.nickname !== undefined) {
+    const trimmed = body.nickname.trim();
+    if (trimmed.length === 0) {
+      return jsonError(400, "invalid_nickname", "Nickname cannot be empty");
+    }
+    if (trimmed.length > 50) {
+      return jsonError(400, "invalid_nickname", "Nickname must be 50 characters or less");
+    }
+    updates.nickname = trimmed;
+  }
+
+  // Validate and update avatar_name
+  if (body.avatar_name !== undefined) {
+    const trimmed = body.avatar_name.trim();
+    if (trimmed.length === 0) {
+      return jsonError(400, "invalid_avatar_name", "Avatar name cannot be empty");
+    }
+    updates.avatar_name = trimmed;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return jsonError(400, "no_updates", "No valid fields to update");
+  }
+
+  updates.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
     .from("profiles")
-    .select(
-      "user_id,country_code,preferred_language,preferred_currency,accepted_at,policy_version,created_at,updated_at",
-    )
+    .update(updates)
     .eq("user_id", userId)
-    .maybeSingle();
+    .select("nickname, avatar_name, updated_at")
+    .single();
 
   if (error) {
-    return NextResponse.json({ error: "failed to load profile" }, { status: 500 });
+    console.error("[profile] update failed", { user_id: userId, error: error.message });
+    return jsonError(500, "update_failed", "Failed to update profile");
   }
 
-  return NextResponse.json(
-    { profile: (data ?? null) as ProfileRecord | null },
-    {
-      headers: {
-        "Cache-Control": "no-store",
-      },
+  return NextResponse.json({
+    ok: true,
+    profile: {
+      nickname: data.nickname,
+      avatar_name: data.avatar_name,
     },
-  );
-}
-
-export async function POST(request: NextRequest) {
-  const supabase = createSupabaseRequestClient(request);
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims?.sub;
-  if (!userId) {
-    return NextResponse.json({ error: "missing session" }, { status: 401 });
-  }
-
-  let payload: {
-    country_code?: string;
-    preferred_language?: string;
-    preferred_currency?: string;
-  };
-
-  try {
-    payload = (await request.json()) as {
-      country_code?: string;
-      preferred_language?: string;
-      preferred_currency?: string;
-    };
-  } catch {
-    return NextResponse.json({ error: "invalid json" }, { status: 400 });
-  }
-
-  const countryCode = normalizeCountryCode(payload.country_code ?? "");
-  const preferredLanguage = normalizeLanguage(payload.preferred_language ?? "");
-  const preferredCurrency = normalizeCurrencyCode(payload.preferred_currency ?? "");
-
-  if (!countryCode || !preferredLanguage || !preferredCurrency) {
-    return NextResponse.json({ error: "missing fields" }, { status: 400 });
-  }
-
-  if (!isValidCountryCode(countryCode)) {
-    return NextResponse.json({ error: "invalid country_code" }, { status: 400 });
-  }
-
-  if (!isValidCurrencyCode(preferredCurrency)) {
-    return NextResponse.json({ error: "invalid preferred_currency" }, { status: 400 });
-  }
-
-  const existingProfile = await getProfileForUser(supabase, userId);
-  const acceptedAt = existingProfile?.accepted_at ?? new Date().toISOString();
-  const policyVersion = existingProfile?.policy_version ?? POLICY_VERSION;
-  const now = new Date().toISOString();
-
-  const { error } = await supabase.from("profiles").upsert(
-    {
-      user_id: userId,
-      country_code: countryCode,
-      preferred_language: preferredLanguage,
-      preferred_currency: preferredCurrency,
-      accepted_at: acceptedAt,
-      policy_version: policyVersion,
-      updated_at: now,
-    },
-    { onConflict: "user_id" },
-  );
-
-  if (error) {
-    return NextResponse.json({ error: "failed to save profile" }, { status: 500 });
-  }
-
-  return NextResponse.json(
-    { ok: true },
-    {
-      headers: {
-        "Cache-Control": "no-store",
-      },
-    },
-  );
+  });
 }
