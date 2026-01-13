@@ -1,7 +1,7 @@
-import ProfileForm from "../../components/ProfileForm";
-import DarkModeToggle from "../../components/DarkModeToggle";
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { getProfileForUser } from "../../../server/profiles/store";
+import SettingsClient from "./SettingsClient";
 
 export const dynamic = "force-dynamic";
 
@@ -10,22 +10,11 @@ export default async function SettingsPage() {
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
 
-  const profile = userId ? await getProfileForUser(supabase, userId) : null;
+  if (!userId) {
+    redirect("/login");
+  }
 
-  return (
-    <main className="max-w-xl mx-auto my-8 px-6">
-      <header className="mb-6">
-        <p className="m-0 text-gray-600 dark:text-gray-400">Settings</p>
-        <h1 className="mt-1 mb-0 text-2xl font-bold">App preferences</h1>
-      </header>
-      <div className="space-y-4">
-        <DarkModeToggle />
-        <ProfileForm
-          initialValues={profile ?? undefined}
-          submitLabel="Save settings"
-          successRedirect="/app"
-        />
-      </div>
-    </main>
-  );
+  const profile = await getProfileForUser(supabase, userId);
+
+  return <SettingsClient profile={profile} />;
 }
