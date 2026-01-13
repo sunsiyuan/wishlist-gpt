@@ -40,6 +40,13 @@ export async function PATCH(request: NextRequest) {
   }
 
   const supabase = await createSupabaseServerClient();
+  
+  // Check if profile exists first
+  const existingProfile = await getProfileForUser(supabase, userId);
+  if (!existingProfile) {
+    return jsonError(404, "profile_not_found", "Profile not found. Please complete initial setup first.");
+  }
+
   const updates: { nickname?: string; avatar_name?: string; updated_at?: string } = {};
 
   // Validate and update nickname
@@ -67,6 +74,7 @@ export async function PATCH(request: NextRequest) {
     return jsonError(400, "no_updates", "No valid fields to update");
   }
 
+  // Let database handle updated_at via default, or explicitly set it
   updates.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
