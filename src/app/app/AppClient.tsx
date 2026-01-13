@@ -253,6 +253,23 @@ export default function AppClient({
   const focusNoteRef = useRef(false);
   const noteInputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollStateRef = useRef({ lastY: 0, ticking: false });
+  const switcherRef = useRef<HTMLDivElement | null>(null);
+
+  // Close switcher when clicking outside
+  useEffect(() => {
+    if (!isSwitcherOpen) {
+      return;
+    }
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (switcherRef.current?.contains(target)) {
+        return;
+      }
+      setIsSwitcherOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isSwitcherOpen]);
 
   // Load follows on mount
   useEffect(() => {
