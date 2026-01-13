@@ -21,9 +21,8 @@ export default async function SharePage({ params }: SharePageProps) {
   }
 
   const requestHeaders = await headers();
-  const supabase = await createSupabaseServerClient();
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const currentUserId = claimsData?.claims?.sub;
+  const acceptLanguage = requestHeaders.get("accept-language");
+  const defaultLocale = acceptLanguage?.split(",")[0]?.trim() || "en-US";
 
   const items = await getPublicShareItems(shareId);
   if (!items) {
@@ -39,6 +38,11 @@ export default async function SharePage({ params }: SharePageProps) {
   // Get owner profile for display
   const ownerProfile = await getProfileForUserAdmin(share.user_id);
 
+  // Check if current user is logged in
+  const supabase = await createSupabaseServerClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const currentUserId = claimsData?.claims?.sub;
+
   // Check if current user is the owner
   const isOwner = currentUserId === share.user_id;
 
@@ -51,20 +55,19 @@ export default async function SharePage({ params }: SharePageProps) {
   let follows: Array<{ list_ref: string; owner: { nickname: string; avatar_name: string } }> = [];
   let followingCount = 0;
   let isFollowing = false;
-  let locale = "en-US"; // Default
 
+  // Get locale: use user's preferred_language if logged in, otherwise use accept-language
+  let locale = defaultLocale;
   if (currentUserId) {
     const { getProfileForUser } = await import("../../../server/profiles/store");
+    const { DEFAULT_PROFILE_CONTEXT } = await import("../../../lib/profile");
     const profile = await getProfileForUser(supabase, currentUserId);
     if (profile) {
       userProfile = {
         nickname: profile.nickname,
         avatar_name: profile.avatar_name,
       };
-      // Use user's preferred_language for locale
-      if (profile.preferred_language) {
-        locale = profile.preferred_language;
-      }
+      locale = profile.preferred_language ?? DEFAULT_PROFILE_CONTEXT.preferred_language;
     }
 
     const { getFollowsForUser, checkFollow } = await import("../../../server/follows/store");
@@ -73,13 +76,7 @@ export default async function SharePage({ params }: SharePageProps) {
 
     // Check if current user is already following this list
     isFollowing = await checkFollow(supabase, currentUserId, currentListRef);
-  } else {
-    // Not logged in: use accept-language header
-    const acceptLanguage = requestHeaders.get("accept-language");
-    locale = acceptLanguage?.split(",")[0]?.trim() || "en-US";
-  }
 
-  if (currentUserId) {
     return (
       <>
         <ShareViewTracker shareId={shareId} />
