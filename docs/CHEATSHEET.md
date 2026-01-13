@@ -209,11 +209,55 @@ curl -X POST "<BASE_URL>/api/shares/rotate" \
   -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 curl -X POST "<BASE_URL>/api/shares/<SHARE_ID>/revoke" \
   -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
-curl -X POST "<BASE_URL>/api/shares" \
+```
+
+### 1.5.1 Profile & Follows（v0.9）/ Profile & Follows (v0.9)
+
+CN：
+
+1. 获取当前用户的 profile：`GET /api/profile` → `{ nickname, avatar_name }`
+2. 更新 profile：`PATCH /api/profile` body `{ nickname?, avatar_name? }`
+3. 获取所有 follows：`GET /api/follows` → `{ following_count, following: [{ list_ref, owner: { nickname, avatar_name } }] }`
+4. Follow 一个 list：`POST /api/follows` body `{ share_id }` → `{ ok: true, list_ref, owner: { nickname, avatar_name } }`
+5. Unfollow：`DELETE /api/follows` body `{ list_ref }` → `{ ok: true }`
+6. 获取 followed list 的 items：`GET /api/items?scope=followed&list_ref=u:<owner_user_id>`
+
+```bash
+# Get profile
+curl -X GET "<BASE_URL>/api/profile" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+
+# Update profile
+curl -X PATCH "<BASE_URL>/api/profile" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>" \
+  -H "Content-Type: application/json" \
+  -d '{"nickname": "My Name", "avatar_name": "cat"}'
+
+# Get follows
+curl -X GET "<BASE_URL>/api/follows" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
+
+# Follow a list (need share_id from /api/shares)
+curl -X POST "<BASE_URL>/api/follows" \
+  -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>" \
+  -H "Content-Type: application/json" \
+  -d '{"share_id": "<SHARE_ID>"}'
+
+# Get followed list items
+curl -X GET "<BASE_URL>/api/items?scope=followed&list_ref=u:<OWNER_USER_ID>" \
   -H "Cookie: sb-<project-ref>-auth-token=<AUTH>; sb-<project-ref>-refresh-token=<REFRESH>"
 ```
 
-### 1.5.1 Share page 手动验收 / Share page manual validation
+EN:
+
+1. Get current user's profile: `GET /api/profile` → `{ nickname, avatar_name }`
+2. Update profile: `PATCH /api/profile` body `{ nickname?, avatar_name? }`
+3. Get all follows: `GET /api/follows` → `{ following_count, following: [...] }`
+4. Follow a list: `POST /api/follows` body `{ share_id }` → `{ ok: true, list_ref, owner: {...} }`
+5. Unfollow: `DELETE /api/follows` body `{ list_ref }` → `{ ok: true }`
+6. Get followed list items: `GET /api/items?scope=followed&list_ref=u:<owner_user_id>`
+
+### 1.5.2 Share page 手动验收 / Share page manual validation
 
 CN：
 
