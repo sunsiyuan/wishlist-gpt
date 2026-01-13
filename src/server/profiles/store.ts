@@ -11,6 +11,8 @@ const PROFILE_SELECT = [
   "preferred_currency",
   "accepted_at",
   "policy_version",
+  "nickname",
+  "avatar_name",
   "created_at",
   "updated_at",
 ].join(",");
