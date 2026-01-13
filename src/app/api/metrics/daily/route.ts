@@ -164,6 +164,20 @@ async function queryEventsMetrics(): Promise<{
     },
   };
 
+  // Follow 创建数 (v0.9)
+  const followCreatesRes = await supabaseAdminFetch(
+    `/rest/v1/events?event_name=eq.web.follow.create&occurred_at=gte.${todayStart}&select=id`,
+    { method: "GET" },
+  );
+  const followCreates = followCreatesRes.ok ? (await followCreatesRes.json()).length : 0;
+
+  // Follow 取消数 (v0.9)
+  const followDeletesRes = await supabaseAdminFetch(
+    `/rest/v1/events?event_name=eq.web.follow.delete&occurred_at=gte.${todayStart}&select=id`,
+    { method: "GET" },
+  );
+  const followDeletes = followDeletesRes.ok ? (await followDeletesRes.json()).length : 0;
+
   return {
     newUsers,
     newUsersGoogle,
