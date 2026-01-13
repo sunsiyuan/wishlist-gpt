@@ -1174,8 +1174,6 @@ export default function AppClient({
             </div>
             {/* Delete button only shown in Me view */}
             {!isFollowingView && (
-            {/* Delete button only shown in Me view */}
-            {!isFollowingView && (
               <button
                 type="button"
                 onClick={() => handleDelete(activeItem, true)}
@@ -1183,7 +1181,6 @@ export default function AppClient({
               >
                 Delete
               </button>
-            )}
             )}
           </div>
         </div>
