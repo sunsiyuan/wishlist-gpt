@@ -55,16 +55,50 @@ export function getPriceText(item: DisplayItem, locale?: string): string | null 
   const hasAmount = item.display_price_amount_minor !== null && !!item.display_currency;
   const priceText = item.display_price_text?.trim();
   if (hasAmount) {
-    const safeLocale = locale || "en";
+    // Use locale from user's preferred_language, default to en-US for proper currency formatting
+    const safeLocale = locale || "en-US";
     try {
       const formatter = new Intl.NumberFormat(safeLocale, {
         style: "currency",
         currency: item.display_currency ?? "",
+        // Ensure currency symbol is used instead of currency code
+        currencyDisplay: "symbol",
       });
       const amount = (item.display_price_amount_minor ?? 0) / 100;
       return formatter.format(amount);
     } catch (error) {
-      return priceText || null;
+      // If formatting fails, try to format with a fallback locale
+      try {
+        const fallbackFormatter = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: item.display_currency ?? "",
+          currencyDisplay: "symbol",
+        });
+        const amount = (item.display_price_amount_minor ?? 0) / 100;
+        return fallbackFormatter.format(amount);
+      } catch (fallbackError) {
+        // Last resort: return priceText if it exists, otherwise format manually
+        if (priceText) {
+          return priceText;
+        }
+        // Manual fallback: format as "CURRENCY amount"
+        const amount = (item.display_price_amount_minor ?? 0) / 100;
+        const currency = item.display_currency ?? "";
+        // Try to get currency symbol from a known mapping
+        const currencySymbols: Record<string, string> = {
+          USD: "$",
+          EUR: "€",
+          GBP: "£",
+          JPY: "¥",
+          CNY: "¥",
+          SGD: "S$",
+          HKD: "HK$",
+          AUD: "A$",
+          CAD: "C$",
+        };
+        const symbol = currencySymbols[currency.toUpperCase()] || currency;
+        return `${symbol}${amount.toFixed(2)}`;
+      }
     }
   }
   return priceText || null;
