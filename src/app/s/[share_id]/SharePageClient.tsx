@@ -140,7 +140,7 @@ export default function SharePageClient({
             </div>
             <p className="text-gray-600 dark:text-gray-400">This list is read-only.</p>
           </div>
-          {/* Follow button */}
+          {/* Follow button - only show if not already following */}
           {!isFollowing && (
             <button
               type="button"
@@ -151,6 +151,11 @@ export default function SharePageClient({
               <UserPlusIcon className="w-4 h-4" />
               {isLoggedIn ? "Follow this list" : "Sign in to follow this list"}
             </button>
+          )}
+          {isFollowing && (
+            <div className="text-sm text-secondary dark:text-secondary-dark">
+              Following ✓
+            </div>
           )}
         </div>
         {items.length === 0 ? (
