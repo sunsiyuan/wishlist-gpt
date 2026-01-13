@@ -312,7 +312,8 @@ export default function AppClient({
       setItems(initialItems);
       setSharingDisabled(false);
     }
-  }, [currentListRef, follows, initialItems, userProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentListRef, follows.length, initialItems.length, userProfile?.nickname, userProfile?.avatar_name]);
 
   // Track list switch
   useEffect(() => {
@@ -872,7 +873,9 @@ export default function AppClient({
             </button>
           )}
         </section>
-        {!hasItems ? (
+          </>
+        )}
+        {!hasItems && !isLoadingFollowedItems && !sharingDisabled ? (
           <div className="text-center bg-background-light dark:bg-background-dark-light rounded-card p-10 shadow-card dark:shadow-card-dark">
             <p className="text-gray-600 dark:text-gray-400 mb-5">
               Add items in ChatGPT. Tap here for Cheatsheet.
@@ -885,7 +888,7 @@ export default function AppClient({
               Open Cheatsheet
             </button>
           </div>
-        ) : (
+        ) : !isLoadingFollowedItems && !sharingDisabled ? (
           <div className="flex flex-col gap-4">
             {sortedItems.map((item) => {
               const title = getCardTitle(item);
@@ -1032,7 +1035,7 @@ export default function AppClient({
               );
             })}
           </div>
-        )}
+        ) : null}
       </div>
 
       {activeItem ? (
