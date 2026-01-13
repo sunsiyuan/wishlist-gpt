@@ -77,8 +77,22 @@ export async function PATCH(request: NextRequest) {
     .single();
 
   if (error) {
-    console.error("[profile] update failed", { user_id: userId, error: error.message });
-    return jsonError(500, "update_failed", "Failed to update profile");
+    console.error("[profile] update failed", {
+      user_id: userId,
+      error: error.message,
+      error_code: error.code,
+      error_details: error.details,
+      error_hint: error.hint,
+      updates,
+    });
+    // Return more specific error message
+    if (error.code === "42501") {
+      return jsonError(403, "permission_denied", "You don't have permission to update this profile");
+    }
+    if (error.code === "23505") {
+      return jsonError(409, "conflict", "Profile update conflict. Please try again.");
+    }
+    return jsonError(500, "update_failed", `Failed to update profile: ${error.message}`);
   }
 
   return NextResponse.json({
