@@ -214,6 +214,7 @@ export default function AppClient({
 }: AppClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const currentListRef = searchParams.get("list_ref") || initialListRef;
 
   const [items, setItems] = useState<AppItem[]>(initialItems);
