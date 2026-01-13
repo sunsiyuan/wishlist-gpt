@@ -133,9 +133,9 @@ export default function ShareItemSheet({
                 openSourceUrl(sourceUrl);
               }
             }}
-            className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm ${
+            className={`flex-1 border border-border dark:border-border-dark bg-white text-gray-900 rounded-button py-3 font-medium text-sm whitespace-nowrap ${
               sourceUrl
-                ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark"
+                ? "cursor-pointer hover:bg-gray-100"
                 : "cursor-not-allowed opacity-60"
             } transition-colors duration-200`}
             disabled={!sourceUrl}
@@ -148,7 +148,7 @@ export default function ShareItemSheet({
               event.stopPropagation();
               onOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
             }}
-            className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+            className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
           >
             {isOwner ? "Buy with AI" : "Gift with AI"}
           </button>
