@@ -59,6 +59,26 @@ EN:
 - Share button opens the Share Sheet (copy link, system Share when available, revoke/regenerate).
 - v0.3 is light-theme only.
 
+### 1.2.7 v0.9 Profile & Follow 功能 / Profile & Follow features (v0.9)
+
+CN：
+- 新用户登录后，如果 profile 不完整（无 nickname 或无 avatar_name），会自动跳转到 `/onboarding/profile`。
+- Onboarding 页面：设置昵称（默认 "Me"）和头像（Tapback，5 个随机，可 "Try 5 more"）。
+- 允许 Skip，但系统会自动保存默认值。
+- `/app` 左上角显示当前 list owner 的头像+昵称，可切换查看自己的 list 或 followed lists。
+- Share 页（`/s/:share_id`）登录后可 Follow，Follow 成功后跳转到 `/app?list_ref=u:<owner_user_id>`。
+- Followed list 是只读的（隐藏编辑/删除按钮）。
+- 如果 owner stop sharing，followed list 会显示 "Owner has made it private" 状态页。
+
+EN:
+- New users are redirected to `/onboarding/profile` if profile is incomplete (missing nickname or avatar_name).
+- Onboarding page: set nickname (default "Me") and avatar (Tapback, 5 random, "Try 5 more" available).
+- Skip is allowed, but system auto-saves default values.
+- `/app` top-left shows current list owner (avatar+nickname), can switch between own list and followed lists.
+- Share page (`/s/:share_id`) allows Follow after login, redirects to `/app?list_ref=u:<owner_user_id>` on success.
+- Followed lists are read-only (edit/delete buttons hidden).
+- If owner stops sharing, followed list shows "Owner has made it private" status page.
+
 ### 1.2.6 v0.5 反馈入口 / Feedback entrypoints (v0.5)
 
 CN：

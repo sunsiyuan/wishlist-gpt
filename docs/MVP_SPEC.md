@@ -739,6 +739,181 @@ EN:
 CN：v0.8 在 4 个位置（App Item Card/Sheet、Share Item Card/Sheet）添加 "Buy with AI" / "Gift with AI" 按钮，使用统一的 Early Access Modal 收集 waitlist，并加入每日监控指标。  
 EN: v0.8 adds "Buy with AI" / "Gift with AI" buttons in 4 locations (App Item Card/Sheet, Share Item Card/Sheet), uses unified Early Access Modal for waitlist collection, and includes daily metrics tracking.
 
+---
+
+## v0.9_SPEC (Social boost: Profile + Follow + List Switcher)
+
+### 0) 一句话结论 / One-line summary
+CN：v0.9 在保持"单用户单 wishlist（items 挂 user_id）"不变的前提下，引入**对外 Profile（nickname+avatar）**、Share 页登录后 **Follow list**、以及 `/app` 左上角的 **List Owner Switcher**（Me / Following），并定义 **Stop sharing vs Rotate link** 对 follower 访问的清晰语义。  
+EN: v0.9 keeps the "single wishlist per user (items scoped to user_id)" model, while adding **public-facing Profile (nickname+avatar)**, **Follow-from-share** after login, and an `/app` top-left **List Owner Switcher** (Me / Following), with clear **Stop sharing vs Rotate link** semantics for follower access.
+
+### 1) Goals / 目标
+CN：
+* 为每个用户提供可对外展示的基础信息：`nickname` + `avatar`（用于 `/app` header 与 `/s/:share_id`）。
+* Share 页支持登录后 Follow：未登录提示 `Sign in to follow this list`；登录后可 `Follow this list`。
+* `/app` 用**左上角切换器**替代 tab：显示"当前正在看的 list owner"的头像+昵称；下拉包含 `Me` 与 `Following`（含副标题）。
+* Followed list 只读，展示字段与 share 页一致（不额外泄露信息）。
+* 分享控制语义定型：
+  * **Stop sharing**：旧链接 404；followers 失去访问；/app 显示该 list private/unavailable。
+  * **Rotate link**：旧 share_id 404，新 share_id 可访问；**不影响 followers 访问**（sharing 仍开启）。
+* 引入 `list_ref` 作为"list 语义主体"以避免未来沟通漂移（不等同于多 list）。
+
+EN:
+* Public-facing user basics: `nickname` + `avatar` for `/app` header and `/s/:share_id`.
+* Follow from share page after login (`Sign in to follow this list` → `Follow this list`).
+* Replace tabs with a top-left **switcher** showing the current list owner (avatar+nickname), with `Me` + `Following` sections (with subtitle).
+* Followed lists are read-only and match the share page field allowlist.
+* Sharing controls: Stop sharing removes access (including followers); Rotate invalidates old link but keeps follower access.
+* Introduce `list_ref` as the semantic list identifier (without introducing multi-list UX).
+
+### 2) Non-goals / 非目标
+CN：
+* 不做多 list 创建/管理（仍然单 list，items 按 user 聚合）。
+* 不做头像上传、不依赖 OAuth 外链头像；只用内置方案（Tapback）。
+* 不在 switcher 下拉里做取消关注（交互过重）；取消关注在被关注 list 详情页完成。
+* 不做通知、评论、点赞、动态等重社交能力。
+
+EN:
+* No multi-list creation/management (still one list per user).
+* No avatar upload; no reliance on OAuth avatar URLs; Tapback-only.
+* No unfollow inside the switcher dropdown; unfollow happens on the followed list page.
+* No notifications/comments/likes/activity feed.
+
+### 3) Data model additions / 数据模型增量（Locked）
+
+#### 3.1 `profiles`
+CN：每用户一行；用于对外展示（non-PII）。  
+EN: One row per user; public-facing (non-PII).
+
+Fields (minimum):
+* `user_id` uuid (pk)
+* `nickname` text not null
+* `avatar_name` text not null
+* `created_at`, `updated_at`
+
+#### 3.2 `follows`
+CN：关注关系以 `list_ref` 表达"关注的是 list"。  
+EN: Follow relationship targets a list via `list_ref`.
+
+Fields (minimum):
+* `follower_user_id` uuid
+* `list_ref` text
+* `created_at` timestamptz
+* Constraint: unique `(follower_user_id, list_ref)`
+
+#### 3.3 `list_ref` 规范（必须写入文档，防漂移）/ list_ref convention (Locked)
+CN：
+* v0.9 仅支持默认 list：`list_ref = "u:<owner_user_id>"`。
+* 保留前缀扩展：未来实体 list 可使用 `l:<list_id>`（v0.9 不实现）。
+* Public surfaces（如 `/s/:share_id`）不得输出 `list_ref`、`user_id`、email。
+
+EN:
+* v0.9 supports only the default list: `list_ref = "u:<owner_user_id>"`.
+* Reserve `l:<list_id>` for future multi-list (not in v0.9).
+* Public surfaces must not expose `list_ref`, `user_id`, or email.
+
+### 4) Web APIs（cookie session）/ Web APIs (cookie session)
+
+#### 4.1 Profile
+* `GET /api/profile` → `{ nickname, avatar_name }`
+* `PATCH /api/profile` body `{ nickname?, avatar_name? }` → `{ ok: true, profile: ... }`
+
+CN：校验（Locked）：nickname 非空（trim 后 1..50）；avatar_name 非空。  
+EN: Validation (Locked): nickname must be non-empty after trim (1..50); avatar_name required.
+
+#### 4.2 Follows
+* `GET /api/follows` → `{ following_count, following: [{ list_ref, owner: { nickname, avatar_name } }] }`
+* `POST /api/follows` body `{ share_id }` → `{ ok: true, list_ref, owner: { nickname, avatar_name } }`
+* `DELETE /api/follows` body `{ list_ref }` → `{ ok: true }`
+
+CN：follow 必须幂等（重复 follow 不报错，仍返回 ok）。  
+EN: Follow must be idempotent (repeated follow returns ok).
+
+#### 4.3 Followed list items（只读）/ Followed list items (read-only)
+* `GET /api/items?scope=followed&list_ref=...`
+
+CN：必须校验当前用户确实 follow 该 list_ref。如果 owner 的 sharing disabled，返回 `{ sharing_disabled: true, owner: { nickname, avatar_name } }`。  
+EN: Must verify the caller follows the list_ref. If sharing disabled, return `{ sharing_disabled: true, owner: { nickname, avatar_name } }`.
+
+### 5) UX Contract / 页面与交互契约（Locked）
+
+#### 5.1 `/onboarding/profile`（软必填）/ Soft-required onboarding
+CN：
+* 若用户 profile 未完成（无 nickname 或无 avatar_name），登录后进入 `/onboarding/profile?next=...`。
+* 默认昵称：`Me`（用户可改；允许 Skip，但系统必须落一个可用昵称）。
+* 头像选择：每次展示 **5 个随机头像**；按钮 `Try 5 more` 可再随机 5 个；用户选 1 个后保存。
+* 头像来源：Tapback；保存的是 `avatar_name`（字符串），不保存 URL。
+* Skip 行为：允许跳过，但必须自动生成并保存一个 `avatar_name`。
+
+EN:
+* If profile is incomplete (missing nickname or avatar_name), route to `/onboarding/profile?next=...` after login.
+* Default nickname is `Me` (editable; Skip allowed but must still persist a usable nickname).
+* Avatar picker shows **5 random** options; `Try 5 more` refreshes the set; user selects one to save.
+* Tapback-backed; persist `avatar_name` only (no URL persistence).
+* Skip must still auto-generate and save `avatar_name`.
+
+#### 5.2 `/app` Header：List Owner Switcher（无 tab）
+CN：
+* 左上角永远显示：**当前正在看的 list owner** 的 `avatar + nickname`，并带一个切换 icon（swap）。
+* swap icon 显隐：**当且仅当 following_count > 0 时显示**；否则隐藏。
+* 点 header 打开下拉：
+  * Section：`Me`（仅 1 条：自己的头像+昵称）
+  * Section：`Following`（副标题；列出关注的 lists：头像+昵称）
+* 下拉只负责切换，不提供 unfollow。
+
+EN:
+* Top-left header always shows the **currently viewed list owner** (avatar+nickname) with a swap icon.
+* Swap icon is shown **only when following_count > 0**; otherwise hidden.
+* Dropdown sections: `Me` (single entry) and `Following` (subtitle + list entries).
+* Dropdown is for switching only; no unfollow actions inside.
+
+#### 5.3 Followed list 视图（只读）/ Followed list view (read-only)
+CN：
+* 当切换到 followed list：页面必须显式只读（隐藏编辑/删除按钮）。
+* 展示字段必须与 share 页 allowlist 一致（不展示额外内部信息）。
+* 取消关注入口放在该 list 的页面内（例如 `Following ✓` 按钮 → 确认后 unfollow）。
+
+EN:
+* Followed lists must be clearly read-only (hide edit/delete buttons).
+* Field allowlist must match the share page.
+* Unfollow lives on the followed list page (e.g., `Following ✓` → confirm → unfollow).
+
+#### 5.4 `/s/:share_id` → 登录/关注 → `/app` 衔接
+CN：
+* 未登录：显示主 CTA `Sign in to follow this list`。
+* 登录后回到 share 页：显示 `Follow this list`。
+* Follow 成功后跳转到 `/app`，并默认选中该 owner 的 list（用户不会迷路）。
+
+EN:
+* Logged-out: show `Sign in to follow this list`.
+* After login returning to share page: show `Follow this list`.
+* On success, deep-link to `/app` with the owner selected by default.
+
+### 6) Sharing semantics for followers / 分享语义（影响 follower 访问，Locked）
+CN：
+* **Stop sharing**：通过 revoke active share 达成；结果：
+  * share link 立即 404（沿用 §2.2.2）
+  * followers 访问也失效（/app 显示 private/unavailable 状态页）
+* **Rotate link**：旧 share_id 404，新 share_id 可访问；并且：
+  * **followers 不应失去访问**（sharing 仍为 enabled）
+  * 实现需避免"rotate 过程短暂无 active share"导致 follower 访问抖动（推荐事务化 rotate：revoke+create 原子化）。
+
+EN:
+* Stop sharing revokes the active share: link 404 and followers lose access.
+* Rotate invalidates the old link and issues a new one, while **keeping follower access**; implement rotate atomically to avoid transient access loss.
+
+### 7) Acceptance / 验收用例（最小集合）
+CN：
+1. 新用户登录后若无 profile：进入 onboarding；默认昵称 `Me`；可随机 5 选 1 并保存；Skip 也会落 avatar_name。
+2. `/app` header 显示我的头像+昵称；无 following 时不显示 swap icon。
+3. 打开 `/s/:share_id`：展示 owner 头像+昵称与只读 items（non-PII）。
+4. 未登录点击 `Sign in to follow` → 登录后回到 share 页 → Follow 成功跳 `/app` 且默认选中 owner；页面只读。
+5. Rotate link：旧链接 404，新链接可访问；followers 仍可在 /app 访问该 list。
+6. Stop sharing：链接 404；followers 在 /app 访问该 list 显示 private/unavailable。
+
+EN:
+(1) onboarding profile + defaults; (2) header switcher rules; (3) share page non-PII; (4) follow deep-link to `/app`; (5) rotate keeps follower access; (6) stop sharing removes follower access.
+
 ### 1) Goals
 - Add "Buy with AI" buttons in App Item Card and Item Sheet (owner context)
 - Add "Gift with AI" buttons in Share Item Card and Share Item Sheet (viewer context)
