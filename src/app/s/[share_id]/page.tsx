@@ -22,7 +22,7 @@ export default async function SharePage({ params }: SharePageProps) {
 
   const requestHeaders = await headers();
   const acceptLanguage = requestHeaders.get("accept-language");
-  const locale = acceptLanguage?.split(",")[0]?.trim() || "en";
+  const defaultLocale = acceptLanguage?.split(",")[0]?.trim() || "en-US";
 
   const items = await getPublicShareItems(shareId);
   if (!items) {
@@ -56,14 +56,18 @@ export default async function SharePage({ params }: SharePageProps) {
   let followingCount = 0;
   let isFollowing = false;
 
+  // Get locale: use user's preferred_language if logged in, otherwise use accept-language
+  let locale = defaultLocale;
   if (currentUserId) {
     const { getProfileForUser } = await import("../../../server/profiles/store");
+    const { DEFAULT_PROFILE_CONTEXT } = await import("../../../lib/profile");
     const profile = await getProfileForUser(supabase, currentUserId);
     if (profile) {
       userProfile = {
         nickname: profile.nickname,
         avatar_name: profile.avatar_name,
       };
+      locale = profile.preferred_language ?? DEFAULT_PROFILE_CONTEXT.preferred_language;
     }
 
     const { getFollowsForUser, checkFollow } = await import("../../../server/follows/store");
