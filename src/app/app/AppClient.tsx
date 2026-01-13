@@ -1019,7 +1019,7 @@ export default function AppClient({
                           openSourceUrl(sourceUrl);
                         }
                       }}
-                      className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm ${
+                      className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap ${
                         getSourceUrl(item)
                           ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark"
                           : "cursor-not-allowed opacity-60"
@@ -1037,7 +1037,7 @@ export default function AppClient({
                           itemId: item.id,
                         });
                       }}
-                      className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                      className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                     >
                       {isFollowingView ? "Gift with AI" : "Buy with AI"}
                       <SparklesIcon
@@ -1157,7 +1157,7 @@ export default function AppClient({
                     openSourceUrl(activeItemSourceUrl);
                   }
                 }}
-                className={`flex-1 border border-border dark:border-border-dark bg-white text-gray-900 rounded-button py-3 font-medium text-sm ${
+                className={`flex-1 border border-border dark:border-border-dark bg-white text-gray-900 rounded-button py-3 font-medium text-sm whitespace-nowrap ${
                   activeItemSourceUrl
                     ? "cursor-pointer hover:bg-gray-100"
                     : "cursor-not-allowed opacity-60"
@@ -1175,7 +1175,7 @@ export default function AppClient({
                     itemId: activeItem.id,
                   });
                 }}
-                className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
               >
                 {isFollowingView ? "Gift with AI" : "Buy with AI"}
               </button>
