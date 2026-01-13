@@ -81,9 +81,16 @@ export default function ProfileOnboardingClient({
       });
 
       if (!response.ok) {
-        const data = await response.json();
+        let errorMessage = "Could not save your profile. Please try again.";
+        try {
+          const data = await response.json();
+          errorMessage = data.error?.message || errorMessage;
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
         setStatusTone("error");
-        setStatusMessage(data.error?.message || "Could not save your profile. Please try again.");
+        setStatusMessage(errorMessage);
         setIsSaving(false);
         return;
       }
@@ -131,8 +138,16 @@ export default function ProfileOnboardingClient({
       });
 
       if (!response.ok) {
+        let errorMessage = "Could not save your profile. Please try again.";
+        try {
+          const data = await response.json();
+          errorMessage = data.error?.message || errorMessage;
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
         setStatusTone("error");
-        setStatusMessage("Could not save your profile. Please try again.");
+        setStatusMessage(errorMessage);
         setIsSaving(false);
         return;
       }
