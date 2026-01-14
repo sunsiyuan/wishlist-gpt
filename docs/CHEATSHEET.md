@@ -180,6 +180,31 @@ npm run smoke:shares
 npm run smoke:feedback
 ```
 
+### 1.4.1 测试 URL 清洗规则 / Test URL sanitization
+
+CN：测试 `canonical_url` 清洗逻辑（移除 tracking 参数、处理 fragment 等）：
+
+EN: Test `canonical_url` sanitization logic (removing tracking params, handling fragments, etc.):
+
+```bash
+# 测试单个或多个 URL
+node scripts/test-url-sanitize.mjs "https://example.com/product?utm_source=google&gclid=123"
+node scripts/test-url-sanitize.mjs "https://example.com/product?utm_source=google&gclid=123" "https://another.com/item?fbclid=456"
+
+# 不传参数时使用默认测试 URL
+node scripts/test-url-sanitize.mjs
+```
+
+CN：
+- 脚本会输出原始 URL 和清洗后的 URL
+- 如果清洗失败（返回 null），会显示错误信息
+- 脚本逻辑与 `src/server/items/sanitizeUrl.ts` 保持一致（需手动同步）
+
+EN:
+- Script outputs original URL and sanitized URL
+- If sanitization fails (returns null), error message is shown
+- Script logic matches `src/server/items/sanitizeUrl.ts` (manual sync required)
+
 ### 1.5 Shares（cookie session）/ Shares (cookie session)
 
 CN：
