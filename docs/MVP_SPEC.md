@@ -128,11 +128,11 @@ EN: Share is a per-user public read-only entry `/s/:share_id`, with at most one 
 ### 2.2.1 PII 边界（Locked）/ PII boundary (Locked)
 CN：
 - `/s/:share_id` 不得输出 `user_id`、email、任何鉴权/内部追踪字段。  
-- 推荐 allowlist 输出：`display_*`、`personal_note`、`source_url`。
+- 推荐 allowlist 输出：`display_*`、`personal_note`、`canonical_url`。
 
 EN:
 - `/s/:share_id` must not output `user_id`, email, or any auth/internal tracking fields.  
-- Suggested allowlist: `display_*`, `personal_note`, `source_url`.
+- Suggested allowlist: `display_*`, `personal_note`, `canonical_url`.
 
 ### 2.2.2 revoke 行为（Locked）/ Revoke semantics (Locked)
 CN：revoke 后同链接必须立即 404（与不存在一致）。  
@@ -1036,7 +1036,7 @@ Add only these columns on `items`:
 
 #### 4.1 Semantics (Locked)
 - `url_original` is stored as-is (immutable).
-- `source_url` is **fill-only**:
+- `canonical_url` is **fill-only**:
   - if null/empty → derive from `url_original` and persist
   - if already set → do not override (V1.0 has no “rebuild” feature)
 
@@ -1070,7 +1070,7 @@ Add only these columns on `items`:
 #### 4.4 Failure handling
 - If URL parsing fails → `canonical_url` remains null/empty (system issue; tracked in system health + alerts).
 
-### 5) Enrichment (based on source_url)
+### 5) Enrichment (based on canonical_url)
 
 #### 5.1 Input (Locked)
 - `enrich_target_url = canonical_url`
