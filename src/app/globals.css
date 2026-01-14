@@ -10,4 +10,8 @@
 
 @layer components {
   /* Custom component styles can be added here */
+  .homepage-bg {
+    background-color: #0a0a0a;
+    background-image: radial-gradient(ellipse at top, rgba(139, 0, 0, 0.15) 0%, transparent 50%);
+  }
 }
