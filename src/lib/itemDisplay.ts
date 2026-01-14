@@ -6,14 +6,14 @@ export type DisplayItem = {
   display_currency: string | null;
   display_price_text: string | null;
   personal_note: string | null;
-  source_url?: string | null;
+  canonical_url?: string | null;
   url_original?: string | null;
 };
 
 const NOTE_PLACEHOLDER = "Add a note…";
 
 export function getSourceUrl(item: DisplayItem): string | null {
-  return item.source_url ?? item.url_original ?? null;
+  return item.canonical_url ?? item.url_original ?? null;
 }
 
 export function resolveDomain(item: DisplayItem): string | null {
