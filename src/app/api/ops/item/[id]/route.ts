@@ -51,12 +51,14 @@ async function checkOpsAccess(request: NextRequest): Promise<{ allowed: boolean;
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const access = await checkOpsAccess(request);
   if (!access.allowed || !access.userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const { id } = await params;
 
   let body: unknown;
   try {
@@ -97,7 +99,7 @@ export async function POST(
 
   try {
     // Update item using service role (bypass RLS)
-    const response = await supabaseAdminFetch(`/rest/v1/items?id=eq.${params.id}`, {
+    const response = await supabaseAdminFetch(`/rest/v1/items?id=eq.${id}`, {
       method: "PATCH",
       headers: {
         Prefer: "return=representation",
@@ -119,7 +121,7 @@ export async function POST(
       eventName: "web.ops.item_edit",
       userId: access.userId,
       meta: {
-        item_id: params.id,
+        item_id: id,
         fields: fieldsUpdated,
         via: "ops",
         request_id: crypto.randomUUID(),
@@ -129,7 +131,7 @@ export async function POST(
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[ops/item] Error", {
-      item_id: params.id,
+      item_id: id,
       error: error instanceof Error ? error.message : "Unknown error",
     });
     return NextResponse.json(
