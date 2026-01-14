@@ -10,17 +10,16 @@ import { updateItemCanonicalUrl } from "../../../../server/items/store";
  * 
  * Eligibility:
  * - deleted_at IS NULL
- * - canonical_url IS NOT NULL AND canonical_url <> ''
+ * - canonical_url IS NOT NULL AND canonical_url <> '' (after lazy refresh)
  * - enrich_attempts >= 0 (any item, including never attempted)
  * - missing display_product_title OR missing display_cover_image_url
  * 
  * Note: 
  * - Changed from enrich_attempts >= 3 to >= 0 to allow ops intervention at any time,
  *   since Vercel Hobby Plan only allows one cron execution per day.
- * - Items with null/empty canonical_url are NOT included (system issue, handled by system-health alert).
- *   These items will be backfilled by enrich cron automatically.
- * - Lazy refresh: If items with url_original but null canonical_url are found during query,
- *   they will be automatically backfilled (best-effort, non-blocking).
+ * - Lazy refresh: Query all items first (including null canonical_url), then backfill items
+ *   with url_original but null canonical_url. After backfill, only items with non-empty
+ *   canonical_url are shown (null/empty canonical_url items are system issues, handled by system-health alert).
  * 
  * Auth: Cookie session + OPS_EMAIL_ALLOWLIST check
  * Data access: Service role (bypass RLS)
@@ -70,12 +69,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Query ops queue using service role (bypass RLS)
+    // Step 1: Query all items (including those with null canonical_url) for lazy refresh
     // Note: enrich_attempts >= 0 means all items (including never attempted)
-    // Only include items with non-empty canonical_url (null/empty canonical_url is a system issue, handled by system-health)
     const searchParams = new URLSearchParams({
       deleted_at: "is.null",
-      canonical_url: "not.is.null",
       enrich_attempts: "gte.0",
       select: "id,user_id,canonical_url,url_original,display_product_title,display_cover_image_url,display_price_text,enrich_last_attempt_at",
       order: "enrich_last_attempt_at.desc.nullslast",
@@ -98,7 +95,7 @@ export async function GET(request: NextRequest) {
       enrich_last_attempt_at: string | null;
     }>;
 
-    // Lazy refresh: Backfill canonical_url for items that have url_original but null/empty canonical_url
+    // Step 2: Lazy refresh - Backfill canonical_url for items that have url_original but null/empty canonical_url
     // This can happen if items were created before canonical_url backfill was implemented
     const itemsNeedingBackfill = allItems.filter(
       (item) => (!item.canonical_url || !item.canonical_url.trim()) && item.url_original,
@@ -115,6 +112,12 @@ export async function GET(request: NextRequest) {
               itemId: item.id,
               canonicalUrl: sanitized,
             });
+            // Update the item in allItems array with the new canonical_url
+            // This way we don't need to re-query after backfill
+            const itemIndex = allItems.findIndex((i) => i.id === item.id);
+            if (itemIndex !== -1) {
+              allItems[itemIndex].canonical_url = sanitized;
+            }
           }
         } catch (error) {
           // Best-effort: log but continue
@@ -129,8 +132,8 @@ export async function GET(request: NextRequest) {
       await Promise.allSettled(backfillPromises);
     }
 
-    // Filter items missing title or image
-    // Also filter out items with empty canonical_url (should be handled by system-health alert)
+    // Step 3: Filter items - only show items with non-empty canonical_url and missing title/image
+    // Items with null/empty canonical_url (after backfill attempt) are system issues, handled by system-health alert
     const queueItems = allItems.filter((item) => {
       // Skip items with null or empty canonical_url
       if (!item.canonical_url || !item.canonical_url.trim()) {
