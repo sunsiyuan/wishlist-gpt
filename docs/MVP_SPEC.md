@@ -81,6 +81,15 @@ EN:
 CN：Item 是“用户收藏的一条记录”，核心为 `url_original`，展示字段为 `display_*` 快照（best-effort）。  
 EN: An Item is a user-owned wishlist record; `url_original` is the core, and `display_*` are best-effort display snapshots.
 
+CN（补充）：
+- `source_url` 是用于“打开 / 分享 / enrich”的链接（fill-only）：由 `url_original` 洗掉 tracking 噪音后生成；允许为 non-http(s) deeplink。  
+- 网络抓取/enrichment **只允许**在 `source_url` 为 http/https 时执行（SSRF/redirect/timeout/body cap 规则仍适用）。
+
+EN (addendum):
+- `source_url` is the open/share/enrich link (fill-only): derived from `url_original` by stripping tracking noise; it may be a non-http(s) deeplink.  
+- Network fetch/enrichment runs **only** when `source_url` is http/https (SSRF/redirect/timeout/body cap rules still apply).
+
+
 ### 2.1.1 排序与过滤（Locked）/ Sorting & filtering (Locked)
 CN：
 - 列表读取必须过滤：`deleted_at IS NULL`。  
@@ -152,7 +161,7 @@ EN: Feedback writes to `feedback` with a minimal 1/min/user rate limit across We
 - `id` uuid
 - `user_id` uuid
 - `url_original` text
-- `source_url` text nullable
+- `canonical_url` text nullable
 - `personal_note` text nullable
 - `deleted_at` timestamptz nullable
 - `created_at` timestamptz
@@ -225,7 +234,7 @@ Response (additive):
     {
       "id": "uuid",
       "url_original": "string",
-      "source_url": "string|null",
+      "canonical_url": "string|null",
       "personal_note": "string|null",
       "deleted_at": "timestamptz|null",
       "created_at": "timestamptz",
@@ -269,7 +278,7 @@ Response:
   "item": {
     "id": "uuid",
     "url_original": "string",
-    "source_url": "string|null",
+    "canonical_url": "string|null",
     "personal_note": "string|null",
     "deleted_at": "timestamptz|null",
     "created_at": "timestamptz",
@@ -392,7 +401,7 @@ Request:
     "page": "/app | /s/:share_id | ...",
     "share_id": "optional",
     "item_id": "optional",
-    "source_url": "optional"
+    "canonical_url": "optional"
   }
 }
 ```
@@ -531,7 +540,7 @@ EN: (mirrors CN; see detailed UI spec below.)
 - Merchant logo: only render container when logo exists; failure → fallback (domain initial or icon)
 - Domain fallback priority:
   1) `display_merchant_domain`
-  2) parse from `source_url` host (strip `www.`)
+  2) parse from `canonical_url` host (strip `www.`)
   3) null
 - Title fallback:
   - prefer `display_product_title`
@@ -560,7 +569,7 @@ EN: (mirrors CN; see detailed UI spec below.)
 - Opens from card tap (~70% height; can expand)
 - Content order: cover → title+logo → price → note editor (+ inline Save) → `View on website` (primary) → `Delete` (implicit text link)
 - If Delete triggered in sheet: close sheet after success
-- `View on website` uses `source_url` (desktop opens new tab; mobile same tab)
+- `View on website` uses `canonical_url` (desktop opens new tab; mobile same tab)
 
 #### 3.6 Share sheet
 - Shows active share on open; if none, creates one
@@ -684,19 +693,19 @@ EN: v0.6 introduces Tailwind CSS, dark mode, Heroicons library, and unified UI c
 ## v0.7_SPEC (User Behavior Tracking: Comprehensive Event Logging)
 
 ### 0) 一句话结论 / One-line summary
-CN：v0.7 扩展埋点覆盖核心用户行为（认证、Item 操作、Share 操作、UI 交互），并实现日常指标推送（Telegram Bot + Vercel Cron）。  
-EN: v0.7 extends tracking to cover core user behaviors (auth, item operations, share operations, UI interactions) and implements daily metrics push (Telegram Bot + Vercel Cron).
+CN：v0.7 扩展埋点覆盖核心用户行为（认证、Item 操作、Share 操作、UI 交互），并实现定时系统健康度播报（Telegram Bot + Vercel Cron，6 次/天）。  
+EN: v0.7 extends tracking to cover core user behaviors (auth, item, share, UI interactions), and pushes scheduled system health metrics via Telegram Bot + Vercel Cron (6x/day).  
 
 ### 1) Goals
 - Track user lifecycle events (login, onboarding)
 - Track item operations (create, delete, restore, note update, view detail, click source URL)
 - Track share operations (create, rotate, revoke, copy/native share)
 - Track UI interactions (sort toggle, cheatsheet open)
-- Daily metrics aggregation and Telegram push via Vercel Cron Jobs
+- Scheduled system health aggregation and Telegram push via Vercel Cron Jobs (6x/day)
 
 ### 2) Non-goals
 - No analytics dashboard (SQL queries only)
-- No real-time monitoring (daily batch only)
+- No real-time monitoring (scheduled batch; 6x/day by default)
 - No PII in event meta (minimal fields only)
 
 ### 3) Event naming convention (Locked)
@@ -713,22 +722,22 @@ Format: `{source}.{entity}.{action}`
 ### 5) Daily metrics endpoint
 #### `GET /api/metrics/daily` (Vercel Cron)
 CN：
-- Vercel Cron Jobs 每天 09:00 UTC 自动调用（`vercel.json` 配置）。  
-- 查询基于事件的指标（DAU、新用户、Item/Share 操作数等）和基于数据表的指标（总 Item 数、Enrichment 成功率等）。  
+- Vercel Cron Jobs 每 4 小时调用一次（00/04/08/12/16/20 UTC，共 6 次/天）（`vercel.json` 配置）。  
+- 查询基于事件的指标（DAU、新用户、Item/Share 操作数等）和基于数据表的系统健康度（canonical_url 缺失、display_* 缺失、健康 item 比例等）。  
 - 通过 Telegram Bot API 发送格式化消息到指定 chat_id。  
 - 验证：检查 `Authorization: Bearer ${CRON_SECRET}`（可选，Vercel 会自动添加 header）。
 
 EN:
-- Vercel Cron Jobs calls daily at 09:00 UTC (configured in `vercel.json`).  
-- Queries event-based metrics (DAU, new users, item/share operations) and table-based metrics (total items, enrichment success rate).  
+- Vercel Cron Jobs calls every 4 hours (00/04/08/12/16/20 UTC, 6x/day) (configured in `vercel.json`).  
+- Queries event-based metrics (DAU, new users, core item/share operations) and table-based system health (missing canonical_url, missing display_*, healthy item ratio).
 - Sends formatted message via Telegram Bot API to configured chat_id.  
 - Auth: checks `Authorization: Bearer ${CRON_SECRET}` (optional, Vercel adds header automatically).
 
 ### 6) 验收 / Acceptance
 - P0 events fire correctly: `web.auth.login_success`, `actions.item.create`, `web.item.delete`, `web.share.create`
 - Client-side events work via `/api/track/event` endpoint
-- Daily metrics endpoint returns 200 and sends Telegram message
-- Vercel Cron Job executes daily (verify in Vercel dashboard)
+- System health endpoint returns 200 and sends Telegram message (6x/day)
+- Vercel Cron Job executes 6x/day (verify in Vercel dashboard)
 - No blocking: all tracking uses `trackBestEffort` (non-blocking)
 
 ---
@@ -942,7 +951,7 @@ EN:
 - Early access badge: small label in top-right corner of button (iOS-style)
 - Modal description: "Buy with AI / Gift with AI is coming soon. Join the waitlist to be notified when it's available."
 - Button click events: use `event.stopPropagation()` to prevent card click triggering
-- Disabled state: "View on website" button disabled when source_url is missing
+- Disabled state: "View on website" button disabled when canonical_url is missing
 
 ### 4) Event tracking
 - Event name: `web.ai.waitlist_join`
@@ -951,7 +960,7 @@ EN:
   - `surface`: "card" | "sheet"
   - `intent`: "buy" | "gift"
   - `item_id`: string (optional)
-  - `source_url`: string (optional, full URL) - **Note**: Exception to v0.7 minimal principle; used for AI waitlist analysis
+  - `canonical_url`: string (optional, full URL) - **Note**: Exception to v0.7 minimal principle; used for AI waitlist analysis
   - `request_id`: string (UUID, client-generated)
 - Daily metrics: query `web.ai.waitlist_join` events, group by `intent` and `surface`
 
@@ -973,10 +982,10 @@ EN:
 - Clicking button opens Early Access Modal
 - Modal "Join waitlist & continue on website" button:
   - Tracks event `web.ai.waitlist_join` with correct meta fields
-  - Opens source_url
+  - Opens canonical_url
   - Closes modal
 - Button clicks do not trigger card click events (stopPropagation)
-- "View on website" button disabled when source_url is missing
+- "View on website" button disabled when canonical_url is missing
 - Daily metrics Telegram message includes AI function metrics (total, byIntent, bySurface)
 
 ---
@@ -993,3 +1002,201 @@ EN:
 - OG preview and share poster
 - Actions tracking (`actions.get_me / actions.list_items / actions.create_item`)
 - Stronger public share abuse controls (bot filtering, rate limits, richer dedupe)
+
+---
+
+## v1.0_SPEC (Data quality: Source URL cleaning + Scheduled Enrichment + Ops Backfill + System Health)
+
+### 0) 一句话结论 / One-line summary
+CN：v1.0 把 `source_url` 定义为 open/share/enrich 的统一入口（含 deeplink），并引入“定时重跑 enrichment（最多 3 次）+ 最小 Ops 补齐（title/image）+ 系统健康度播报（6 次/天）”，让数据质量进入可规模推广区间。  
+EN: v1.0 makes `source_url` the single entry for open/share/enrich (including deeplinks), and adds “scheduled enrichment retries (max 3) + minimal Ops backfill (title/image) + system health broadcast (6x/day)” to push data quality to promo-ready.
+
+### 1) Goals
+- `canonical_url` is the truth for open/share/enrich; deterministic cleaning; fill-only.
+- Enrichment is based on `canonical_url` (http/https only); retries capped at 3.
+- Minimal Ops queue for backfilling missing **display title / cover image** (optional price).
+- System health metrics (table-based quality) broadcast 6x/day via Telegram Bot + Vercel Cron.
+
+### 2) Non-goals
+- No change to idempotency key (still based on `url_original`).
+- No new tables (only add 2 columns on `items`).
+- No user-facing “please fill title/image” UX (Ops-only).
+- No full admin dashboard (Ops is a single minimal page).
+
+### 3) Data model changes (Locked)
+Add only these columns on `items`:
+- `enrich_attempts` int default 0
+- `enrich_last_attempt_at` timestamptz null
+
+> Notes  
+> - `display_*` remains the only display snapshot fields (v0.3/v0.4).  
+> - `url_original` immutable; `canonical_url` fill-only.
+
+### 4) Source URL cleaning (具像化; deterministic)
+
+#### 4.1 Semantics (Locked)
+- `url_original` is stored as-is (immutable).
+- `source_url` is **fill-only**:
+  - if null/empty → derive from `url_original` and persist
+  - if already set → do not override (V1.0 has no “rebuild” feature)
+
+#### 4.2 Scheme rules (Locked)
+- Cleaning applies to **all schemes** (http/https + deeplinks): remove tracking query params wherever present.
+- Fragment handling:
+  - http/https: **drop** fragment (`#...`)
+  - non-http(s): **keep** fragment by default (safer for app routing)
+  - `intent://`: keep fragment (`#Intent;...;end`) (explicit)
+
+#### 4.3 Tracking param config (default)
+- `prefixes`: `utm_`, `mkt_`, `ga_`, `icid`
+- `exact` (mainstream ad platforms; no affiliate params):
+  - Google: `gclid`, `dclid`, `wbraid`, `gbraid`, `gclsrc`, `gad_source`, `srsltid`
+  - Meta: `fbclid`
+  - Microsoft: `msclkid`
+  - TikTok: `ttclid`
+  - X: `twclid`
+  - LinkedIn: `li_fat_id`
+  - Snap: `scclid`
+  - Pinterest: `epik`
+  - Taboola: `tblci`
+  - Outbrain: `ob_click_id`, `obclickid`
+  - Yandex: `yclid`
+  - Instagram: `igshid`
+  - Mailchimp: `mc_cid`, `mc_eid`
+- `keep`: `[]` (escape hatch; empty by default)
+- `maxParams`: `64`
+  - rationale: prevent pathological URLs from bloating storage/logs and breaking parsers; tail params beyond cap are dropped deterministically.
+
+#### 4.4 Failure handling
+- If URL parsing fails → `canonical_url` remains null/empty (system issue; tracked in system health + alerts).
+
+### 5) Enrichment (based on source_url)
+
+#### 5.1 Input (Locked)
+- `enrich_target_url = canonical_url`
+- Only run network fetch/enrichment when `canonical_url` scheme is http/https (SSRF protections from v0.4 still apply).
+
+#### 5.2 Scheduled retries (Vercel Cron)
+- Frequency: **6x/day** (every 4 hours)
+- Each item retry policy:
+  - eligible when: `enrich_attempts < 3` AND last attempt older than 4h (or null) AND still missing display fields
+  - on selection: `enrich_attempts += 1`, `enrich_last_attempt_at = now()` (claiming)
+  - run existing enrichment pipeline (no strategy rewrite in v1.0)
+  - fill-only for `display_*`
+
+Eligibility uses `display_*` (suggested):
+- missing title: `display_product_title` null/blank
+- missing image: `display_cover_image_url` null/blank
+- missing price: `display_price_text` null/blank (optional, improves “healthy ratio”)
+
+**Selection/claim SQL** (use `FOR UPDATE SKIP LOCKED`) — field names are conceptual; replace by actual column names:
+```sql
+with candidates as (
+  select id
+  from items
+  where deleted_at is null
+    and canonical_url is not null and canonical_url <> ''
+    and enrich_attempts < 3
+    and (
+      enrich_last_attempt_at is null
+      or enrich_last_attempt_at <= now() - interval '4 hours'
+    )
+    and (
+      display_product_title is null or btrim(display_product_title) = ''
+      or display_cover_image_url is null or btrim(display_cover_image_url) = ''
+      or display_price_text is null or btrim(display_price_text) = ''
+    )
+  order by coalesce(enrich_last_attempt_at, to_timestamp(0)) asc
+  limit :batch_size
+  for update skip locked
+)
+update items i
+set
+  enrich_attempts = coalesce(i.enrich_attempts, 0) + 1,
+  enrich_last_attempt_at = now()
+from candidates c
+where i.id = c.id
+returning i.id;
+```
+
+#### 5.3 Deeplink convenience case (Locked)
+For `canonical_url` scheme NOT in http/https:
+- Do not run enrichment.
+- If missing `display_product_title` OR missing `display_cover_image_url`, set:
+  - `enrich_attempts = 3`
+  - `enrich_last_attempt_at = now()`
+So it enters Ops queue immediately (no wasted retries).
+
+### 6) Ops Queue (single minimal page; internal)
+
+#### 6.1 Auth (Locked)
+- UI access gate: cookie session + `OPS_EMAIL_ALLOWLIST`.
+- Data access: server-side uses **Supabase Service Role** to bypass RLS (required for cross-user ops).
+- Audit: every Ops save writes one `events` row:
+  - name: `web.ops.item_edit`
+  - meta: `{ item_id, fields: ["display_product_title","display_cover_image_url", ...], via: "ops" }`
+  - no PII, no URLs, no raw text values in meta.
+
+#### 6.2 Queue condition (Locked)
+Show items where:
+- `canonical_url` is not null/empty
+- `enrich_attempts >= 3`
+- AND missing title OR missing image (display fields)
+```sql
+select id, canonical_url, display_product_title, display_cover_image_url
+from items
+where deleted_at is null
+  and canonical_url is not null and canonical_url <> ''
+  and enrich_attempts >= 3
+  and (
+    display_product_title is null or btrim(display_product_title) = ''
+    or display_cover_image_url is null or btrim(display_cover_image_url) = ''
+  )
+order by coalesce(enrich_last_attempt_at, to_timestamp(0)) desc
+limit 200;
+```
+
+#### 6.3 UI requirements (Locked)
+Row shows only:
+- `canonical_url` (clickable, truncated)
+- warning icons:
+  - title missing → yellow ⚠️
+  - image missing → yellow ⚠️
+- `Edit` button → inline modal/sheet
+
+Modal:
+- fields: `display_product_title`, `display_cover_image_url` (optional `display_price_text`)
+- buttons: `Cancel`, `Save`
+
+### 7) System Health broadcast (replace “Data table stats”)
+
+#### 7.1 Message block name (Locked)
+Replace prior “数据表统计 / Data table stats” block with “系统健康度 / System health”.
+
+#### 7.2 Metrics (Locked; table-based)
+- Total items
+- Items created today
+- Items missing `canonical_url` (system issue)
+- Items missing `display_product_title`
+- Items missing `display_cover_image_url`
+- Items missing `display_price_text`
+- Healthy item ratio: title+image+price all present
+
+#### 7.3 Schedule (Vercel Cron)
+- Broadcast **6x/day** (every 4 hours), same rhythm as enrichment cron.
+- Auth: `Authorization: Bearer ${CRON_SECRET}`.
+
+### 8) Endpoints (Cron; Vercel-native)
+Use Vercel Cron to hit internal endpoints:
+- `/api/cron/enrich` — runs one batch selection + re-enrichment
+- `/api/cron/system-health` — aggregates system health + pushes Telegram
+
+(You may merge later, but v1.0 keeps them separate for safety/timeouts.)
+
+### 9) Acceptance (v1.0)
+- `canonical_url` is generated fill-only, deterministic; deeplink query tracking params are removed; fragment rules hold.
+- Enrichment uses `canonical_url` only; http/https only; retries capped at 3; updates do not reorder items.
+- Deeplink with missing title/image enters Ops queue immediately (attempts=3 rule).
+- Ops page is allowlisted; server uses service role; edits write `web.ops.item_edit` events.
+- System health message uses the new metrics and runs 6x/day via Vercel Cron.
+
