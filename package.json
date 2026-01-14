@@ -25,6 +25,7 @@
     "@supabase/supabase-js": "2.50.0",
     "country-to-currency": "2.0.2",
     "next": "latest",
+    "p-limit": "^7.2.0",
     "react": "latest",
     "react-dom": "latest"
   },
