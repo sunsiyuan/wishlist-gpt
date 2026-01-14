@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRequestClient } from "../../../../../lib/supabase/server";
 import { supabaseAdminFetch } from "../../../../../server/supabase/admin";
 import { trackBestEffort } from "../../../../../server/tracking/trackBestEffort";
+import { getRequestMeta } from "../../../../../server/tracking/requestMeta";
 
 /**
  * POST /api/ops/item/:id
@@ -117,14 +118,15 @@ export async function POST(
     if ("display_cover_image_url" in updates) fieldsUpdated.push("display_cover_image_url");
     if ("display_price_text" in updates) fieldsUpdated.push("display_price_text");
 
+    const requestMeta = getRequestMeta(request.headers);
     trackBestEffort({
       eventName: "web.ops.item_edit",
       userId: access.userId,
       meta: {
+        ...requestMeta,
         item_id: id,
         fields: fieldsUpdated,
         via: "ops",
-        request_id: crypto.randomUUID(),
       },
     });
 
