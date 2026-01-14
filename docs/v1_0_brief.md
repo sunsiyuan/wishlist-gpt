@@ -103,7 +103,7 @@ So it appears in Ops queue immediately.
 
 ## Quick validation checklist
 
-- Add an item with heavy UTM/click IDs → `source_url` is stripped; `url_original` preserved.
+- Add an item with heavy UTM/click IDs → `canonical_url` is stripped; `url_original` preserved.
 - Add a deeplink with utm params → utm stripped; fragment preserved; attempts set to 3 if missing title/image.
 - Enrich cron run → increments attempts; uses source_url; doesn’t reorder items.
 - Ops edits → visible immediately; event `web.ops.item_edit` written.

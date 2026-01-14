@@ -83,11 +83,11 @@ EN: An Item is a user-owned wishlist record; `url_original` is the core, and `di
 
 CN（补充）：
 - `source_url` 是用于“打开 / 分享 / enrich”的链接（fill-only）：由 `url_original` 洗掉 tracking 噪音后生成；允许为 non-http(s) deeplink。  
-- 网络抓取/enrichment **只允许**在 `source_url` 为 http/https 时执行（SSRF/redirect/timeout/body cap 规则仍适用）。
+- 网络抓取/enrichment **只允许**在 `canonical_url` 为 http/https 时执行（SSRF/redirect/timeout/body cap 规则仍适用）。
 
 EN (addendum):
-- `source_url` is the open/share/enrich link (fill-only): derived from `url_original` by stripping tracking noise; it may be a non-http(s) deeplink.  
-- Network fetch/enrichment runs **only** when `source_url` is http/https (SSRF/redirect/timeout/body cap rules still apply).
+- `canonical_url` is the open/share/enrich link (fill-only): derived from `url_original` by stripping tracking noise; it may be a non-http(s) deeplink.  
+- Network fetch/enrichment runs **only** when `canonical_url` is http/https (SSRF/redirect/timeout/body cap rules still apply).
 
 
 ### 2.1.1 排序与过滤（Locked）/ Sorting & filtering (Locked)
