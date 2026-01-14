@@ -101,7 +101,7 @@ export function sanitizeSourceUrl(
     const keyLower = key.toLowerCase();
 
     // Check exact matches
-    if (config.exact.includes(keyLower)) {
+    if ((config.exact as readonly string[]).includes(keyLower)) {
       keysToRemove.push(key);
       continue;
     }
