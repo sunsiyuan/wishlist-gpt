@@ -26,6 +26,7 @@ import {
   shouldRenderMerchantLogo,
   shouldShowPriceRow,
 } from "../../lib/itemDisplay";
+import { getChatGptUrlClient } from "../../lib/chatgpt";
 
 export type AppItem = {
   id: string;
@@ -63,7 +64,6 @@ type ShareState = {
   isRevoked: boolean;
 };
 
-const RETURN_URL = "https://chatgpt.com/g/g-6963d49d46b4819197ad331b3167c2e8-wishlistgpt";
 const SCROLL_THRESHOLD = 16;
 const TOAST_DURATION_MS = 4000;
 
@@ -95,7 +95,8 @@ function returnToChatGPT() {
   if (typeof document === "undefined") {
     return;
   }
-  window.location.href = RETURN_URL;
+  const chatGptUrl = getChatGptUrlClient();
+  window.location.href = chatGptUrl;
 }
 
 function Toast({ toast }: { toast: ToastState }) {
