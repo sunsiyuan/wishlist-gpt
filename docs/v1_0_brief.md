@@ -105,6 +105,6 @@ So it appears in Ops queue immediately.
 
 - Add an item with heavy UTM/click IDs → `canonical_url` is stripped; `url_original` preserved.
 - Add a deeplink with utm params → utm stripped; fragment preserved; attempts set to 3 if missing title/image.
-- Enrich cron run → increments attempts; uses source_url; doesn’t reorder items.
+- Enrich cron run → increments attempts; uses canonical_url; doesn’t reorder items.
 - Ops edits → visible immediately; event `web.ops.item_edit` written.
 - System health message → shows correct counts; runs 6x/day.

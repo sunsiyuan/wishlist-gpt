@@ -82,7 +82,7 @@ CN：Item 是“用户收藏的一条记录”，核心为 `url_original`，展�
 EN: An Item is a user-owned wishlist record; `url_original` is the core, and `display_*` are best-effort display snapshots.
 
 CN（补充）：
-- `source_url` 是用于“打开 / 分享 / enrich”的链接（fill-only）：由 `url_original` 洗掉 tracking 噪音后生成；允许为 non-http(s) deeplink。  
+- `canonical_url` 是用于“打开 / 分享 / enrich”的链接（fill-only）：由 `url_original` 洗掉 tracking 噪音后生成；允许为 non-http(s) deeplink。  
 - 网络抓取/enrichment **只允许**在 `canonical_url` 为 http/https 时执行（SSRF/redirect/timeout/body cap 规则仍适用）。
 
 EN (addendum):
@@ -1008,8 +1008,8 @@ EN:
 ## v1.0_SPEC (Data quality: Source URL cleaning + Scheduled Enrichment + Ops Backfill + System Health)
 
 ### 0) 一句话结论 / One-line summary
-CN：v1.0 把 `source_url` 定义为 open/share/enrich 的统一入口（含 deeplink），并引入“定时重跑 enrichment（最多 3 次）+ 最小 Ops 补齐（title/image）+ 系统健康度播报（6 次/天）”，让数据质量进入可规模推广区间。  
-EN: v1.0 makes `source_url` the single entry for open/share/enrich (including deeplinks), and adds “scheduled enrichment retries (max 3) + minimal Ops backfill (title/image) + system health broadcast (6x/day)” to push data quality to promo-ready.
+CN：v1.0 把 `canonical_url` 定义为 open/share/enrich 的统一入口（含 deeplink），并引入“定时重跑 enrichment（最多 3 次）+ 最小 Ops 补齐（title/image）+ 系统健康度播报（6 次/天）”，让数据质量进入可规模推广区间。  
+EN: v1.0 makes `canonical_url` the single entry for open/share/enrich (including deeplinks), and adds “scheduled enrichment retries (max 3) + minimal Ops backfill (title/image) + system health broadcast (6x/day)” to push data quality to promo-ready.
 
 ### 1) Goals
 - `canonical_url` is the truth for open/share/enrich; deterministic cleaning; fill-only.
