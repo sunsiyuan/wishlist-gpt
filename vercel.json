@@ -3,6 +3,14 @@
     {
       "path": "/api/metrics/daily",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/enrich",
+      "schedule": "0 0,4,8,12,16,20 * * *"
+    },
+    {
+      "path": "/api/cron/system-health",
+      "schedule": "5 0,4,8,12,16,20 * * *"
     }
   ]
 }
