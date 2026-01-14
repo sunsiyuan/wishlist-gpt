@@ -10,6 +10,7 @@ import {
   SparklesIcon,
   ChevronDownIcon,
   UserIcon,
+  PlusIcon,
 } from "@heroicons/react/24/outline";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import FeedbackModal from "../components/FeedbackModal";
@@ -62,7 +63,7 @@ type ShareState = {
   isRevoked: boolean;
 };
 
-const RETURN_URL_FALLBACK = "https://chatgpt.com";
+const RETURN_URL = "https://chatgpt.com/g/g-6963d49d46b4819197ad331b3167c2e8-wishlistgpt";
 const SCROLL_THRESHOLD = 16;
 const TOAST_DURATION_MS = 4000;
 
@@ -94,12 +95,7 @@ function returnToChatGPT() {
   if (typeof document === "undefined") {
     return;
   }
-  const referrer = document.referrer;
-  if (referrer && /chatgpt\.com|chat\.openai\.com/i.test(referrer)) {
-    window.location.href = referrer;
-    return;
-  }
-  window.location.href = RETURN_URL_FALLBACK;
+  window.location.href = RETURN_URL;
 }
 
 function Toast({ toast }: { toast: ToastState }) {
@@ -1327,23 +1323,14 @@ export default function AppClient({
 
       <button
         type="button"
-        aria-label="Return to ChatGPT"
+        aria-label="Back to ChatGPT"
         onClick={returnToChatGPT}
-        className={`fixed right-5 bottom-5 w-[52px] h-[52px] rounded-full border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 ${
+        className={`fixed right-5 bottom-5 w-[52px] h-[52px] rounded-full bg-transparent text-secondary hover:text-primary hover:bg-gray-100 dark:text-secondary-dark dark:hover:text-primary-dark dark:hover:bg-background-dark-light border border-border dark:border-border-dark ${
           showReturnButton ? "flex" : "hidden"
-        } items-center justify-center shadow-toast dark:shadow-toast-dark cursor-pointer z-[70] hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200`}
-        title="Return to ChatGPT"
+        } items-center justify-center shadow-toast dark:shadow-toast-dark cursor-pointer z-[70] transition-colors duration-200`}
+        title="Back to ChatGPT"
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M7 4h10a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-4l-4 4v-4H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-          />
-          <path d="M9 10h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M9 13h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
+        <PlusIcon className="w-6 h-6" aria-hidden="true" />
       </button>
 
       {toast ? <Toast toast={toast} /> : null}
