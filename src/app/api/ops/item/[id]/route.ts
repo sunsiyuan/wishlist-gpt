@@ -120,8 +120,10 @@ export async function POST(
 
     const requestMeta = getRequestMeta(request.headers);
     trackBestEffort({
-      eventName: "web.ops.item_edit",
-      userId: access.userId,
+      event_name: "web.ops.item_edit",
+      user_id: access.userId,
+      share_id: null,
+      client_id: null,
       meta: {
         ...requestMeta,
         item_id: id,
