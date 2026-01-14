@@ -7,6 +7,7 @@ import {
   createOrTouchItem,
   listItemsForUser,
   updateItemDisplayFields,
+  updateItemCanonicalUrl,
   insertItemEnrichAttempt,
 } from "../../../server/items/store";
 import { enrichItemBestEffort, type EnrichAttempt } from "../../../server/items/enrich";
@@ -14,6 +15,7 @@ import {
   deriveDisplayDefaults,
   extractDisplayHints,
 } from "../../../server/items/displayFields";
+import { sanitizeSourceUrl, TRACKING_PARAM_CONFIG } from "../../../server/items/sanitizeUrl";
 
 function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
         items: items.map((item) => ({
           id: item.id,
           url_original: item.url_original,
-          source_url: item.url_original, // For share page compatibility
+          canonical_url: item.canonical_url ?? item.url_original, // Fallback to url_original for compatibility
           personal_note: item.personal_note,
           created_at: item.created_at,
           updated_at: item.updated_at,
@@ -111,22 +113,23 @@ export async function GET(request: NextRequest) {
   // Default: return user's own items
   try {
     const items = await listItemsForUser({ userId: auth.userId });
-    return NextResponse.json({
-      items: items.map((item) => ({
-        id: item.id,
-        url_original: item.url_original,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        display_cover_image_url: item.display_cover_image_url,
-        display_product_title: item.display_product_title,
-        display_merchant_logo_url: item.display_merchant_logo_url,
-        display_merchant_domain: item.display_merchant_domain,
-        display_price_amount_minor: item.display_price_amount_minor,
-        display_currency: item.display_currency,
-        display_price_text: item.display_price_text,
-        display_price_updated_at: item.display_price_updated_at,
-      })),
-    });
+      return NextResponse.json({
+        items: items.map((item) => ({
+          id: item.id,
+          url_original: item.url_original,
+          canonical_url: item.canonical_url,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          display_cover_image_url: item.display_cover_image_url,
+          display_product_title: item.display_product_title,
+          display_merchant_logo_url: item.display_merchant_logo_url,
+          display_merchant_domain: item.display_merchant_domain,
+          display_price_amount_minor: item.display_price_amount_minor,
+          display_currency: item.display_currency,
+          display_price_text: item.display_price_text,
+          display_price_updated_at: item.display_price_updated_at,
+        })),
+      });
   } catch (error) {
     return jsonError(500, "items_list_failed", "Failed to list items");
   }
@@ -155,6 +158,52 @@ export async function POST(request: NextRequest) {
       userId: auth.userId,
       url: urlValue,
     });
+
+    // Fill canonical_url if missing (fill-only)
+    let itemWithCanonicalUrl = item;
+    if (!item.canonical_url) {
+      const sanitized = sanitizeSourceUrl(urlValue.trim(), TRACKING_PARAM_CONFIG);
+      if (sanitized) {
+        const updated = await updateItemCanonicalUrl({
+          userId: auth.userId,
+          itemId: item.id,
+          canonicalUrl: sanitized,
+        });
+        if (updated) {
+          itemWithCanonicalUrl = updated;
+        }
+      }
+    }
+
+    // Deeplink convenience: if canonical_url scheme is not http/https and missing title/image,
+    // set enrich_attempts=3 to enter Ops queue immediately
+    const canonicalUrl = itemWithCanonicalUrl.canonical_url;
+    if (canonicalUrl) {
+      try {
+        const url = new URL(canonicalUrl);
+        const scheme = url.protocol.toLowerCase();
+        const isHttp = scheme === "http:" || scheme === "https:";
+        if (!isHttp) {
+          // Non-http(s) deeplink: check if missing title or image
+          const missingTitle = !item.display_product_title?.trim();
+          const missingImage = !item.display_cover_image_url?.trim();
+          if (missingTitle || missingImage) {
+            // Set enrich_attempts=3 and enrich_last_attempt_at=now() to enter Ops queue
+            await updateItemDisplayFields({
+              userId: auth.userId,
+              itemId: item.id,
+              updates: {
+                enrich_attempts: 3,
+                enrich_last_attempt_at: new Date().toISOString(),
+              },
+            });
+          }
+        }
+      } catch {
+        // URL parse failed, skip deeplink convenience logic
+      }
+    }
+
     const displayHints = extractDisplayHints(body as Record<string, unknown>);
     const derivedDefaults = deriveDisplayDefaults({ url: urlValue, existing: displayHints });
     const updates: DisplayFieldUpdate = { ...displayHints, ...derivedDefaults };
@@ -169,10 +218,10 @@ export async function POST(request: NextRequest) {
       Object.keys(updates).length > 0
         ? await updateItemDisplayFields({
             userId: auth.userId,
-            itemId: item.id,
+            itemId: itemWithCanonicalUrl.id,
             updates,
           })
-        : item;
+        : itemWithCanonicalUrl;
 
     // Log GPTs input as first attempt (best effort, non-blocking)
     after(async () => {
@@ -217,7 +266,7 @@ export async function POST(request: NextRequest) {
         await insertItemEnrichAttempt({
           userId: auth.userId,
           itemId: item.id,
-          sourceUrl: urlValue.trim(),
+          sourceUrl: itemWithCanonicalUrl.canonical_url ?? urlValue.trim(),
           runGroupId: crypto.randomUUID(),
           strategy: attempt.strategy,
           attempt,
@@ -231,21 +280,39 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    enrichItemBestEffort({ userId: auth.userId, itemId: item.id, url: item.url_original });
+    // Enrichment: only run if canonical_url is http/https
+    const finalItem = updatedItem ?? itemWithCanonicalUrl;
+    if (finalItem.canonical_url) {
+      try {
+        const url = new URL(finalItem.canonical_url);
+        const scheme = url.protocol.toLowerCase();
+        if (scheme === "http:" || scheme === "https:") {
+          enrichItemBestEffort({
+            userId: auth.userId,
+            itemId: finalItem.id,
+            url: finalItem.canonical_url,
+          });
+        }
+      } catch {
+        // URL parse failed, skip enrichment
+      }
+    }
+
     return NextResponse.json({
       item: {
-        id: (updatedItem ?? item).id,
-        url_original: (updatedItem ?? item).url_original,
-        created_at: (updatedItem ?? item).created_at,
-        updated_at: (updatedItem ?? item).updated_at,
-        display_cover_image_url: (updatedItem ?? item).display_cover_image_url,
-        display_product_title: (updatedItem ?? item).display_product_title,
-        display_merchant_logo_url: (updatedItem ?? item).display_merchant_logo_url,
-        display_merchant_domain: (updatedItem ?? item).display_merchant_domain,
-        display_price_amount_minor: (updatedItem ?? item).display_price_amount_minor,
-        display_currency: (updatedItem ?? item).display_currency,
-        display_price_text: (updatedItem ?? item).display_price_text,
-        display_price_updated_at: (updatedItem ?? item).display_price_updated_at,
+        id: finalItem.id,
+        url_original: finalItem.url_original,
+        canonical_url: finalItem.canonical_url,
+        created_at: finalItem.created_at,
+        updated_at: finalItem.updated_at,
+        display_cover_image_url: finalItem.display_cover_image_url,
+        display_product_title: finalItem.display_product_title,
+        display_merchant_logo_url: finalItem.display_merchant_logo_url,
+        display_merchant_domain: finalItem.display_merchant_domain,
+        display_price_amount_minor: finalItem.display_price_amount_minor,
+        display_currency: finalItem.display_currency,
+        display_price_text: finalItem.display_price_text,
+        display_price_updated_at: finalItem.display_price_updated_at,
       },
     });
   } catch (error) {
