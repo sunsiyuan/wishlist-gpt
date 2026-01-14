@@ -16,6 +16,7 @@ import {
   extractDisplayHints,
 } from "../../../server/items/displayFields";
 import { sanitizeSourceUrl, TRACKING_PARAM_CONFIG } from "../../../server/items/sanitizeUrl";
+import { supabaseAdminFetch } from "../../../server/supabase/admin";
 
 function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -189,14 +190,23 @@ export async function POST(request: NextRequest) {
           const missingImage = !item.display_cover_image_url?.trim();
           if (missingTitle || missingImage) {
             // Set enrich_attempts=3 and enrich_last_attempt_at=now() to enter Ops queue
-            await updateItemDisplayFields({
-              userId: auth.userId,
-              itemId: item.id,
-              updates: {
-                enrich_attempts: 3,
-                enrich_last_attempt_at: new Date().toISOString(),
+            // Note: These fields are not in DisplayFieldUpdate, so we update directly
+            const now = new Date().toISOString();
+            await supabaseAdminFetch(
+              `/rest/v1/items?id=eq.${item.id}&user_id=eq.${auth.userId}`,
+              {
+                method: "PATCH",
+                headers: {
+                  Prefer: "return=minimal",
+                },
+                body: JSON.stringify({
+                  enrich_attempts: 3,
+                  enrich_last_attempt_at: now,
+                  updated_at: now,
+                }),
               },
-            });
+            );
+            // Best-effort: ignore errors
           }
         }
       } catch {
