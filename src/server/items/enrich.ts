@@ -116,11 +116,34 @@ export function enrichItemBestEffort(params: {
   });
 }
 
-async function enrichItem(params: {
+export async function enrichItem(params: {
   userId: string;
   itemId: string;
   url: string;
 }): Promise<void> {
+  // Check if URL is http/https (enrichment only works for http/https)
+  try {
+    const url = new URL(params.url);
+    const scheme = url.protocol.toLowerCase();
+    if (scheme !== "http:" && scheme !== "https:") {
+      if (ENRICH_DEBUG) {
+        console.log("[enrich] skip_non_http", {
+          item_id: params.itemId,
+          scheme,
+        });
+      }
+      return; // Skip enrichment for non-http(s) URLs
+    }
+  } catch {
+    // URL parse failed, skip enrichment
+    if (ENRICH_DEBUG) {
+      console.log("[enrich] skip_parse_failed", {
+        item_id: params.itemId,
+      });
+    }
+    return;
+  }
+
   const item = await getItemForUser({ userId: params.userId, itemId: params.itemId });
   if (!item) {
     if (ENRICH_DEBUG) {
@@ -146,7 +169,7 @@ async function enrichItem(params: {
     await insertItemEnrichAttempt({
       userId: params.userId,
       itemId: params.itemId,
-      sourceUrl: params.url,
+      sourceUrl: params.url, // Use canonical_url passed in params.url
       runGroupId,
       strategy: attempt.strategy,
       attempt,
@@ -514,7 +537,7 @@ async function enrichItem(params: {
     await insertItemEnrichFinal({
       userId: params.userId,
       itemId: params.itemId,
-      sourceUrl: params.url,
+      sourceUrl: params.url, // Use canonical_url passed in params.url
       runGroupId,
       finalApplied,
       finalUpdates,

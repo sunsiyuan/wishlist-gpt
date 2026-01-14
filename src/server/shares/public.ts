@@ -12,7 +12,7 @@ export type PublicShareItem = {
   display_price_text: string | null;
   display_price_updated_at: string | null;
   personal_note: string | null;
-  source_url: string | null;
+  canonical_url: string | null;
 };
 
 type PublicShareItemRecord = {
@@ -27,6 +27,7 @@ type PublicShareItemRecord = {
   display_price_text: string | null;
   display_price_updated_at: string | null;
   personal_note: string | null;
+  canonical_url: string | null;
   url_original: string | null;
 };
 
@@ -75,6 +76,7 @@ export async function getPublicShareItems(shareId: string): Promise<PublicShareI
       "display_price_text",
       "display_price_updated_at",
       "personal_note",
+      "canonical_url",
       "url_original",
     ].join(","),
   });
@@ -95,6 +97,6 @@ export async function getPublicShareItems(shareId: string): Promise<PublicShareI
     display_price_text: item.display_price_text,
     display_price_updated_at: item.display_price_updated_at,
     personal_note: item.personal_note,
-    source_url: item.url_original,
+    canonical_url: item.canonical_url ?? item.url_original ?? null,
   }));
 }
