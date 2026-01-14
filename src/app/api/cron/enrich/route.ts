@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdminFetch } from "../../../../server/supabase/admin";
 import { enrichItem } from "../../../../server/items/enrich";
+import { sanitizeSourceUrl, TRACKING_PARAM_CONFIG } from "../../../../server/items/sanitizeUrl";
+import { updateItemCanonicalUrl } from "../../../../server/items/store";
 import pLimit from "p-limit";
 
 const BATCH_SIZE = 50;
@@ -36,7 +38,47 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Build eligibility query
+    // Step 1: Backfill canonical_url for items missing it
+    // This ensures existing items get canonical_url populated gradually
+    const backfillParams = new URLSearchParams({
+      deleted_at: "is.null",
+      or: "(canonical_url.is.null,canonical_url.eq.)",
+      select: "id,user_id,url_original",
+      limit: String(BATCH_SIZE),
+    });
+
+    const backfillResponse = await supabaseAdminFetch(`/rest/v1/items?${backfillParams.toString()}`);
+    if (backfillResponse.ok) {
+      const backfillItems = (await backfillResponse.json()) as Array<{
+        id: string;
+        user_id: string;
+        url_original: string;
+      }>;
+
+      // Process backfill items (fill-only, won't overwrite existing canonical_url)
+      for (const item of backfillItems) {
+        if (item.url_original) {
+          try {
+            const sanitized = sanitizeSourceUrl(item.url_original, TRACKING_PARAM_CONFIG);
+            if (sanitized) {
+              await updateItemCanonicalUrl({
+                userId: item.user_id,
+                itemId: item.id,
+                canonicalUrl: sanitized,
+              });
+            }
+          } catch (error) {
+            // Best-effort: log but don't fail
+            console.warn("[cron/enrich] Failed to backfill canonical_url", {
+              item_id: item.id,
+              error: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+        }
+      }
+    }
+
+    // Step 2: Build eligibility query for enrichment
     // Note: We use application-layer logic instead of RPC for simplicity
     const searchParams = new URLSearchParams({
       deleted_at: "is.null",
