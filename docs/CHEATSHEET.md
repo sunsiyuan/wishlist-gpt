@@ -26,6 +26,7 @@ EN: There is only one loop you must get working: **Actions Connect → getMe →
 - `TELEGRAM_CHAT_ID`（反馈通知 Telegram chat id）
 - `OPENGRAPH_IO_APP_ID`（opengraph.io 兜底抓取）
 - `CRON_SECRET`（Vercel Cron Jobs 安全密钥，可选）
+- `OPS_EMAIL_ALLOWLIST`（Ops Queue 访问权限，JSON 数组格式，如：`["email1@example.com","email2@example.com"]`）
 - `CHATGPT_GPT_URL` 或 `NEXT_PUBLIC_CHATGPT_GPT_URL`（ChatGPT GPT 链接，用于 App 的 Back-to-GPT 按钮和 homepage 的 Open ChatGPT 按钮）
   - Staging: `https://chatgpt.com/g/g-69590ec742ac819197255326adcf1f7a-wishlistgpt-staging`
   - Production（默认）: `https://chatgpt.com/g/g-6963d49d46b4819197ad331b3167c2e8-wishlistgpt`
@@ -517,7 +518,10 @@ CN：
 * Smoke：`scripts/preflight.sh`, `scripts/smoke_openapi.sh`, `scripts/smoke_oauth.sh`, `scripts/smoke_items.sh`
   * 本地可能会跳过：`BASE_URL=http://localhost:3000 npm run smoke:openapi` 在未生成 `public/openapi.yaml` 时会提示跳过
   * 远端验证：`BASE_URL=https://<preview-or-prod-domain> npm run smoke:openapi`
-* 日常指标推送：`src/app/api/metrics/daily/route.ts`, `vercel.json`（Vercel Cron Jobs 配置）
+* 日常指标推送：`src/app/api/metrics/daily/route.ts`, `src/app/api/cron/daily/route.ts`, `vercel.json`（Vercel Cron Jobs 配置）
+* Enrichment 定时重试：`src/app/api/cron/enrich/route.ts`（通过 `/api/cron/daily` 调用）
+* 系统健康度报告：`src/app/api/cron/system-health/route.ts`（通过 `/api/cron/daily` 调用）
+* Ops Queue：`src/app/api/ops/queue/route.ts`, `src/app/ops/page.tsx`（条件：`enrich_attempts >= 0` 且缺失 title/image）
 
 ---
 
@@ -590,12 +594,26 @@ EN: Create or update `vercel.json` in project root to configure scheduled tasks:
 {
   "crons": [
     {
+      "path": "/api/cron/daily",
+      "schedule": "0 9 * * *"
+    },
+    {
       "path": "/api/metrics/daily",
       "schedule": "0 9 * * *"
     }
   ]
 }
 ```
+
+CN：
+- `/api/cron/daily`：统一入口，依次执行 metrics/daily、enrich、system-health 三个任务
+- `/api/metrics/daily`：保留作为可单独调用的选项
+- **注意**：Vercel Hobby Plan 限制整个账号只能设置 2 个 Cron，每天只能触发一次
+
+EN:
+- `/api/cron/daily`: Unified entry point that executes metrics/daily, enrich, and system-health sequentially
+- `/api/metrics/daily`: Kept as an option for standalone calls
+- **Note**: Vercel Hobby Plan limits the entire account to 2 Cron jobs, and each can only trigger once per day
 
 CN：
 - `path`: API route 路径（相对于项目根目录）
@@ -621,19 +639,37 @@ EN: Add the following environment variables in Vercel project settings:
 - `TELEGRAM_CHAT_ID` - 接收消息的 chat_id（个人或群组 / Personal or group chat）
 - `CRON_SECRET`（可选 / Optional）- 如果设置，API route 会验证 Authorization header
 
-### 7.3 验证 Cron Job
+### 7.3 Cron Jobs 说明
+
+CN：
+- **统一入口**：`/api/cron/daily` 每天执行一次（UTC 9:00），依次调用：
+  1. `/api/metrics/daily` - 用户行为日报
+  2. `/api/cron/enrich` - Enrichment 重试（移除 4 小时限制，每天处理一次直到 attempts >= 3）
+  3. `/api/cron/system-health` - 系统健康度报告
+- **独立调用**：三个 API 端点仍然可以单独调用进行测试
+- **错误隔离**：每个任务失败不影响其他任务
+
+EN:
+- **Unified entry**: `/api/cron/daily` runs once daily (UTC 9:00), sequentially calling:
+  1. `/api/metrics/daily` - User behavior daily report
+  2. `/api/cron/enrich` - Enrichment retries (4-hour cooldown removed, processes once daily until attempts >= 3)
+  3. `/api/cron/system-health` - System health report
+- **Standalone calls**: All three API endpoints can still be called individually for testing
+- **Error isolation**: Failures in one task don't block others
+
+### 7.4 验证 Cron Job
 
 CN：
 1. 部署到 Vercel 后，在 Vercel Dashboard → Settings → Cron Jobs 查看配置
 2. 手动触发：在 Vercel Dashboard 点击 "Run Now" 测试
-3. 查看日志：Vercel Dashboard → Functions → `/api/metrics/daily` → Logs
+3. 查看日志：Vercel Dashboard → Functions → `/api/cron/daily` → Logs
 
 EN:
 1. After deploying to Vercel, check configuration in Vercel Dashboard → Settings → Cron Jobs
 2. Manual trigger: Click "Run Now" in Vercel Dashboard to test
-3. View logs: Vercel Dashboard → Functions → `/api/metrics/daily` → Logs
+3. View logs: Vercel Dashboard → Functions → `/api/cron/daily` → Logs
 
-### 7.4 本地测试
+### 7.5 本地测试
 
 CN：本地开发时，可以手动调用 API endpoint 测试：
 
@@ -645,8 +681,16 @@ export TELEGRAM_BOT_TOKEN="your_bot_token"
 export TELEGRAM_CHAT_ID="your_chat_id"
 export CRON_SECRET="optional_secret"
 
-# 调用 endpoint（需要 Authorization header）
+# 调用统一入口（需要 Authorization header）
+curl -X GET http://localhost:3000/api/cron/daily \
+  -H "Authorization: Bearer ${CRON_SECRET}"
+
+# 或单独调用某个任务
 curl -X GET http://localhost:3000/api/metrics/daily \
+  -H "Authorization: Bearer ${CRON_SECRET}"
+curl -X GET http://localhost:3000/api/cron/enrich \
+  -H "Authorization: Bearer ${CRON_SECRET}"
+curl -X GET http://localhost:3000/api/cron/system-health \
   -H "Authorization: Bearer ${CRON_SECRET}"
 ```
 
