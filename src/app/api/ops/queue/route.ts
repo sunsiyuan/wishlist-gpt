@@ -9,8 +9,11 @@ import { supabaseAdminFetch } from "../../../../server/supabase/admin";
  * Eligibility:
  * - deleted_at IS NULL
  * - canonical_url IS NOT NULL AND canonical_url <> ''
- * - enrich_attempts >= 3
+ * - enrich_attempts >= 0 (any item, including never attempted)
  * - missing display_product_title OR missing display_cover_image_url
+ * 
+ * Note: Changed from enrich_attempts >= 3 to >= 0 to allow ops intervention at any time,
+ * since Vercel Hobby Plan only allows one cron execution per day.
  * 
  * Auth: Cookie session + OPS_EMAIL_ALLOWLIST check
  * Data access: Service role (bypass RLS)
@@ -61,12 +64,13 @@ export async function GET(request: NextRequest) {
 
   try {
     // Query ops queue using service role (bypass RLS)
+    // Note: enrich_attempts >= 0 means all items (including never attempted)
     const searchParams = new URLSearchParams({
       deleted_at: "is.null",
       canonical_url: "not.is.null",
-      enrich_attempts: "gte.3",
+      enrich_attempts: "gte.0",
       select: "id,canonical_url,display_product_title,display_cover_image_url,display_price_text,enrich_last_attempt_at",
-      order: "enrich_last_attempt_at.desc",
+      order: "enrich_last_attempt_at.desc.nullslast",
       limit: "200",
     });
 
