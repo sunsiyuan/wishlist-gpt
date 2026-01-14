@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseRequestClient } from "../../../../../../lib/supabase/server";
-import { supabaseAdminFetch } from "../../../../../../server/supabase/admin";
-import { trackBestEffort } from "../../../../../../server/tracking/trackBestEffort";
+import { createSupabaseRequestClient } from "../../../../../lib/supabase/server";
+import { supabaseAdminFetch } from "../../../../../server/supabase/admin";
+import { trackBestEffort } from "../../../../../server/tracking/trackBestEffort";
 
 /**
  * POST /api/ops/item/:id

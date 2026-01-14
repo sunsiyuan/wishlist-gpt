@@ -116,7 +116,7 @@ export function enrichItemBestEffort(params: {
   });
 }
 
-async function enrichItem(params: {
+export async function enrichItem(params: {
   userId: string;
   itemId: string;
   url: string;
