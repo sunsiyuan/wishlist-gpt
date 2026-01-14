@@ -4,10 +4,13 @@ export type ItemRecord = {
   id: string;
   user_id: string;
   url_original: string;
+  canonical_url: string | null;
   created_at: string;
   updated_at: string;
   personal_note: string | null;
   deleted_at: string | null;
+  enrich_attempts: number;
+  enrich_last_attempt_at: string | null;
   display_cover_image_url: string | null;
   display_product_title: string | null;
   display_merchant_logo_url: string | null;
@@ -38,10 +41,13 @@ const ITEM_SELECT = [
   "id",
   "user_id",
   "url_original",
+  "canonical_url",
   "created_at",
   "updated_at",
   "personal_note",
   "deleted_at",
+  "enrich_attempts",
+  "enrich_last_attempt_at",
   "display_cover_image_url",
   "display_product_title",
   "display_merchant_logo_url",
@@ -150,6 +156,40 @@ export async function updateItemDisplayFields(params: {
   });
   if (!response.ok) {
     throw new Error(`Failed to update item display fields: ${response.status}`);
+  }
+  const data = (await response.json()) as ItemRecord[];
+  return data[0] ?? null;
+}
+
+/**
+ * Update canonical_url (fill-only: only sets if currently null/empty).
+ */
+export async function updateItemCanonicalUrl(params: {
+  userId: string;
+  itemId: string;
+  canonicalUrl: string;
+}): Promise<ItemRecord | null> {
+  const now = new Date().toISOString();
+  const search = new URLSearchParams({
+    id: `eq.${params.itemId}`,
+    user_id: `eq.${params.userId}`,
+    canonical_url: "is.null",
+    select: ITEM_SELECT,
+  });
+  // Only update if canonical_url is null (fill-only)
+  const response = await supabaseAdminFetch(`/rest/v1/items?${search.toString()}`, {
+    method: "PATCH",
+    headers: {
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      canonical_url: params.canonicalUrl,
+      updated_at: now,
+    }),
+  });
+  if (!response.ok) {
+    // If update failed (e.g., canonical_url already set), return current item
+    return await getItemForUser({ userId: params.userId, itemId: params.itemId });
   }
   const data = (await response.json()) as ItemRecord[];
   return data[0] ?? null;
