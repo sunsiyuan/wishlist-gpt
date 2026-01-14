@@ -15,8 +15,10 @@ const CONCURRENCY = 5;
  * - canonical_url IS NOT NULL AND canonical_url <> ''
  * - canonical_url scheme is http/https
  * - enrich_attempts < 3
- * - enrich_last_attempt_at IS NULL OR enrich_last_attempt_at <= now() - interval '4 hours'
  * - missing display_product_title OR missing display_cover_image_url OR missing display_price_text
+ * 
+ * Note: Since Vercel Hobby Plan only allows one cron execution per day,
+ * we removed the 4-hour cooldown check. Items are processed once per day until attempts >= 3.
  * 
  * Process:
  * 1. Query eligible items (limit BATCH_SIZE)
@@ -34,10 +36,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Query eligible items
-    const now = new Date();
-    const fourHoursAgo = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();
-
     // Build eligibility query
     // Note: We use application-layer logic instead of RPC for simplicity
     const searchParams = new URLSearchParams({
@@ -85,14 +83,6 @@ export async function GET(request: NextRequest) {
       const attempts = item.enrich_attempts ?? 0;
       if (attempts >= 3) {
         return false;
-      }
-
-      // enrich_last_attempt_at must be null or older than 4 hours
-      if (item.enrich_last_attempt_at) {
-        const lastAttempt = new Date(item.enrich_last_attempt_at);
-        if (lastAttempt > new Date(fourHoursAgo)) {
-          return false;
-        }
       }
 
       // Missing display fields
