@@ -22,7 +22,7 @@
 - Ops edits update `display_*` fields and leave a small audit event.
 
 4) **System health replaces “table stats”**
-- Focuses on quality signals: missing source_url, missing display_* fields, healthy ratio.
+- Focuses on quality signals: missing canonical_url, missing display_* fields, healthy ratio.
 - Broadcast **6x/day**.
 
 ---
