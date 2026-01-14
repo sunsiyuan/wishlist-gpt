@@ -8,12 +8,14 @@ import { supabaseAdminFetch } from "../../../../server/supabase/admin";
  * 
  * Eligibility:
  * - deleted_at IS NULL
- * - canonical_url IS NOT NULL AND canonical_url <> ''
  * - enrich_attempts >= 0 (any item, including never attempted)
  * - missing display_product_title OR missing display_cover_image_url
  * 
- * Note: Changed from enrich_attempts >= 3 to >= 0 to allow ops intervention at any time,
- * since Vercel Hobby Plan only allows one cron execution per day.
+ * Note: 
+ * - Changed from enrich_attempts >= 3 to >= 0 to allow ops intervention at any time,
+ *   since Vercel Hobby Plan only allows one cron execution per day.
+ * - Items with null canonical_url are included (system issue, need ops attention).
+ *   These items will be backfilled by enrich cron, but ops can manually fix display fields.
  * 
  * Auth: Cookie session + OPS_EMAIL_ALLOWLIST check
  * Data access: Service role (bypass RLS)
@@ -65,13 +67,13 @@ export async function GET(request: NextRequest) {
   try {
     // Query ops queue using service role (bypass RLS)
     // Note: enrich_attempts >= 0 means all items (including never attempted)
+    // We don't filter by canonical_url here - items with null canonical_url are system issues that need ops attention
     const searchParams = new URLSearchParams({
       deleted_at: "is.null",
-      canonical_url: "not.is.null",
       enrich_attempts: "gte.0",
       select: "id,canonical_url,display_product_title,display_cover_image_url,display_price_text,enrich_last_attempt_at",
       order: "enrich_last_attempt_at.desc.nullslast",
-      limit: "200",
+      limit: "500", // Increased limit to account for filtering
     });
 
     const response = await supabaseAdminFetch(`/rest/v1/items?${searchParams.toString()}`);
@@ -89,11 +91,12 @@ export async function GET(request: NextRequest) {
     }>;
 
     // Filter items missing title or image
+    // Items with null canonical_url are also included (system issue, need ops attention)
     const queueItems = allItems.filter((item) => {
       const missingTitle = !item.display_product_title?.trim();
       const missingImage = !item.display_cover_image_url?.trim();
       return missingTitle || missingImage;
-    });
+    }).slice(0, 200); // Limit to 200 after filtering
 
     return NextResponse.json({
       items: queueItems.map((item) => ({
