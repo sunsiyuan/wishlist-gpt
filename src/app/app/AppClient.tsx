@@ -1232,7 +1232,10 @@ export default function AppClient({
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-2">
-              <h2 className="m-0 text-xl font-semibold">Cheatsheet</h2>
+              <h2 className="m-0 text-xl font-semibold flex items-center gap-2">
+                <span>📋</span>
+                <span>Cheatsheet</span>
+              </h2>
               <button
                 type="button"
                 onClick={() => setIsCheatsheetOpen(false)}
@@ -1243,22 +1246,24 @@ export default function AppClient({
               </button>
             </div>
             <p className="text-sm text-secondary dark:text-secondary-dark mb-6">
-              Discover in ChatGPT, then paste a link to save.
+              🔍 Discover in ChatGPT, then paste a link to save.
             </p>
 
             {/* Section A: Discover examples */}
             <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                Discover examples (send to ChatGPT)
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                <span>💡</span>
+                <span>Discover examples (send to ChatGPT)</span>
               </h3>
               <div className="space-y-3">
                 {/* Example 1 */}
-                <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-button">
+                <div className="flex items-start justify-between gap-3 p-3.5 bg-gray-50 dark:bg-gray-800 rounded-button border border-gray-200 dark:border-gray-700">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-                      Trending / hot picks
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5 flex items-center gap-1.5">
+                      <span>🔥</span>
+                      <span>Trending / hot picks</span>
                     </div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400 break-words">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 break-words leading-relaxed pl-5">
                       What's trending right now for gifts in the $30–$50 range? Pick 4 hot items and tell me why they're popular.
                     </div>
                   </div>
@@ -1273,18 +1278,19 @@ export default function AppClient({
                   >
                     {copiedText ===
                     "What's trending right now for gifts in the $30–$50 range? Pick 4 hot items and tell me why they're popular."
-                      ? "Copied"
+                      ? "✓ Copied"
                       : "Copy"}
                   </button>
                 </div>
 
                 {/* Example 2 */}
-                <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-button">
+                <div className="flex items-start justify-between gap-3 p-3.5 bg-gray-50 dark:bg-gray-800 rounded-button border border-gray-200 dark:border-gray-700">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-                      Buy online, use immediately
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5 flex items-center gap-1.5">
+                      <span>⚡</span>
+                      <span>Buy online, use immediately</span>
                     </div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400 break-words">
+                    <div className="text-xs text-gray-600 dark:text-gray-400 break-words leading-relaxed pl-5">
                       Suggest experience-based gifts that are purchasable online and can be used immediately. Budget $30–$50. Give 3 options.
                     </div>
                   </div>
@@ -1299,7 +1305,7 @@ export default function AppClient({
                   >
                     {copiedText ===
                     "Suggest experience-based gifts that are purchasable online and can be used immediately. Budget $30–$50. Give 3 options."
-                      ? "Copied"
+                      ? "✓ Copied"
                       : "Copy"}
                   </button>
                 </div>
@@ -1308,23 +1314,37 @@ export default function AppClient({
 
             {/* Section B: Save instructions */}
             <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
-                Save (in ChatGPT)
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                <span>💾</span>
+                <span>Save (in ChatGPT)</span>
               </h3>
-              <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                <p>Paste a product link and say: Save</p>
-                <p>Or just paste the link alone.</p>
-                <p>You can also @WishlistGPT in your other chats to save from there.</p>
-                <p className="text-xs text-secondary dark:text-secondary-dark">
-                  Also works: Add · Wishlist
+              <div className="space-y-2.5 text-sm text-gray-700 dark:text-gray-300 pl-5">
+                <p className="flex items-start gap-2">
+                  <span className="text-base">1.</span>
+                  <span>Paste a product link and say: <strong className="text-gray-900 dark:text-gray-100">Save</strong></span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="text-base">2.</span>
+                  <span>Or just paste the link alone.</span>
+                </p>
+                <p className="flex items-start gap-2">
+                  <span className="text-base">3.</span>
+                  <span>You can also <strong className="text-gray-900 dark:text-gray-100">@WishlistGPT</strong> in your other chats to save from there.</span>
+                </p>
+                <p className="text-xs text-secondary dark:text-secondary-dark pt-1 flex items-start gap-2">
+                  <span>💡</span>
+                  <span>Also works: <code className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs">Add</code> · <code className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs">Wishlist</code></span>
                 </p>
               </div>
             </div>
 
             {/* Footer tip */}
-            <p className="text-xs text-secondary dark:text-secondary-dark mb-4">
-              Tip: Multiple links (one per line) are OK.
-            </p>
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-button p-3 mb-4">
+              <p className="text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2">
+                <span>💡</span>
+                <span><strong>Tip:</strong> Multiple links (one per line) are OK.</span>
+              </p>
+            </div>
 
             {/* Close button */}
             <button
@@ -1334,6 +1354,8 @@ export default function AppClient({
             >
               Got it
             </button>
+
+
           </div>
         </div>
       ) : null}
