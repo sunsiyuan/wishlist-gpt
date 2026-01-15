@@ -219,6 +219,7 @@ export default function AppClient({
   const [toast, setToast] = useState<ToastState | null>(null);
   const [isCheatsheetOpen, setIsCheatsheetOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isEarlyAccessModalOpen, setIsEarlyAccessModalOpen] = useState(false);
   const [earlyAccessModalProps, setEarlyAccessModalProps] = useState<{
@@ -597,6 +598,30 @@ export default function AppClient({
     },
     [],
   );
+
+  const handleCopyPrompt = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedText(text);
+      setTimeout(() => setCopiedText(null), 1500);
+    } catch (error) {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        setCopiedText(text);
+        setTimeout(() => setCopiedText(null), 1500);
+      } catch (err) {
+        // Ignore
+      }
+      document.body.removeChild(textArea);
+    }
+  }, []);
 
   const handleCloseEarlyAccessModal = useCallback(() => {
     setIsEarlyAccessModalOpen(false);
@@ -1203,40 +1228,111 @@ export default function AppClient({
           onClick={() => setIsCheatsheetOpen(false)}
         >
           <div
-            className="w-full bg-background-light dark:bg-background-dark-light rounded-t-[24px] p-6 shadow-modal dark:shadow-modal-dark"
+            className="w-full max-h-[85vh] overflow-y-auto bg-background-light dark:bg-background-dark-light rounded-t-[24px] p-6 shadow-modal dark:shadow-modal-dark"
             onClick={(event) => event.stopPropagation()}
           >
-            <p className="text-secondary dark:text-secondary-dark mb-3">
-              Add items in ChatGPT, then review them here.
-            </p>
-            <ul className="pl-5 text-gray-600 dark:text-gray-400 space-y-1">
-              <li>Tell GPT what you want and it appears in your list.</li>
-              <li>Tap an item to add a note or decide.</li>
-              <li>Share a read-only list anytime.</li>
-              <li>Send feedback any time.</li>
-            </ul>
-            <div className="flex gap-3 mt-6">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="m-0 text-xl font-semibold">Cheatsheet</h2>
               <button
                 type="button"
                 onClick={() => setIsCheatsheetOpen(false)}
-                className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill py-3 cursor-pointer font-semibold hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-background-dark rounded transition-colors duration-200"
+                aria-label="Close"
               >
-                Got it
-              </button>
-              <button
-                type="button"
-                onClick={returnToChatGPT}
-                className="flex-1 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill py-3 cursor-pointer font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200"
-              >
-                Back to GPT
+                <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
+            <p className="text-sm text-secondary dark:text-secondary-dark mb-6">
+              Discover in ChatGPT, then paste a link to save.
+            </p>
+
+            {/* Section A: Discover examples */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Discover examples (send to ChatGPT)
+              </h3>
+              <div className="space-y-3">
+                {/* Example 1 */}
+                <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-button">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                      Trending / hot picks
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 break-words">
+                      What's trending right now for gifts in the $30–$50 range? Pick 4 hot items and tell me why they're popular.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCopyPrompt(
+                        "What's trending right now for gifts in the $30–$50 range? Pick 4 hot items and tell me why they're popular.",
+                      )
+                    }
+                    className="flex-shrink-0 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-background-dark transition-colors duration-200"
+                  >
+                    {copiedText ===
+                    "What's trending right now for gifts in the $30–$50 range? Pick 4 hot items and tell me why they're popular."
+                      ? "Copied"
+                      : "Copy"}
+                  </button>
+                </div>
+
+                {/* Example 2 */}
+                <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-button">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                      Buy online, use immediately
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 break-words">
+                      Suggest experience-based gifts that are purchasable online and can be used immediately. Budget $30–$50. Give 3 options.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCopyPrompt(
+                        "Suggest experience-based gifts that are purchasable online and can be used immediately. Budget $30–$50. Give 3 options.",
+                      )
+                    }
+                    className="flex-shrink-0 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-background-dark transition-colors duration-200"
+                  >
+                    {copiedText ===
+                    "Suggest experience-based gifts that are purchasable online and can be used immediately. Budget $30–$50. Give 3 options."
+                      ? "Copied"
+                      : "Copy"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Section B: Save instructions */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Save (in ChatGPT)
+              </h3>
+              <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <p>Paste a product link and say: Save</p>
+                <p>Or just paste the link alone.</p>
+                <p>You can also @WishlistGPT in your other chats to save from there.</p>
+                <p className="text-xs text-secondary dark:text-secondary-dark">
+                  Also works: Add · Wishlist
+                </p>
+              </div>
+            </div>
+
+            {/* Footer tip */}
+            <p className="text-xs text-secondary dark:text-secondary-dark mb-4">
+              Tip: Multiple links (one per line) are OK.
+            </p>
+
+            {/* Close button */}
             <button
               type="button"
-              onClick={() => setIsFeedbackOpen(true)}
-              className="w-full mt-3 border-none bg-transparent text-gray-900 dark:text-gray-100 py-1.5 font-semibold underline cursor-pointer hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
+              onClick={() => setIsCheatsheetOpen(false)}
+              className="w-full border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill py-3 cursor-pointer font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200"
             >
-              Send feedback
+              Got it
             </button>
           </div>
         </div>
