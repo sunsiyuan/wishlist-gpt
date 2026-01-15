@@ -197,136 +197,98 @@ async function queryEventsMetrics(): Promise<{
   };
 }
 
-async function queryTableMetrics(): Promise<{
+async function querySystemHealthMetrics(): Promise<{
   totalItems: number;
-  todayNewItems: number;
-  itemsWithNote: number;
-  itemsWithPrice: number;
-  avgItemsPerUser: number;
-  activeShares: number;
-  todayNewShares: number;
-  usersWithShare: number;
-  enrichmentSuccessRate: number;
-  profilesComplete: number;
-  todayFeedback: number;
+  todayCreated: number;
+  missingCanonicalUrl: number;
+  missingTitle: number;
+  missingImage: number;
+  missingPrice: number;
+  healthyRatio: number;
 }> {
   const today = new Date().toISOString().split("T")[0];
   const todayStart = `${today}T00:00:00Z`;
-  const yesterdayStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0] + "T00:00:00Z";
 
-  // 总 Item 数
+  // Total items
   const totalItemsRes = await supabaseAdminFetch(
     `/rest/v1/items?deleted_at=is.null&select=id`,
     { method: "GET" },
   );
   const totalItems = totalItemsRes.ok ? (await totalItemsRes.json()).length : 0;
 
-  // 今日新增 Item 数
-  const todayNewItemsRes = await supabaseAdminFetch(
+  // Items created today
+  const todayCreatedRes = await supabaseAdminFetch(
     `/rest/v1/items?deleted_at=is.null&created_at=gte.${todayStart}&select=id`,
     { method: "GET" },
   );
-  const todayNewItems = todayNewItemsRes.ok
-    ? (await todayNewItemsRes.json()).length
+  const todayCreated = todayCreatedRes.ok ? (await todayCreatedRes.json()).length : 0;
+
+  // Missing canonical_url (system issue)
+  const missingCanonicalUrlRes = await supabaseAdminFetch(
+    `/rest/v1/items?deleted_at=is.null&or=(canonical_url.is.null,canonical_url.eq.)&select=id`,
+    { method: "GET" },
+  );
+  const missingCanonicalUrl = missingCanonicalUrlRes.ok
+    ? (await missingCanonicalUrlRes.json()).length
     : 0;
 
-  // 有 Note 的 Item 数
-  const itemsWithNoteRes = await supabaseAdminFetch(
-    `/rest/v1/items?deleted_at=is.null&personal_note=not.is.null&select=id`,
+  // Missing display_product_title
+  const missingTitleRes = await supabaseAdminFetch(
+    `/rest/v1/items?deleted_at=is.null&or=(display_product_title.is.null,display_product_title.eq.)&select=id`,
     { method: "GET" },
   );
-  const itemsWithNote = itemsWithNoteRes.ok
-    ? (await itemsWithNoteRes.json()).length
-    : 0;
+  const missingTitle = missingTitleRes.ok ? (await missingTitleRes.json()).length : 0;
 
-  // 有价格信息的 Item 数
-  const itemsWithPriceRes = await supabaseAdminFetch(
-    `/rest/v1/items?deleted_at=is.null&display_price_amount_minor=not.is.null&select=id`,
+  // Missing display_cover_image_url
+  const missingImageRes = await supabaseAdminFetch(
+    `/rest/v1/items?deleted_at=is.null&or=(display_cover_image_url.is.null,display_cover_image_url.eq.)&select=id`,
     { method: "GET" },
   );
-  const itemsWithPrice = itemsWithPriceRes.ok
-    ? (await itemsWithPriceRes.json()).length
-    : 0;
+  const missingImage = missingImageRes.ok ? (await missingImageRes.json()).length : 0;
 
-  // 平均每用户 Item 数
-  const avgItemsRes = await supabaseAdminFetch(
-    `/rest/v1/items?deleted_at=is.null&select=user_id`,
+  // Missing display_price_text
+  const missingPriceRes = await supabaseAdminFetch(
+    `/rest/v1/items?deleted_at=is.null&or=(display_price_text.is.null,display_price_text.eq.)&select=id`,
     { method: "GET" },
   );
-  const avgItemsData = avgItemsRes.ok ? await avgItemsRes.json() : [];
-  const uniqueUsers = new Set(avgItemsData.map((i: { user_id: string }) => i.user_id)).size;
-  const avgItemsPerUser = uniqueUsers > 0 ? (avgItemsData.length / uniqueUsers).toFixed(2) : "0";
+  const missingPrice = missingPriceRes.ok ? (await missingPriceRes.json()).length : 0;
 
-  // 活跃 Share 数
-  const activeSharesRes = await supabaseAdminFetch(
-    `/rest/v1/shares?revoked_at=is.null&select=id`,
+  // Healthy ratio: items with title+image+price all present
+  // Note: We need to query all items and filter in application layer
+  // (Supabase REST API doesn't support complex AND/OR conditions easily)
+  const allItemsRes = await supabaseAdminFetch(
+    `/rest/v1/items?deleted_at=is.null&select=display_product_title,display_cover_image_url,display_price_text`,
     { method: "GET" },
   );
-  const activeShares = activeSharesRes.ok ? (await activeSharesRes.json()).length : 0;
-
-  // 今日创建的 Share 数
-  const todayNewSharesRes = await supabaseAdminFetch(
-    `/rest/v1/shares?created_at=gte.${todayStart}&select=id`,
-    { method: "GET" },
-  );
-  const todayNewShares = todayNewSharesRes.ok
-    ? (await todayNewSharesRes.json()).length
-    : 0;
-
-  // 有 Share 的用户数
-  const usersWithShareRes = await supabaseAdminFetch(
-    `/rest/v1/shares?revoked_at=is.null&select=user_id`,
-    { method: "GET" },
-  );
-  const usersWithShareData = usersWithShareRes.ok ? await usersWithShareRes.json() : [];
-  const usersWithShare = new Set(usersWithShareData.map((s: { user_id: string }) => s.user_id)).size;
-
-  // Enrichment 成功率（最近24小时）
-  const enrichmentRes = await supabaseAdminFetch(
-    `/rest/v1/item_enrich_runs?created_at=gte.${yesterdayStart}&select=final_applied`,
-    { method: "GET" },
-  );
-  const enrichmentData = enrichmentRes.ok ? await enrichmentRes.json() : [];
-  const enrichmentSuccess = enrichmentData.filter((r: { final_applied: boolean }) => r.final_applied).length;
-  const enrichmentSuccessRate =
-    enrichmentData.length > 0
-      ? ((enrichmentSuccess / enrichmentData.length) * 100).toFixed(1)
-      : "0";
-
-  // 完成 Profile 设置的用户数
-  const profilesRes = await supabaseAdminFetch(
-    `/rest/v1/profiles?or=(country_code.not.is.null,preferred_language.not.is.null)&select=id`,
-    { method: "GET" },
-  );
-  const profilesComplete = profilesRes.ok ? (await profilesRes.json()).length : 0;
-
-  // 今日反馈数
-  const todayFeedbackRes = await supabaseAdminFetch(
-    `/rest/v1/feedback?created_at=gte.${todayStart}&select=id`,
-    { method: "GET" },
-  );
-  const todayFeedback = todayFeedbackRes.ok
-    ? (await todayFeedbackRes.json()).length
-    : 0;
+  const allItems = allItemsRes.ok ? await allItemsRes.json() : [];
+  const healthyItems = allItems.filter(
+    (item: {
+      display_product_title: string | null;
+      display_cover_image_url: string | null;
+      display_price_text: string | null;
+    }) => {
+      const hasTitle = Boolean(item.display_product_title?.trim());
+      const hasImage = Boolean(item.display_cover_image_url?.trim());
+      const hasPrice = Boolean(item.display_price_text?.trim());
+      return hasTitle && hasImage && hasPrice;
+    },
+  ).length;
+  const healthyRatio = totalItems > 0 ? ((healthyItems / totalItems) * 100).toFixed(1) : "0";
 
   return {
     totalItems,
-    todayNewItems,
-    itemsWithNote,
-    itemsWithPrice,
-    avgItemsPerUser: parseFloat(avgItemsPerUser),
-    activeShares,
-    todayNewShares,
-    usersWithShare,
-    enrichmentSuccessRate: parseFloat(enrichmentSuccessRate),
-    profilesComplete,
-    todayFeedback,
+    todayCreated,
+    missingCanonicalUrl,
+    missingTitle,
+    missingImage,
+    missingPrice,
+    healthyRatio: parseFloat(healthyRatio),
   };
 }
 
 function formatMetricsMessage(
   eventsMetrics: Awaited<ReturnType<typeof queryEventsMetrics>>,
-  tableMetrics: Awaited<ReturnType<typeof queryTableMetrics>>,
+  systemHealthMetrics: Awaited<ReturnType<typeof querySystemHealthMetrics>>,
 ): string {
   const today = new Date().toISOString().split("T")[0];
 
@@ -337,6 +299,10 @@ function formatMetricsMessage(
 • 活跃用户: ${eventsMetrics.dau}
 • 完成 onboarding: ${eventsMetrics.onboardingComplete}
 
+*【AI 功能】*
+• Waitlist 加入: ${eventsMetrics.aiWaitlistJoins.total} (Buy: ${eventsMetrics.aiWaitlistJoins.byIntent.buy}, Gift: ${eventsMetrics.aiWaitlistJoins.byIntent.gift})
+• 来源: Card ${eventsMetrics.aiWaitlistJoins.bySurface.card}, Sheet ${eventsMetrics.aiWaitlistJoins.bySurface.sheet}
+
 *【核心功能】*
 • Item 创建: ${eventsMetrics.itemCreates}
 • Item 删除: ${eventsMetrics.itemDeletes}
@@ -346,22 +312,14 @@ function formatMetricsMessage(
 • Share 查看: ${eventsMetrics.sharePageViews}
 • Share 操作: ${eventsMetrics.shareActions.total} (复制: ${eventsMetrics.shareActions.copy}, 原生: ${eventsMetrics.shareActions.native})
 
-*【AI 功能】*
-• Waitlist 加入: ${eventsMetrics.aiWaitlistJoins.total} (Buy: ${eventsMetrics.aiWaitlistJoins.byIntent.buy}, Gift: ${eventsMetrics.aiWaitlistJoins.byIntent.gift})
-• 来源: Card ${eventsMetrics.aiWaitlistJoins.bySurface.card}, Sheet ${eventsMetrics.aiWaitlistJoins.bySurface.sheet}
-
-*【数据表统计】*
-• 总 Item 数: ${tableMetrics.totalItems}
-• 今日新增 Item: ${tableMetrics.todayNewItems}
-• 有 Note 的 Item: ${tableMetrics.itemsWithNote}
-• 有价格的 Item: ${tableMetrics.itemsWithPrice}
-• 平均每用户 Item 数: ${tableMetrics.avgItemsPerUser}
-• 活跃 Share 数: ${tableMetrics.activeShares}
-• 今日新增 Share: ${tableMetrics.todayNewShares}
-• 有 Share 的用户数: ${tableMetrics.usersWithShare}
-• Enrichment 成功率: ${tableMetrics.enrichmentSuccessRate}%
-• 完成 Profile 设置: ${tableMetrics.profilesComplete}
-• 今日反馈: ${tableMetrics.todayFeedback}`;
+*【系统健康度】*
+• 总 Item 数: ${systemHealthMetrics.totalItems}
+• 今日新增: ${systemHealthMetrics.todayCreated}
+• ⚠️ 缺失 canonical_url: ${systemHealthMetrics.missingCanonicalUrl}
+• 缺失标题: ${systemHealthMetrics.missingTitle}
+• 缺失封面图: ${systemHealthMetrics.missingImage}
+• 缺失价格: ${systemHealthMetrics.missingPrice}
+• 健康比例: ${systemHealthMetrics.healthyRatio}% (title+image+price 齐全)`;
 }
 
 export async function GET(request: NextRequest) {
@@ -376,8 +334,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const eventsMetrics = await queryEventsMetrics();
-    const tableMetrics = await queryTableMetrics();
-    const message = formatMetricsMessage(eventsMetrics, tableMetrics);
+    const systemHealthMetrics = await querySystemHealthMetrics();
+    const message = formatMetricsMessage(eventsMetrics, systemHealthMetrics);
 
     await sendTelegramMessage(message);
 
