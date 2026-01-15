@@ -20,6 +20,7 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Middleware session refresh / 中间件刷新: `middleware.ts`
 - Items 存储 / storage: `src/server/items/`
 - Items display hint validation / enrichment: `src/server/items/displayFields.ts`, `src/server/items/enrich.ts`
+- Items URL sanitization / URL清理: `src/server/items/sanitizeUrl.ts`
 - Shares 存储 / storage: `src/server/shares/`
 - Public share helper / 分享页查询: `src/server/shares/public.ts`
 - Profiles 存储 / storage: `src/server/profiles/store.ts`
@@ -30,16 +31,28 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 - Shares API 路由 / routes: `src/app/api/shares/route.ts`, `src/app/api/shares/rotate/route.ts`, `src/app/api/shares/[id]/revoke/route.ts`
 - Profile API 路由 / route: `src/app/api/profile/route.ts`
 - Follows API 路由 / route: `src/app/api/follows/route.ts`
+- Cron enrich route / 定时enrich任务: `src/app/api/cron/enrich/route.ts`
+- Cron daily route / 每日定时任务: `src/app/api/cron/daily/route.ts`
+- Cron system-health route / 系统健康检查: `src/app/api/cron/system-health/route.ts`
+- Dev enrich route / 开发enrich测试: `src/app/api/dev/enrich/route.ts`
+- Metrics daily route / 每日指标: `src/app/api/metrics/daily/route.ts`
+- Ops routes / 运维路由: `src/app/api/ops/item/[id]/route.ts`, `src/app/api/ops/queue/route.ts`
+- Tracking routes / 埋点路由: `src/app/api/track/event/route.ts`, `src/app/api/track/share-view/route.ts`
 - Public share page / 分享页: `src/app/s/[share_id]/page.tsx`
-- Share view tracking route / 分享页埋点路由: `src/app/api/track/share-view/route.ts`
 - Onboarding profile page / 个人资料设置页: `src/app/onboarding/profile/page.tsx`
+- Ops page / 运维页面: `src/app/ops/page.tsx`
+- Settings page / 设置页面: `src/app/app/settings/page.tsx`
+- Privacy/Terms pages / 隐私和条款页: `src/app/privacy/page.tsx`, `src/app/terms/page.tsx`
 - Shares migration: `supabase/migrations/004_shares.sql`
 - Events migration: `supabase/migrations/005_events.sql`
 - Items v0.3 migration: `supabase/migrations/006_items_v03.sql`
 - Item enrich runs migration: `supabase/migrations/007_item_enrich_runs.sql`
+- Item enrich runs attempts migration: `supabase/migrations/009_item_enrich_runs_attempts.sql`
 - Feedback migration: `supabase/migrations/008_feedback.sql`
+- Profiles migration: `supabase/migrations/010_profiles.sql`
 - Profiles social migration: `supabase/migrations/011_profiles_social.sql` (v0.9)
 - Follows migration: `supabase/migrations/012_follows.sql` (v0.9)
+- Items v1.0 migration: `supabase/migrations/013_items_v1_0.sql`
 - Tracking helpers / 埋点 helpers: `src/server/tracking/`
 - OpenAPI 模板与生成 / template & generator:
   - `actions/openapi.template.yaml`
@@ -67,8 +80,8 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  ├─ MVP_SPEC.md                    # MVP 范围与验收 / MVP scope & acceptance
 │  ├─ PROJECT_MAP.md                 # 本文件 / this file
 │  ├─ CHEATSHEET.md                  # 速查与排障 / cheats & troubleshooting
-│  ├─ AUTH_WEB.md                    # Web auth flow / Web 登录流
-│  └─ SECURITY.md                    # 安全与生产默认 / security & prod defaults
+│  ├─ SECURITY.md                    # 安全与生产默认 / security & prod defaults
+│  └─ ENRICH_STRATEGY.md             # Enrich策略文档 / Enrich strategy documentation
 ├─ public/
 │  └─ openapi.yaml                   # 由模板生成（npm run gen:openapi）/ generated artifact
 ├─ scripts/
@@ -98,22 +111,57 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 │  │  ├─ api/shares/route.ts           # /shares handler (see MVP_SPEC) / /shares 处理（以 MVP_SPEC 为准）
 │  │  ├─ api/shares/rotate/route.ts    # /shares/rotate handler (see MVP_SPEC)
 │  │  ├─ api/shares/[id]/revoke/route.ts # /shares/:id/revoke handler (see MVP_SPEC)
+│  │  ├─ api/cron/enrich/route.ts     # /api/cron/enrich (Vercel Cron daily enrich)
+│  │  ├─ api/cron/daily/route.ts      # /api/cron/daily (Vercel Cron daily tasks)
+│  │  ├─ api/cron/system-health/route.ts # /api/cron/system-health (system health check)
+│  │  ├─ api/dev/enrich/route.ts      # /api/dev/enrich (dev enrich testing)
+│  │  ├─ api/metrics/daily/route.ts   # /api/metrics/daily (daily metrics)
+│  │  ├─ api/ops/item/[id]/route.ts  # /api/ops/item/:id (ops item management)
+│  │  ├─ api/ops/queue/route.ts       # /api/ops/queue (ops queue management)
+│  │  ├─ api/track/event/route.ts     # /api/track/event (event tracking)
 │  │  ├─ api/track/share-view/route.ts # share view tracking (public)
 │  │  ├─ feedback/route.ts             # /feedback (OAuth bearer Actions)
 │  │  ├─ logout/route.ts               # GET /logout (clear cookies + redirect)
 │  │  ├─ login/                        # /login (Supabase auth UI) / 登录页
-│  │  └─ s/[share_id]/page.tsx         # /s/:share_id public share page
+│  │  ├─ onboarding/                  # /onboarding (onboarding flow) / 引导流程
+│  │  ├─ ops/                          # /ops (ops dashboard) / 运维面板
+│  │  ├─ app/settings/                 # /app/settings (user settings) / 用户设置
+│  │  ├─ privacy/                      # /privacy (privacy policy) / 隐私政策
+│  │  ├─ terms/                        # /terms (terms of service) / 服务条款
+│  │  ├─ components/                   # Shared React components / 共享组件
+│  │  ├─ go/chatgpt/route.ts          # /go/chatgpt (redirect to ChatGPT GPT)
+│  │  └─ s/[share_id]/                 # /s/:share_id public share page + components
 │  ├─ lib/
-│  │  └─ supabase/                     # Supabase SSR client setup
+│  │  ├─ supabase/                     # Supabase SSR client setup
+│  │  ├─ avatar.ts                     # Avatar generation helpers
+│  │  ├─ chatgpt.ts                    # ChatGPT GPT URL helpers
+│  │  ├─ itemDisplay.ts                # Item display helpers
+│  │  ├─ options.ts                    # Options/constants
+│  │  └─ profile.ts                     # Profile helpers
 │  ├─ server/
 │  │  ├─ auth/                         # bearer + supabase session / 认证层
 │  │  ├─ feedback/                     # Feedback storage + notifications
 │  │  ├─ oauth/                        # OAuth helpers / OAuth 辅助逻辑
 │  │  ├─ items/                        # Items storage / items 存储
+│  │  │  ├─ displayFields.ts          # Display field validation & sanitization
+│  │  │  ├─ enrich.ts                  # Enrichment strategy implementation
+│  │  │  ├─ sanitizeUrl.ts            # URL sanitization
+│  │  │  └─ store.ts                   # Items database operations
+│  │  ├─ profiles/                     # Profiles storage / profiles 存储
+│  │  │  └─ store.ts                   # Profiles database operations
+│  │  ├─ follows/                      # Follows storage / follows 存储
+│  │  │  ├─ items.ts                   # Follows items queries
+│  │  │  └─ store.ts                   # Follows database operations
 │  │  ├─ shares/                       # Shares storage / shares 存储
+│  │  │  ├─ index.ts                  # Shares database operations
 │  │  │  └─ public.ts                  # Public share queries / 分享页查询
-│  │  └─ tracking/                     # Event tracking helpers / 埋点 helper
-│  └─ supabase/                        # Admin fetch helper / 管理端请求封装
+│  │  ├─ tracking/                     # Event tracking helpers / 埋点 helper
+│  │  │  ├─ requestMeta.ts            # Request metadata extraction
+│  │  │  ├─ trackBestEffort.ts        # Best-effort tracking
+│  │  │  ├─ trackEvent.ts             # Event tracking
+│  │  │  └─ types.ts                   # Tracking types
+│  │  └─ supabase/                     # Admin fetch helper / 管理端请求封装
+│  │     └─ admin.ts                   # Supabase admin client
 ├─ middleware.ts                      # SSR session refresh middleware
 └─ supabase/migrations/
    ├─ 001_init.sql                     # oauth_codes/oauth_tokens
@@ -123,7 +171,12 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
    ├─ 005_events.sql                   # events
    ├─ 006_items_v03.sql                # items v0.3
    ├─ 007_item_enrich_runs.sql         # item_enrich_runs
-   └─ 008_feedback.sql                 # feedback
+   ├─ 008_feedback.sql                 # feedback
+   ├─ 009_item_enrich_runs_attempts.sql # item_enrich_runs enhancements
+   ├─ 010_profiles.sql                 # profiles
+   ├─ 011_profiles_social.sql          # profiles social fields (v0.9)
+   ├─ 012_follows.sql                  # follows (v0.9)
+   └─ 013_items_v1_0.sql               # items v1.0 enhancements
 ````
 
 ---
