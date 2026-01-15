@@ -1,143 +1,121 @@
 # WishlistGPT
 
 ## 简介 / Overview
-WishlistGPT 是一个基于 Next.js 的**最小化 OAuth bridge + wishlist API** 服务，面向 ChatGPT Actions / OpenAPI 使用场景：支持 OAuth 授权码流程、`/me` 身份验证，以及 `/items` 列表/创建接口。文档严格对齐当前实现，且本仓库只保留 5 份规范性文档（见下）。
 
-WishlistGPT is a minimal **Next.js OAuth bridge + wishlist API** for ChatGPT Actions / OpenAPI: it supports the OAuth authorization-code flow, `/me` identity verification, and `/items` list/create APIs. Docs are strictly aligned with the current implementation, and only 5 normative docs remain (see below).
+WishlistGPT 是一个智能愿望清单服务，通过 ChatGPT Actions 让用户能够自然语言对话的方式管理购物清单。用户可以直接在 ChatGPT 中发送产品链接，AI 助手会自动保存到愿望清单，并支持分享、查看和管理。
 
----
+WishlistGPT is an intelligent wishlist service that enables users to manage shopping lists through natural language conversations with ChatGPT. Users can send product links directly in ChatGPT, and the AI assistant automatically saves them to the wishlist, with support for sharing, viewing, and management.
 
-## 当前能力（MVP v0）/ What’s implemented (MVP v0)
-- OAuth bridge：
-  - `GET /api/oauth/authorize`（别名 `GET /oauth/authorize`）签发授权码
-  - `POST /api/oauth/token`（别名 `POST /oauth/token`）支持 `authorization_code` 与 `refresh_token`
-- 受保护 API（OAuth Bearer）：
-  - `GET /me`
-  - `GET /items`
-  - `POST /items`（同一 URL 幂等 create/touch）
-- OpenAPI：
-  - 从 `actions/openapi.template.yaml` 渲染生成 `public/openapi.yaml`
+### 核心功能 / Core Features
 
-- OAuth bridge:
-  - `GET /api/oauth/authorize` (alias `GET /oauth/authorize`) issues authorization codes
-  - `POST /api/oauth/token` (alias `POST /oauth/token`) supports `authorization_code` and `refresh_token`
-- Protected APIs (OAuth Bearer):
-  - `GET /me`
-  - `GET /items`
-  - `POST /items` (idempotent create/touch for the same URL)
-- OpenAPI:
-  - Render `actions/openapi.template.yaml` into `public/openapi.yaml`
+- **ChatGPT 集成 / ChatGPT Integration**: 通过 Actions/OpenAPI 与 ChatGPT 无缝集成，支持自然语言交互
+- **智能保存 / Smart Saving**: 自动提取产品信息（标题、图片、价格等）并保存到愿望清单
+- **分享功能 / Sharing**: 生成公开分享链接，方便与他人分享愿望清单
+- **Web 界面 / Web Interface**: 提供完整的 Web 应用，支持查看、编辑、管理愿望清单
+- **自动丰富 / Auto Enrichment**: 后台自动抓取和丰富产品信息，提升展示效果
 
 ---
 
-## v0.2 additions (web)
-- Public share page (web-only):
-  - `GET /s/:share_id` renders a read-only list for anyone.
-  - Revoked shares return 404 (same as not found).
-- Minimal tracking (web-only):
-  - `/app` list load and `/s/:share_id` page view write to `events`.
-  - Public tracking endpoint: `POST /api/track/share-view`.
+## 与 ChatGPT 的交互 / ChatGPT Integration
 
-- 公开分享页（仅 web）：
-  - `GET /s/:share_id` 任何人可读列表（只读）。
-  - revoke 后返回 404（与不存在一致）。
-- 最小埋点（仅 web）：
-  - `/app` 列表加载与 `/s/:share_id` 页面访问写入 `events`。
-  - 公开埋点接口：`POST /api/track/share-view`。
+WishlistGPT 通过 **ChatGPT Actions** 与 ChatGPT 集成。用户可以在 ChatGPT 对话中：
 
----
+- 发送产品链接，AI 自动保存到愿望清单
+- 查看愿望清单内容
+- 分享愿望清单给他人
+- 使用自然语言管理清单（添加、查看、分享等）
 
-## 文档入口（规范来源）/ Docs (normative sources)
-> 只有以下 5 个文件是“规范来源”。其他 README 或历史文档不再作为规范依据。  
-> Only the 5 files below are normative. Other READMEs or legacy docs are non-normative.
+### 配置与策略 / Configuration & Strategy
 
-- `README.md`（本文件 / this file）
-- `docs/MVP_SPEC.md`
-- `docs/PROJECT_MAP.md`
-- `docs/CHEATSHEET.md`
-- `docs/SECURITY.md`
+所有与 ChatGPT 交互的策略和配置都在 `actions/` 目录中：
+
+- **`actions/CONFIG.md`**: ChatGPT GPT 的配置信息（描述、对话启动器等）
+- **`actions/GPTS_INSTRUCTIONS.md`**: 详细的 GPT 指令，定义 AI 助手的行为规范、交互流程、错误处理等
+- **`actions/openapi.template.yaml`**: OpenAPI 规范模板，定义 API 接口契约
+
+### OpenAPI 生成 / OpenAPI Generation
+
+- **模板**: `actions/openapi.template.yaml`（包含 `__BASE_URL__` 占位符）
+- **生成命令**: `npm run gen:openapi`（`npm run build` 的 `prebuild` 也会自动执行）
+- **产物**: `public/openapi.yaml`
+
+Base URL 由 `scripts/gen-openapi.mjs` 根据 `BASE_URL` 或 Vercel 环境变量自动推导。
 
 ---
 
 ## 快速开始 / Quickstart
 
-### 必要环境变量 / Required env vars
+### 环境变量 / Environment Variables
+
+**必需 / Required:**
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`（或 `NEXT_PUBLIC_SUPABASE_ANON_KEY`）
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `OAUTH_ALLOWED_CLIENTS_JSON`
 - `OAUTH_SIGNING_SECRET`
 
-可选但常用 / Optional but common:
+**可选但常用 / Optional but common:**
 - `OAUTH_ALLOW_AUTH_HEADER_LOGIN`
 - `BASE_URL`
-- `CLIENT_ID`
-- `REDIRECT_URI`
-- `TEST_USER_EMAIL`
-- `TEST_USER_PASSWORD`
+- `OPENGRAPH_IO_APP_ID`（opengraph.io 兜底抓取）
+- `CRON_SECRET`（Vercel Cron Jobs 安全密钥）
+- `CHATGPT_GPT_URL` 或 `NEXT_PUBLIC_CHATGPT_GPT_URL`（ChatGPT GPT 链接）
 
-> 重要 / Important: 修改 `.env*` 后，务必**重启终端**并重启 `npm run dev`，避免旧进程导致“改了但没生效”。  
+> **重要 / Important**: 修改 `.env*` 后，务必**重启终端**并重启 `npm run dev`，避免旧进程导致"改了但没生效"。  
 > After changing `.env*`, **restart your terminal** and restart `npm run dev` to avoid stale-process confusion.
 
-### 安装与启动 / Install & run
+### 安装与启动 / Install & Run
+
 ```bash
 npm install
 npm run dev
-````
-
----
-
-## Smoke（先脚本，后 Actions）/ Smoke (scripts first, then Actions)
-
-```bash
-npm run smoke:oauth
-npm run smoke:items
-npm run smoke:openapi
-npm run smoke:all
 ```
 
-* `smoke:oauth`：验证 OAuth bridge + `/me`
-
-* `smoke:items`：验证 `/items`（POST + GET）
-
-* `smoke:openapi`：验证 `public/openapi.yaml` 产物和 `/openapi.yaml` 服务
-
-* `smoke:all`：依次跑完全部 smoke
-
-* `smoke:oauth`: validate OAuth bridge + `/me`
-
-* `smoke:items`: validate `/items` (POST + GET)
-
-* `smoke:openapi`: validate `public/openapi.yaml` and `GET /openapi.yaml`
-
-* `smoke:all`: run all smokes in sequence
+访问 `/login` 进行登录，或访问 `/app` 查看愿望清单界面。
 
 ---
 
-## Actions / OpenAPI（给 GPT 导入用）/ Actions / OpenAPI (for GPT import)
+## 文档 / Documentation
 
-### OpenAPI 的“真相” / OpenAPI source of truth
+本项目采用严格的文档规范，只有以下文档是"规范来源"：
 
-* 模板 / Template: `actions/openapi.template.yaml`（含 `__BASE_URL__` 占位符）
+- **`README.md`**（本文件）- 项目简介和快速开始
+- **`docs/MVP_SPEC.md`** - API 契约和验收标准
+- **`docs/PROJECT_MAP.md`** - 代码组织和文件位置索引
+- **`docs/CHEATSHEET.md`** - 速查手册和排障指南
+- **`docs/SECURITY.md`** - 安全策略和生产默认值
+- **`docs/ENRICH_STRATEGY.md`** - 产品信息丰富策略文档
 
-* 生成 / Generate: `npm run gen:openapi`（`npm run build` 的 `prebuild` 也会自动执行）
-
-* 产物 / Artifact: `public/openapi.yaml`
-
-* Template: `actions/openapi.template.yaml` (with `__BASE_URL__`)
-
-* Generate: `npm run gen:openapi` (also runs via `prebuild` during `npm run build`)
-
-* Artifact: `public/openapi.yaml`
-
-### Base URL 如何决定 / How base URL is derived
-
-由 `scripts/gen-openapi.mjs` 根据 `BASE_URL` 或 Vercel 环境变量推导。
-Authoritative logic lives in `scripts/gen-openapi.mjs` and derives the base URL from `BASE_URL` or Vercel env vars.
+**ChatGPT 相关策略**：
+- **`actions/CONFIG.md`** - ChatGPT GPT 配置
+- **`actions/GPTS_INSTRUCTIONS.md`** - GPT 指令和行为规范
 
 ---
 
-## 维护规则（避免文档再次发散）/ Maintenance rules (prevent doc drift)
+## 技术栈 / Tech Stack
 
-* 改动 API 路由、OpenAPI 生成路径、smoke 命令或关键 env：必须同步更新 `MVP_SPEC` + `CHEATSHEET` + `PROJECT_MAP`。
-* If you change API routes, OpenAPI generation paths, smoke commands, or key env flags: update `MVP_SPEC` + `CHEATSHEET` + `PROJECT_MAP`.
+- **框架 / Framework**: Next.js (App Router)
+- **数据库 / Database**: Supabase (PostgreSQL)
+- **认证 / Auth**: Supabase Auth + OAuth 2.0 (Authorization Code Flow)
+- **部署 / Deployment**: Vercel
+- **集成 / Integration**: ChatGPT Actions (OpenAPI)
+
+---
+
+## 维护规则 / Maintenance Rules
+
+如果改动了 API 路由、OpenAPI 生成路径、关键环境变量或 ChatGPT 交互策略，必须同步更新：
+
+- `docs/MVP_SPEC.md`（API 契约）
+- `docs/CHEATSHEET.md`（使用指南）
+- `docs/PROJECT_MAP.md`（文件位置）
+- `actions/GPTS_INSTRUCTIONS.md`（GPT 指令，如涉及交互逻辑）
+
+If you change API routes, OpenAPI generation paths, key env vars, or ChatGPT interaction strategies, update:
+
+- `docs/MVP_SPEC.md` (API contract)
+- `docs/CHEATSHEET.md` (usage guide)
+- `docs/PROJECT_MAP.md` (file locations)
+- `actions/GPTS_INSTRUCTIONS.md` (GPT instructions, if interaction logic is involved)
