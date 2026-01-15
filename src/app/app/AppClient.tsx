@@ -1338,14 +1338,6 @@ export default function AppClient({
               </div>
             </div>
 
-            {/* Footer tip */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-button p-3 mb-4">
-              <p className="text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2">
-                <span>💡</span>
-                <span><strong>Tip:</strong> Multiple links (one per line) are OK.</span>
-              </p>
-            </div>
-
             {/* Close button */}
             <button
               type="button"
@@ -1353,6 +1345,13 @@ export default function AppClient({
               className="w-full border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill py-3 cursor-pointer font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200"
             >
               Got it
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFeedbackOpen(true)}
+              className="w-full mt-3 border-none bg-transparent text-gray-900 dark:text-gray-100 py-1.5 font-semibold underline cursor-pointer hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
+            >
+              Send feedback
             </button>
 
 
