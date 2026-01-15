@@ -1,8 +1,8 @@
 # PROJECT_MAP
 
 ## 0. 单一导航入口 / Single navigation entry
-CN：本项目的规范性文档只保留：`README.md`、`MVP_SPEC`、`PROJECT_MAP`、`CHEATSHEET`、`SECURITY`。其他任何文档都不再是规范来源。  
-EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEATSHEET`, `SECURITY`. No other doc is normative.
+CN：本项目的规范性文档只保留：`README.md`、`MVP_SPEC`、`PROJECT_MAP`、`CHEATSHEET`、`SECURITY`、`ENRICH_STRATEGY`。其他任何文档都不再是规范来源。  
+EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEATSHEET`, `SECURITY`, `ENRICH_STRATEGY`. No other doc is normative.
 
 ---
 
