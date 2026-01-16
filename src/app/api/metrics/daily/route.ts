@@ -18,7 +18,7 @@ async function sendTelegramMessage(text: string): Promise<void> {
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      // 不设置 parse_mode，使用纯文本（与 notify.ts 保持一致，避免 Markdown 解析错误）
+      parse_mode: "Markdown",
     }),
   });
 
@@ -292,18 +292,18 @@ function formatMetricsMessage(
 ): string {
   const today = new Date().toISOString().split("T")[0];
 
-  return `📊 WishlistGPT 日报 - ${today}
+  return `📊 *WishlistGPT 日报 - ${today}*
 
-【用户增长】
+*【用户增长】*
 • 新用户: ${eventsMetrics.newUsers} (Google: ${eventsMetrics.newUsersGoogle}, Email: ${eventsMetrics.newUsersEmail})
 • 活跃用户: ${eventsMetrics.dau}
 • 完成 onboarding: ${eventsMetrics.onboardingComplete}
 
-【AI 功能】
+*【AI 功能】*
 • Waitlist 加入: ${eventsMetrics.aiWaitlistJoins.total} (Buy: ${eventsMetrics.aiWaitlistJoins.byIntent.buy}, Gift: ${eventsMetrics.aiWaitlistJoins.byIntent.gift})
 • 来源: Card ${eventsMetrics.aiWaitlistJoins.bySurface.card}, Sheet ${eventsMetrics.aiWaitlistJoins.bySurface.sheet}
 
-【核心功能】
+*【核心功能】*
 • Item 创建: ${eventsMetrics.itemCreates}
 • Item 删除: ${eventsMetrics.itemDeletes}
 • Item Note 更新: ${eventsMetrics.itemNoteUpdates}
@@ -312,14 +312,14 @@ function formatMetricsMessage(
 • Share 查看: ${eventsMetrics.sharePageViews}
 • Share 操作: ${eventsMetrics.shareActions.total} (复制: ${eventsMetrics.shareActions.copy}, 原生: ${eventsMetrics.shareActions.native})
 
-【系统健康度】
+*【系统健康度】*
 • 总 Item 数: ${systemHealthMetrics.totalItems}
 • 今日新增: ${systemHealthMetrics.todayCreated}
-• 缺失 canonical_url: ${systemHealthMetrics.missingCanonicalUrl}
+• ⚠️ 缺失 canonical_url: ${systemHealthMetrics.missingCanonicalUrl}
 • 缺失标题: ${systemHealthMetrics.missingTitle}
 • 缺失封面图: ${systemHealthMetrics.missingImage}
 • 缺失价格: ${systemHealthMetrics.missingPrice}
-• 健康比例: ${systemHealthMetrics.healthyRatio}%`;
+• 健康比例: ${systemHealthMetrics.healthyRatio}% `;
 }
 
 export async function GET(request: NextRequest) {
