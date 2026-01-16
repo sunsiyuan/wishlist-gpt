@@ -18,7 +18,7 @@ async function sendTelegramMessage(text: string): Promise<void> {
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      parse_mode: "Markdown",
+      parse_mode: "MarkdownV2",
     }),
   });
 
@@ -292,34 +292,41 @@ function formatMetricsMessage(
 ): string {
   const today = new Date().toISOString().split("T")[0];
 
-  return `📊 *WishlistGPT 日报 - ${today}*
+  // MarkdownV2 需要转义的特殊字符：_ * [ ] ( ) ~ ` > # + - = | { } . !
+  // 转义函数
+  const escape = (text: string | number): string => {
+    const str = String(text);
+    return str.replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
+  };
+
+  return `📊 *WishlistGPT 日报 \\- ${escape(today)}*
 
 *【用户增长】*
-• 新用户: ${eventsMetrics.newUsers} (Google: ${eventsMetrics.newUsersGoogle}, Email: ${eventsMetrics.newUsersEmail})
-• 活跃用户: ${eventsMetrics.dau}
-• 完成 onboarding: ${eventsMetrics.onboardingComplete}
+• 新用户\\: ${escape(eventsMetrics.newUsers)} \\(Google\\: ${escape(eventsMetrics.newUsersGoogle)}, Email\\: ${escape(eventsMetrics.newUsersEmail)}\\)
+• 活跃用户\\: ${escape(eventsMetrics.dau)}
+• 完成 onboarding\\: ${escape(eventsMetrics.onboardingComplete)}
 
 *【AI 功能】*
-• Waitlist 加入: ${eventsMetrics.aiWaitlistJoins.total} (Buy: ${eventsMetrics.aiWaitlistJoins.byIntent.buy}, Gift: ${eventsMetrics.aiWaitlistJoins.byIntent.gift})
-• 来源: Card ${eventsMetrics.aiWaitlistJoins.bySurface.card}, Sheet ${eventsMetrics.aiWaitlistJoins.bySurface.sheet}
+• Waitlist 加入\\: ${escape(eventsMetrics.aiWaitlistJoins.total)} \\(Buy\\: ${escape(eventsMetrics.aiWaitlistJoins.byIntent.buy)}, Gift\\: ${escape(eventsMetrics.aiWaitlistJoins.byIntent.gift)}\\)
+• 来源\\: Card ${escape(eventsMetrics.aiWaitlistJoins.bySurface.card)}, Sheet ${escape(eventsMetrics.aiWaitlistJoins.bySurface.sheet)}
 
 *【核心功能】*
-• Item 创建: ${eventsMetrics.itemCreates}
-• Item 删除: ${eventsMetrics.itemDeletes}
-• Item Note 更新: ${eventsMetrics.itemNoteUpdates}
-• Item 详情查看: ${eventsMetrics.itemViewDetails}
-• Share 创建: ${eventsMetrics.shareCreates}
-• Share 查看: ${eventsMetrics.sharePageViews}
-• Share 操作: ${eventsMetrics.shareActions.total} (复制: ${eventsMetrics.shareActions.copy}, 原生: ${eventsMetrics.shareActions.native})
+• Item 创建\\: ${escape(eventsMetrics.itemCreates)}
+• Item 删除\\: ${escape(eventsMetrics.itemDeletes)}
+• Item Note 更新\\: ${escape(eventsMetrics.itemNoteUpdates)}
+• Item 详情查看\\: ${escape(eventsMetrics.itemViewDetails)}
+• Share 创建\\: ${escape(eventsMetrics.shareCreates)}
+• Share 查看\\: ${escape(eventsMetrics.sharePageViews)}
+• Share 操作\\: ${escape(eventsMetrics.shareActions.total)} \\(复制\\: ${escape(eventsMetrics.shareActions.copy)}, 原生\\: ${escape(eventsMetrics.shareActions.native)}\\)
 
 *【系统健康度】*
-• 总 Item 数: ${systemHealthMetrics.totalItems}
-• 今日新增: ${systemHealthMetrics.todayCreated}
-• ⚠️ 缺失 canonical_url: ${systemHealthMetrics.missingCanonicalUrl}
-• 缺失标题: ${systemHealthMetrics.missingTitle}
-• 缺失封面图: ${systemHealthMetrics.missingImage}
-• 缺失价格: ${systemHealthMetrics.missingPrice}
-• 健康比例: ${systemHealthMetrics.healthyRatio}`;
+• 总 Item 数\\: ${escape(systemHealthMetrics.totalItems)}
+• 今日新增\\: ${escape(systemHealthMetrics.todayCreated)}
+• ⚠️ 缺失 canonical\\_url\\: ${escape(systemHealthMetrics.missingCanonicalUrl)}
+• 缺失标题\\: ${escape(systemHealthMetrics.missingTitle)}
+• 缺失封面图\\: ${escape(systemHealthMetrics.missingImage)}
+• 缺失价格\\: ${escape(systemHealthMetrics.missingPrice)}
+• 健康比例\\: ${escape(systemHealthMetrics.healthyRatio)}`;
 }
 
 export async function GET(request: NextRequest) {
