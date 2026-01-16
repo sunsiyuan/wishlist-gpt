@@ -315,7 +315,7 @@ function formatMetricsMessage(
 *【系统健康度】*
 • 总 Item 数: ${systemHealthMetrics.totalItems}
 • 今日新增: ${systemHealthMetrics.todayCreated}
-• ⚠️ 缺失 `canonical_url`: ${systemHealthMetrics.missingCanonicalUrl}
+• ⚠️ 缺失 canonical_url: ${systemHealthMetrics.missingCanonicalUrl}
 • 缺失标题: ${systemHealthMetrics.missingTitle}
 • 缺失封面图: ${systemHealthMetrics.missingImage}
 • 缺失价格: ${systemHealthMetrics.missingPrice}
