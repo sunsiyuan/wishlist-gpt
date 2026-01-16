@@ -322,7 +322,7 @@ function formatMetricsMessage(
 *【系统健康度】*
 • 总 Item 数\\: ${escape(systemHealthMetrics.totalItems)}
 • 今日新增\\: ${escape(systemHealthMetrics.todayCreated)}
-• ⚠️ 缺失 canonical\\_url\\: ${escape(systemHealthMetrics.missingCanonicalUrl)}
+• 缺失 canonical\\_url\\: ${escape(systemHealthMetrics.missingCanonicalUrl)}
 • 缺失标题\\: ${escape(systemHealthMetrics.missingTitle)}
 • 缺失封面图\\: ${escape(systemHealthMetrics.missingImage)}
 • 缺失价格\\: ${escape(systemHealthMetrics.missingPrice)}
