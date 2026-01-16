@@ -127,7 +127,7 @@ function formatSystemHealthMessage(
 
 • 总 Item 数: ${metrics.totalItems}
 • 今日新增: ${metrics.todayCreated}
-• ⚠️ 缺失 canonical_url: ${metrics.missingCanonicalUrl}
+• ⚠️ 缺失 `canonical_url`: ${metrics.missingCanonicalUrl}
 • 缺失标题: ${metrics.missingTitle}
 • 缺失封面图: ${metrics.missingImage}
 • 缺失价格: ${metrics.missingPrice}
