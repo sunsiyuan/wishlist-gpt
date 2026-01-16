@@ -18,7 +18,7 @@ async function sendTelegramMessage(text: string): Promise<void> {
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      parse_mode: "Markdown",
+      parse_mode: "MarkdownV2",
     }),
   });
 
@@ -123,15 +123,22 @@ function formatSystemHealthMessage(
   const now = new Date().toISOString();
   const timestamp = now.split("T")[1].split(".")[0] + " UTC";
 
-  return `📊 *【系统健康度】* - ${timestamp}
+  // MarkdownV2 需要转义的特殊字符：_ * [ ] ( ) ~ ` > # + - = | { } . !
+  // 转义函数
+  const escape = (text: string | number): string => {
+    const str = String(text);
+    return str.replace(/([_*\[\]()~`>#+\-=|{}.!])/g, '\\$1');
+  };
 
-• 总 Item 数: ${metrics.totalItems}
-• 今日新增: ${metrics.todayCreated}
-• 缺失 canonical_url: ${metrics.missingCanonicalUrl}
-• 缺失标题: ${metrics.missingTitle}
-• 缺失封面图: ${metrics.missingImage}
-• 缺失价格: ${metrics.missingPrice}
-• 健康比例: ${metrics.healthyRatio}%`;
+  return `📊 *【系统健康度】* \\- ${escape(timestamp)}
+
+• 总 Item 数\\: ${escape(metrics.totalItems)}
+• 今日新增\\: ${escape(metrics.todayCreated)}
+• 缺失 canonical\\_url\\: ${escape(metrics.missingCanonicalUrl)}
+• 缺失标题\\: ${escape(metrics.missingTitle)}
+• 缺失封面图\\: ${escape(metrics.missingImage)}
+• 缺失价格\\: ${escape(metrics.missingPrice)}
+• 健康比例\\: ${escape(metrics.healthyRatio)}`;
 }
 
 export async function GET(request: NextRequest) {
