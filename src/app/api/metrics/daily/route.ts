@@ -319,7 +319,7 @@ function formatMetricsMessage(
 • 缺失标题: ${systemHealthMetrics.missingTitle}
 • 缺失封面图: ${systemHealthMetrics.missingImage}
 • 缺失价格: ${systemHealthMetrics.missingPrice}
-• 健康比例: ${systemHealthMetrics.healthyRatio}% `;
+• 健康比例: ${systemHealthMetrics.healthyRatio}`;
 }
 
 export async function GET(request: NextRequest) {

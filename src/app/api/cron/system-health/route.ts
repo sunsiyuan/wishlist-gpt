@@ -131,7 +131,7 @@ function formatSystemHealthMessage(
 • 缺失标题: ${metrics.missingTitle}
 • 缺失封面图: ${metrics.missingImage}
 • 缺失价格: ${metrics.missingPrice}
-• 健康比例: ${metrics.healthyRatio}%`;
+• 健康比例: ${metrics.healthyRatio}`;
 }
 
 export async function GET(request: NextRequest) {
