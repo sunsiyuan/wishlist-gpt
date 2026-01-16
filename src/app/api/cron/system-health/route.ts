@@ -18,7 +18,7 @@ async function sendTelegramMessage(text: string): Promise<void> {
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      parse_mode: "Markdown",
+      // 不设置 parse_mode，使用纯文本（与 notify.ts 保持一致，避免 Markdown 解析错误）
     }),
   });
 
@@ -123,7 +123,7 @@ function formatSystemHealthMessage(
   const now = new Date().toISOString();
   const timestamp = now.split("T")[1].split(".")[0] + " UTC";
 
-  return `📊 *【系统健康度】* - ${timestamp}
+  return `📊 【系统健康度】 - ${timestamp}
 
 • 总 Item 数: ${metrics.totalItems}
 • 今日新增: ${metrics.todayCreated}
