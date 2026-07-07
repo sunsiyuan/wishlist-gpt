@@ -8,8 +8,8 @@ const LEGACY_ACCESS_TOKEN_COOKIE = "sb-access-token";
  * - Cookie-based Supabase session is always allowed.
  * - Authorization header bypass is gated for local/dev convenience only.
  *
- * IMPORTANT: OAuth access-token bearer auth is handled in src/server/auth/bearer.ts
- * and must never be gated by OAUTH_ALLOW_AUTH_HEADER_LOGIN.
+ * IMPORTANT: MCP OAuth access-token verification is separate (src/server/mcp/auth.ts) and is
+ * never gated by OAUTH_ALLOW_AUTH_HEADER_LOGIN.
  */
 function allowSupabaseAuthHeaderBypass(): boolean {
   const v = (process.env.OAUTH_ALLOW_AUTH_HEADER_LOGIN ?? "").toLowerCase().trim();

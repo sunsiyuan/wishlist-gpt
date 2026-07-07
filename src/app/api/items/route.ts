@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBearerToken, verifyAccessToken } from "../../../server/auth/bearer";
 import { getSupabaseUserId } from "../../../server/auth/supabase";
 import { listItemsForUser } from "../../../server/items/store";
 import { addItemForUser } from "../../../server/items/addItem";
@@ -8,21 +7,14 @@ function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
+// Web-only route: authenticated by the Supabase session cookie. The MCP tools write items via
+// addItemForUser directly, so no OAuth-bearer path is needed here anymore.
 async function authenticate(request: NextRequest) {
   const supabaseUserId = await getSupabaseUserId(request);
-  if (supabaseUserId) {
-    return { userId: supabaseUserId };
+  if (!supabaseUserId) {
+    return { error: jsonError(401, "missing_auth", "Missing Supabase session") };
   }
-
-  const token = getBearerToken(request);
-  if (!token) {
-    return { error: jsonError(401, "missing_auth", "Missing Supabase session or bearer token") };
-  }
-  const claims = verifyAccessToken(token);
-  if (!claims) {
-    return { error: jsonError(401, "invalid_token", "Invalid or expired token") };
-  }
-  return { userId: claims.userId };
+  return { userId: supabaseUserId };
 }
 
 export async function GET(request: NextRequest) {
