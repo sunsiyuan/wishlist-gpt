@@ -8,6 +8,7 @@ import {
 } from "./store";
 import { deriveDisplayDefaults, extractDisplayHints } from "./displayFields";
 import { sanitizeSourceUrl, TRACKING_PARAM_CONFIG } from "./sanitizeUrl";
+import { rehostItemImageBestEffort } from "./imageIngest";
 
 /**
  * Create (or touch) a wishlist item and apply caller-provided display fields.
@@ -61,6 +62,15 @@ export async function addItemForUser(params: {
     Object.keys(updates).length > 0
       ? (await updateItemDisplayFields({ userId, itemId: current.id, updates })) ?? current
       : current;
+
+  // Re-host the cover image to durable storage so the link doesn't expire (best-effort, async).
+  if (finalItem.display_cover_image_url) {
+    rehostItemImageBestEffort({
+      userId,
+      itemId: finalItem.id,
+      imageUrl: finalItem.display_cover_image_url,
+    });
+  }
 
   return finalItem;
 }
