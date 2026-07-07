@@ -663,7 +663,7 @@ EN: v0.5 adds feedback entrypoints (Web + Actions), persistence, and minimal rat
 - `/s/:share_id` feedback writes with `meta.context.share_id`
 - Actions `POST /feedback` works and OpenAPI is importable
 - 60s repeat → 429; >1000 chars → 400
-- Docs sync: PROJECT_MAP + CHEATSHEET + MVP_SPEC updated (normative docs stay aligned)
+- Docs sync: PROJECT_MAP + MVP_SPEC updated (normative docs stay aligned)
 
 ---
 

@@ -143,7 +143,6 @@ OpenAI 的 **Agentic Commerce Protocol (ACP) / Instant Checkout**（与 Stripe �
 - **`README.md`**（本文件）- 项目简介和快速开始
 - **`docs/MVP_SPEC.md`** - API/工具契约
 - **`docs/PROJECT_MAP.md`** - 代码组织和文件位置索引
-- **`docs/CHEATSHEET.md`** - 速查手册和排障
 - **`docs/SECURITY.md`** - 安全策略
 
 ---
@@ -153,7 +152,6 @@ OpenAI 的 **Agentic Commerce Protocol (ACP) / Instant Checkout**（与 Stripe �
 如果改动了 MCP 工具、OAuth 流程、关键环境变量或 widget，请同步更新：
 
 - `docs/MVP_SPEC.md`（工具/API 契约）
-- `docs/CHEATSHEET.md`（使用指南）
 - `docs/PROJECT_MAP.md`（文件位置）
 
 If you change MCP tools, the OAuth flow, key env vars, or the widget, update the docs above.

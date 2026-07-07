@@ -12,8 +12,8 @@
 > 已移除：`actions/`、OpenAPI 生成、根级 `/items` `/me` `/shares` `/feedback`、服务端富化（`enrich`）与标注台（`/ops`）、`/api/cron/enrich`、`/api/dev`。
 
 ## 0. 单一导航入口 / Single navigation entry
-CN：本项目的规范性文档只保留：`README.md`、`MVP_SPEC`、`PROJECT_MAP`、`CHEATSHEET`、`SECURITY`。其他任何文档都不再是规范来源。（`ENRICH_STRATEGY` 已随服务端富化移除而废弃。）  
-EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEATSHEET`, `SECURITY`. (`ENRICH_STRATEGY` is deprecated — server-side enrichment was removed.)
+CN：本项目的规范性文档只保留：`README.md`、`MVP_SPEC`、`PROJECT_MAP`、`SECURITY`。其他任何文档都不再是规范来源。（`CHEATSHEET`、`ENRICH_STRATEGY` 已废弃移除。）  
+EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `SECURITY`. (`CHEATSHEET` and `ENRICH_STRATEGY` were removed.)
 
 ---
 
@@ -90,7 +90,6 @@ EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEA
 ├─ docs/
 │  ├─ MVP_SPEC.md                    # MVP 范围与验收 / MVP scope & acceptance
 │  ├─ PROJECT_MAP.md                 # 本文件 / this file
-│  ├─ CHEATSHEET.md                  # 速查与排障 / cheats & troubleshooting
 │  ├─ SECURITY.md                    # 安全与生产默认 / security & prod defaults
 │  └─ ENRICH_STRATEGY.md             # Enrich策略文档 / Enrich strategy documentation
 ├─ public/
@@ -215,11 +214,9 @@ EN:
 CN：如果你改动了 routes / scripts / OpenAPI 产物路径，必须同步更新：
 
 * `docs/MVP_SPEC.md`（contract 与验收）
-* `docs/CHEATSHEET.md`（如何跑通与排障）
 * `docs/PROJECT_MAP.md`（入口与文件位置）
 
-EN: If you change routes/scripts/OpenAPI artifact paths, update:
+EN: If you change routes/scripts/tool contracts, update:
 
 * `docs/MVP_SPEC.md` (contract & acceptance)
-* `docs/CHEATSHEET.md` (how-to-run & troubleshooting)
 * `docs/PROJECT_MAP.md` (entrypoints & file locations)
