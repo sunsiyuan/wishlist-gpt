@@ -114,8 +114,8 @@ export default function EarlyAccessModal({
           </button>
         </div>
         <p className="mt-2 text-secondary dark:text-secondary-dark text-sm">
-          Buy with AI / Gift with AI is coming soon. Join the waitlist to be notified when it's
-          available.
+          Gifting is coming soon — let an agent send this as a gift for you. Join the waitlist to be
+          notified when it&apos;s available.
         </p>
         <button
           type="button"

@@ -425,20 +425,22 @@ export default function SharePageClient({
                     >
                       View on website
                     </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
-                      }}
-                      className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
-                    >
-                      {isOwner ? "Buy with AI" : "Gift with AI"}
-                      <SparklesIcon
-                        className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
-                        title="Early access"
-                      />
-                    </button>
+                    {!isOwner ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
+                        }}
+                        className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                      >
+                        Send as gift
+                        <SparklesIcon
+                          className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
+                          title="Early access"
+                        />
+                      </button>
+                    ) : null}
                   </div>
                 </article>
               );
