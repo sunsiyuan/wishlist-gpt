@@ -9,6 +9,9 @@ export const WISHLIST_WIDGET_URI = "ui://widget/wishlist.html";
  * `window.openai.toolOutput`. The widget renders the display-ready items produced by the
  * `list_wishlist` / `add_to_wishlist` tools and drives actions back through the
  * `window.openai.callTool` bridge (no direct network calls, so no CORS/asset plumbing needed).
+ *
+ * Design language "Crisp": neutral near-B/W, one accent (#FE2C55) used sparingly, uniform
+ * radius, bold system sans. Deliberately quiet so it sits inside ChatGPT's canvas.
  */
 export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -17,70 +20,78 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root {
-    --bg: transparent;
-    --card: #ffffff;
-    --border: #e6e6e6;
-    --text: #1a1a1a;
-    --muted: #6b7280;
-    --accent: #111827;
-    --accent-text: #ffffff;
-    --radius: 14px;
+    --surface:#FFFFFF; --sunken:#F5F5F4; --fg:#0A0A0A; --muted:#6B6B70;
+    --line:#EAEAEA; --line-strong:#DADADA; --accent:#FE2C55;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --rc:14px; --rb:10px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --card: #1c1c1e; --border: #2e2e30; --text: #f2f2f7;
-      --muted: #9a9aa2; --accent: #f2f2f7; --accent-text: #111827;
+      --surface:#161618; --sunken:#1E1E20; --fg:#FFFFFF; --muted:#9A9AA0;
+      --line:#262628; --line-strong:#333336;
     }
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased;
+    margin: 0; font-family: var(--sans); color: var(--fg); background: transparent;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { padding: 4px 2px 8px; }
-  .head { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 12px; gap: 12px; }
-  .title { font-size: 15px; font-weight: 600; }
-  .count { color: var(--muted); font-weight: 400; }
+  .wrap { padding: 2px; }
+  .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 2px 2px 12px; }
+  .title { font-size: 14.5px; font-weight: 750; letter-spacing: -.01em; }
+  .title .count { color: var(--muted); font-weight: 500; font-size: 12.5px; }
   .share {
-    border: 1px solid var(--border); background: var(--card); color: var(--text);
-    border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 550;
-    cursor: pointer; white-space: nowrap; transition: opacity .15s;
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg);
+    border-radius: var(--rb); padding: 7px 13px; font-size: 12.5px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s;
   }
-  .share:hover { opacity: .75; }
-  .share:disabled { opacity: .5; cursor: default; }
-  .grid {
-    display: grid; gap: 10px;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  }
+  .share:hover { border-color: var(--fg); }
+  .share:disabled { opacity: .55; cursor: default; }
+
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); }
+
   .card {
-    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
-    background: var(--card); text-decoration: none; color: inherit; display: flex; flex-direction: column;
-    transition: transform .12s ease, box-shadow .12s ease;
+    position: relative; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--rc);
+    text-decoration: none; color: inherit;
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
   }
-  .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
-  .thumb {
-    aspect-ratio: 1 / 1; width: 100%; object-fit: cover; background: var(--border); display: block;
+  .card:hover { transform: translateY(-3px); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 10px 26px rgba(0,0,0,.09); border-color: var(--line-strong); }
+  .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .thumb-wrap { position: relative; aspect-ratio: 1 / 1; width: 100%; background: var(--sunken); }
+  .thumb-mono {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 26px; font-weight: 800; color: var(--line-strong);
   }
-  .thumb-fallback {
-    aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center;
-    color: var(--muted); font-size: 13px; text-align: center; padding: 8px;
+  .thumb { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .fav {
+    position: absolute; top: 8px; left: 8px; z-index: 2; width: 22px; height: 22px; border-radius: 6px;
+    background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center;
+    font-size: 10px; font-weight: 800; color: var(--muted); overflow: hidden;
   }
-  .body { padding: 10px 11px 12px; display: flex; flex-direction: column; gap: 5px; }
-  .merchant { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
-  .merchant img { width: 14px; height: 14px; border-radius: 3px; }
-  .name { font-size: 13px; line-height: 1.3; font-weight: 550; display: -webkit-box;
-    -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .price { font-size: 13px; font-weight: 600; margin-top: 2px; }
+  .fav img { width: 100%; height: 100%; object-fit: contain; }
+
+  .body { padding: 10px 11px 12px; display: flex; flex-direction: column; gap: 3px; }
+  .merchant { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .name {
+    font-size: 13px; line-height: 1.3; font-weight: 600; min-height: 2.6em;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .price { font-size: 15px; font-weight: 800; letter-spacing: -.01em; margin-top: 1px; font-variant-numeric: tabular-nums; }
+
   .empty { text-align: center; color: var(--muted); padding: 40px 16px; font-size: 14px; }
+  .empty b { color: var(--fg); font-weight: 700; }
   .toast {
-    margin: 12px 4px 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
-    background: var(--card); font-size: 13px; word-break: break-all;
+    margin: 12px 2px 0; padding: 10px 12px; border-radius: var(--rb);
+    border: 1px solid var(--line); background: var(--surface); font-size: 13px; word-break: break-all;
   }
-  .toast a { color: inherit; font-weight: 600; }
+  .toast a { color: var(--accent); font-weight: 700; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-<div class="wrap" id="root"><div class="empty">Loading your wishlist…</div></div>
+<div class="wrap" id="root"><div class="empty">Opening your wishlist…</div></div>
 <script>
 (function () {
   var root = document.getElementById("root");
@@ -98,19 +109,20 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
 
   function cardHtml(item) {
     var url = item.url || "#";
+    var mono = esc((item.domain || "?").charAt(0).toUpperCase());
+    var fav = item.logo
+      ? '<span class="fav"><img src="' + esc(item.logo) + '" alt="" onerror="this.remove()" /></span>'
+      : '<span class="fav">' + mono + "</span>";
     var img = item.image
-      ? '<img class="thumb" src="' + esc(item.image) + '" alt="" loading="lazy" onerror="this.style.display=\\'none\\'" />'
-      : '<div class="thumb-fallback">' + esc(item.domain ? "From " + item.domain : "Item") + "</div>";
-    var logo = item.logo ? '<img src="' + esc(item.logo) + '" alt="" />' : "";
-    var merchant = item.domain
-      ? '<div class="merchant">' + logo + "<span>" + esc(item.domain) + "</span></div>"
+      ? '<img class="thumb" src="' + esc(item.image) + '" alt="" loading="lazy" onerror="this.style.display=&quot;none&quot;" />'
       : "";
-    var price = item.price ? '<div class="price">' + esc(item.price) + "</div>" : "";
+    var merchant = item.domain ? '<span class="merchant">' + esc(item.domain) + "</span>" : "";
+    var price = item.price ? '<span class="price">' + esc(item.price) + "</span>" : "";
     return (
       '<a class="card" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' +
-      img +
+      '<div class="thumb-wrap">' + fav + '<div class="thumb-mono">' + mono + "</div>" + img + "</div>" +
       '<div class="body">' + merchant +
-      '<div class="name">' + esc(item.title || "Untitled item") + "</div>" +
+      '<span class="name">' + esc(item.title || "Untitled item") + "</span>" +
       price +
       "</div></a>"
     );
@@ -119,17 +131,17 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
   function render() {
     var items = getItems();
     if (!items.length) {
-      root.innerHTML = '<div class="empty">Your wishlist is empty. Paste a product link to add something.</div>';
+      root.innerHTML =
+        '<div class="empty">Nothing saved yet. <b>Paste a product link</b> and I\\'ll add it.</div>';
       return;
     }
     var count = items.length;
     var head =
-      '<div class="head"><div class="title">Wishlist <span class="count">· ' + count +
+      '<div class="head"><div class="title">Your wishlist <span class="count">· ' + count +
       " item" + (count === 1 ? "" : "s") + '</span></div>' +
       '<button class="share" id="share-btn">Share list</button></div>';
     root.innerHTML =
-      '<div>' + head +
-      '<div class="grid">' + items.map(cardHtml).join("") + "</div>" +
+      "<div>" + head + '<div class="grid">' + items.map(cardHtml).join("") + "</div>" +
       '<div id="toast-slot"></div></div>';
 
     var btn = document.getElementById("share-btn");
@@ -146,15 +158,15 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
             var slot = document.getElementById("toast-slot");
             if (link && slot) {
               slot.innerHTML =
-                '<div class="toast">🔗 Shareable link: <a href="' + esc(link) +
+                '<div class="toast">Shareable link · <a href="' + esc(link) +
                 '" target="_blank" rel="noopener noreferrer">' + esc(link) + "</a></div>";
             }
-            btn.disabled = false;
             btn.textContent = "Share list";
+            btn.disabled = false;
           })
           .catch(function () {
-            btn.disabled = false;
             btn.textContent = "Share list";
+            btn.disabled = false;
           });
       });
     }
