@@ -11,6 +11,7 @@ import { addItemForUser } from "../items/addItem";
 import { createOrReuseShare, buildShareUrl } from "../shares";
 import { createFeedback, checkRateLimit } from "../feedback/store";
 import { sendTelegramFeedback } from "../feedback/notify";
+import { trackBestEffort } from "../tracking/trackBestEffort";
 import {
   getCardTitle,
   getPriceText,
@@ -47,6 +48,23 @@ function requireUserId(extra: Extra): string {
     throw new Error("unauthorized");
   }
   return userId;
+}
+
+/**
+ * Emit an analytics event for an MCP tool call (best-effort). Mirrors the web `web.*` events;
+ * the MCP surface is where the product actually happens now, so we track it as `mcp.*` with the
+ * calling client id (ChatGPT vs other MCP clients) for funnel analysis.
+ */
+function trackTool(extra: Extra, eventName: string, meta: Record<string, unknown> = {}): void {
+  const userId = (extra.authInfo?.extra as { userId?: string } | undefined)?.userId ?? null;
+  const clientId = extra.authInfo?.clientId ?? null;
+  trackBestEffort({
+    event_name: eventName,
+    user_id: userId,
+    share_id: null,
+    client_id: clientId,
+    meta: { request_id: crypto.randomUUID(), x_vercel_id: null, ...meta },
+  });
 }
 
 function toDisplayItem(item: ItemRecord) {
@@ -122,6 +140,7 @@ export function registerWishlistApp(server: McpServer): void {
       const userId = requireUserId(extra);
       const items = await listItemsForUser({ userId });
       const displayItems = items.map(toDisplayItem);
+      trackTool(extra, "mcp.list_wishlist", { count: displayItems.length });
       return {
         content: [
           {
@@ -209,6 +228,11 @@ export function registerWishlistApp(server: McpServer): void {
       }
 
       const items = (await listItemsForUser({ userId })).map(toDisplayItem);
+      trackTool(extra, "mcp.add_to_wishlist", {
+        requested: args.items.length,
+        added,
+        failed: failed.length,
+      });
       const summary =
         added > 0
           ? `Saved ${added} item${added === 1 ? "" : "s"} to your wishlist.` +
@@ -235,6 +259,7 @@ export function registerWishlistApp(server: McpServer): void {
       const userId = requireUserId(extra);
       const share = await createOrReuseShare(userId);
       const shareUrl = buildShareUrl(resolveOrigin(extra), share.id);
+      trackTool(extra, "mcp.share_wishlist", { share_id: share.id });
       return {
         content: [{ type: "text", text: `Your wishlist share link: ${shareUrl}` }],
         structuredContent: { share_id: share.id, share_url: shareUrl },
@@ -257,6 +282,7 @@ export function registerWishlistApp(server: McpServer): void {
       const userId = requireUserId(extra);
       const allowed = await checkRateLimit({ userId, windowSeconds: 60 });
       if (!allowed) {
+        trackTool(extra, "mcp.send_feedback", { rate_limited: true });
         return {
           content: [{ type: "text", text: "You're sending feedback too quickly — try again in a minute." }],
           structuredContent: { ok: false },
@@ -281,6 +307,7 @@ export function registerWishlistApp(server: McpServer): void {
           // Best-effort only.
         }
       });
+      trackTool(extra, "mcp.send_feedback", { rate_limited: false });
       return {
         content: [{ type: "text", text: "Thanks — your feedback was sent." }],
         structuredContent: { ok: true },

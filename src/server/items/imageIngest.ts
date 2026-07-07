@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { supabaseAdminFetch } from "../supabase/admin";
 import { isPrivateIpLiteral, normalizeHostname } from "./displayFields";
 import { updateItemDisplayFields } from "./store";
+import { trackEvent } from "../tracking/trackEvent";
 
 const BUCKET = "item-images";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -146,4 +147,17 @@ async function rehostItemImage(params: {
     itemId,
     updates: { display_cover_image_url: publicImageUrl(objectPath) },
   });
+
+  // Best-effort analytics: how often re-hosting succeeds (already inside after(), so track inline).
+  try {
+    await trackEvent({
+      event_name: "mcp.image_rehost",
+      user_id: userId,
+      share_id: null,
+      client_id: null,
+      meta: { request_id: crypto.randomUUID(), x_vercel_id: null, ext, bytes: bytes.byteLength },
+    });
+  } catch {
+    // ignore tracking failures
+  }
 }
