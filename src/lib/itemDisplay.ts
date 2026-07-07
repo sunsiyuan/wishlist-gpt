@@ -5,6 +5,8 @@ export type DisplayItem = {
   currency: string | null;
   price_text: string | null;
   category?: string | null;
+  options?: Record<string, string> | null;
+  variant_url?: string | null;
   personal_note: string | null;
   canonical_url?: string | null;
   url_original?: string | null;
@@ -22,7 +24,18 @@ export function getMerchantLogoUrl(item: DisplayItem): string | null {
 }
 
 export function getSourceUrl(item: DisplayItem): string | null {
-  return item.canonical_url ?? item.url_original ?? null;
+  // Prefer the specific chosen variant URL (precise buy link) when present.
+  return item.variant_url ?? item.canonical_url ?? item.url_original ?? null;
+}
+
+/** Format the chosen variant as a compact string, e.g. "Black · US 10". */
+export function formatOptions(item: DisplayItem): string | null {
+  const options = item.options;
+  if (!options) return null;
+  const parts = Object.values(options)
+    .map((v) => v.trim())
+    .filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
 }
 
 export function resolveDomain(item: DisplayItem): string | null {

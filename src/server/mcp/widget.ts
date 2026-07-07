@@ -78,6 +78,7 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
     font-size: 13px; line-height: 1.3; font-weight: 600; min-height: 2.6em;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
+  .opts { font-size: 11px; color: var(--muted); }
   .price { font-size: 15px; font-weight: 800; letter-spacing: -.01em; margin-top: 1px; font-variant-numeric: tabular-nums; }
 
   .empty { text-align: center; color: var(--muted); padding: 40px 16px; font-size: 14px; }
@@ -117,12 +118,14 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
       ? '<img class="thumb" src="' + esc(item.image) + '" alt="" loading="lazy" onerror="this.style.display=&quot;none&quot;" />'
       : "";
     var merchant = item.domain ? '<span class="merchant">' + esc(item.domain) + "</span>" : "";
+    var opts = item.options ? '<span class="opts">' + esc(item.options) + "</span>" : "";
     var price = item.price ? '<span class="price">' + esc(item.price) + "</span>" : "";
     return (
       '<a class="card" href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' +
       '<div class="thumb-wrap">' + fav + '<div class="thumb-mono">' + mono + "</div>" + img + "</div>" +
       '<div class="body">' + merchant +
       '<span class="name">' + esc(item.title || "Untitled item") + "</span>" +
+      opts +
       price +
       "</div></a>"
     );

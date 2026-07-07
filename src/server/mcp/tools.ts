@@ -13,6 +13,7 @@ import { createFeedback, checkRateLimit } from "../feedback/store";
 import { sendTelegramFeedback } from "../feedback/notify";
 import { trackBestEffort } from "../tracking/trackBestEffort";
 import {
+  formatOptions,
   getCardTitle,
   getMerchantLogoUrl,
   getPriceText,
@@ -76,6 +77,7 @@ const displayItemSchema = {
   price: z.string().nullable(),
   image: z.string().nullable(),
   logo: z.string().nullable(),
+  options: z.string().nullable(),
   note: z.string().nullable(),
 };
 
@@ -113,6 +115,7 @@ function toDisplayItem(item: ItemRecord) {
     price: getPriceText(item),
     image: item.image_url,
     logo: getMerchantLogoUrl(item),
+    options: formatOptions(item),
     note: item.personal_note,
   };
 }
@@ -265,6 +268,18 @@ export function registerWishlistApp(server: McpServer): void {
                 .describe(
                   "Best-fit category from the allowed list, for filtering. Use \"Other\" only when nothing fits.",
                 ),
+              options: z
+                .record(z.string())
+                .optional()
+                .describe(
+                  'The specific variant the user wants, as attribute->value, e.g. {"Color":"Black","Size":"US 10"}. Fill it from the conversation AND from what you already know about the user (their usual sizes/fit/preferences) — recalling a known preference is expected, but never guess a size you don\'t actually know. Include only decided attributes; omit entirely when the user is undecided.',
+                ),
+              variant_url: z
+                .string()
+                .optional()
+                .describe(
+                  "URL of the specific chosen variant/SKU, if the page exposes one — a precise buy link.",
+                ),
             }),
           )
           .min(1)
@@ -300,6 +315,8 @@ export function registerWishlistApp(server: McpServer): void {
               currency: entry.currency,
               merchant_domain: entry.merchant_domain,
               category: entry.category,
+              options: entry.options,
+              variant_url: entry.variant_url,
             },
           });
           added += 1;

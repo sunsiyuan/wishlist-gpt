@@ -13,6 +13,8 @@ export type ItemRecord = {
   title: string | null;
   merchant_domain: string | null;
   category: string | null;
+  options: Record<string, string>;
+  variant_url: string | null;
   price_amount_minor: number | null;
   currency: string | null;
   price_text: string | null;
@@ -26,6 +28,8 @@ export type DisplayFieldUpdate = Partial<
     | "title"
     | "merchant_domain"
     | "category"
+    | "options"
+    | "variant_url"
     | "price_amount_minor"
     | "currency"
     | "price_text"
@@ -48,6 +52,8 @@ const ITEM_SELECT = [
   "title",
   "merchant_domain",
   "category",
+  "options",
+  "variant_url",
   "price_amount_minor",
   "currency",
   "price_text",

@@ -16,7 +16,25 @@ export type DisplayHintFields = {
   currency?: string;
   price_text?: string;
   category?: string;
+  options?: Record<string, string>;
+  variant_url?: string;
 };
+
+/** Sanitize the agent-provided variant selection: string->string, trimmed, capped. */
+export function sanitizeOptions(value: unknown): Record<string, string> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const out: Record<string, string> = {};
+  for (const [rawKey, rawVal] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof rawVal !== "string") continue;
+    const key = rawKey.trim().slice(0, 40);
+    const val = rawVal.trim().slice(0, 80);
+    if (key && val) out[key] = val;
+    if (Object.keys(out).length >= 8) break;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
 
 export function extractDisplayHints(body: Record<string, unknown>): DisplayHintFields {
   const displayHints: DisplayHintFields = {};
@@ -54,6 +72,16 @@ export function extractDisplayHints(body: Record<string, unknown>): DisplayHintF
   const priceText = sanitizePriceText(body.price_text);
   if (priceText) {
     displayHints.price_text = priceText;
+  }
+
+  const options = sanitizeOptions(body.options);
+  if (options) {
+    displayHints.options = options;
+  }
+
+  const variantUrl = sanitizeDisplayUrl(body.variant_url);
+  if (variantUrl) {
+    displayHints.variant_url = variantUrl;
   }
 
   return displayHints;

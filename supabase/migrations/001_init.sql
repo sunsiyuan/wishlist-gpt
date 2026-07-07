@@ -70,6 +70,10 @@ create table if not exists public.items (
   title text,
   merchant_domain text,
   category text,
+  -- The user's chosen variant (attribute -> value, e.g. {"Color":"Black","Size":"US 10"}),
+  -- partial/empty when undecided; and a variant-specific buy URL when available.
+  options jsonb not null default '{}'::jsonb,
+  variant_url text,
   price_amount_minor int,
   currency text,
   price_text text,
