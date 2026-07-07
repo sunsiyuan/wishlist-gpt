@@ -1061,7 +1061,7 @@ export default function AppClient({
                         }}
                         className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                       >
-                        Send as gift
+                        Gift
                         <SparklesIcon
                           className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
                           title="Early access"
@@ -1201,7 +1201,7 @@ export default function AppClient({
                   }}
                   className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                 >
-                  Send as gift
+                  Gift
                   <SparklesIcon
                     className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
                     title="Early access"
