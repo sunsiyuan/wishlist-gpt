@@ -35,6 +35,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# supabase local dev (keep config.toml, migrations, seed.sql; ignore runtime artifacts)
+supabase/.branches
+supabase/.temp
+supabase/.env
+
 # public files
 public/openapi.yaml
 

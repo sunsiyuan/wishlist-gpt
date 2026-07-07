@@ -209,3 +209,19 @@ comment on column public.follows.list_ref is 'List reference in format "u:<owner
 insert into storage.buckets (id, name, public)
 values ('item-images', 'item-images', true)
 on conflict (id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Roles & grants (Supabase).
+-- Server-side code uses the service_role key (bypasses RLS) — it needs table grants.
+-- The browser uses anon/authenticated, gated by the RLS policies above, and only on the
+-- user-owned tables it touches. oauth_*, events and feedback stay server-only (no anon/
+-- authenticated grants) since they have no RLS.
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated, service_role;
+
+grant all privileges on all tables in schema public to service_role;
+grant all privileges on all sequences in schema public to service_role;
+
+grant select, insert, update, delete on public.items to authenticated;
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, delete on public.follows to authenticated;

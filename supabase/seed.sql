@@ -1,0 +1,11 @@
+-- Seed data for local development. Runs on `supabase db reset` (after migrations).
+--
+-- Auth users are intentionally NOT seeded here — creating a valid auth.users row by hand is
+-- brittle across GoTrue versions. Instead, create your local test user the easy way:
+--   1) start the app (npm run dev) and open http://localhost:3000/login to sign up, OR
+--   2) Supabase Studio (http://127.0.0.1:54323) → Authentication → Add user.
+-- With email confirmations disabled (see config.toml) the account is usable immediately.
+--
+-- Add non-auth seed rows below if you want sample data for a known user id, e.g.:
+--   insert into public.items (user_id, url_original, display_product_title)
+--   values ('<your-user-uuid>', 'https://example.com/p/1', 'Sample item');

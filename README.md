@@ -70,11 +70,39 @@ MCP server 作为 OAuth 2.1 受保护资源（protected resource），access tok
 
 > **重要**: 修改 `.env*` 后请重启 `npm run dev`，避免旧进程缓存。
 
-### 数据库 / Database
+### 本地开发 / Local development (Supabase local stack)
 
-应用迁移，特别是 MCP 所需的 `014_oauth_mcp.sql`（PKCE 列 + `oauth_clients` DCR 表）。
+本仓库自带 Supabase 本地脚手架（`supabase/config.toml`、`supabase/migrations/`、`supabase/seed.sql`）。ChatGPT 只通过隧道访问你的 Next.js `/api/mcp`，Supabase 保持本地即可（服务端访问），所以本地开发无需云端 Supabase。
 
-### 安装与启动 / Install & Run
+```bash
+# 一次性：安装 Supabase CLI（需要 Docker 在运行）
+brew install supabase/tap/supabase          # macOS
+
+# 启动本地 Supabase（Postgres + Auth + Storage + Studio）
+npm run db:start                             # = supabase start
+npm run db:reset                             # 应用 migrations（001_init.sql）+ seed
+
+# 配置环境变量
+cp .env.local.example .env.local             # 已预填标准本地 keys
+
+# 启动应用
+npm install && npm run dev
+```
+
+- Supabase Studio: `http://127.0.0.1:54323`（可在此建测试用户）；本地邮箱: `http://127.0.0.1:54324`
+- 访问 `/login` 注册/登录（本地已关闭邮箱确认），或 `/app` 查看清单。
+- `npm run db:status` 查看本地 keys；若与 `.env.local` 不一致，以 status 输出为准。
+- 其他脚本：`npm run db:stop`（停止）、`npm run db:reset`（重置并重跑迁移）。
+
+> **注意 / Note**: 本地 Supabase 下，被重新托管的商品封面图是 `http://127.0.0.1:54321/...`，ChatGPT 沙箱（https 远端）无法加载它们，widget 里封面会显示占位。工具/认证/分享都正常；要验证 widget 封面图需换成云端（https）Supabase。
+
+### 在 ChatGPT 里测试 / Test in ChatGPT
+
+`ngrok http 3000` → 在 ChatGPT 开发者模式添加连接器 `https://<tunnel>/api/mcp`。详见下方"在 ChatGPT 里连接"。
+
+### 安装与启动（云端 Supabase）/ Install & Run (hosted Supabase)
+
+用云端 Supabase 时，填好 `.env.local` 的云端 keys，应用迁移 `supabase/migrations/001_init.sql`，然后：
 
 ```bash
 npm install

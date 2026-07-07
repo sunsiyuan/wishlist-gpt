@@ -8,6 +8,10 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:status": "supabase status",
     "smoke:all": "bash -lc './scripts/preflight.sh && ./scripts/smoke_oauth.sh && ./scripts/smoke_mcp.sh'",
     "smoke:staging": "bash -lc 'source scripts/lib/dotenv.sh; BASE_URL=\"$STAGING_BASE_URL\" OAUTH_SESSION_KEY=staging npm run smoke:all'",
     "smoke:prod": "bash -lc 'source scripts/lib/dotenv.sh; BASE_URL=\"$PROD_BASE_URL\" OAUTH_SESSION_KEY=prod npm run smoke:all'",
@@ -34,6 +38,7 @@
     "@types/react": "19.2.7",
     "autoprefixer": "^10.4.23",
     "postcss": "^8.5.6",
+    "supabase": "^2.109.1",
     "tailwindcss": "^3.4.19",
     "ts-node": "^10.9.2",
     "typescript": "5.9.3"

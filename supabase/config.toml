@@ -1,0 +1,48 @@
+# Supabase local development config.
+# Boots Postgres + Auth + Storage + Studio locally via `supabase start` (needs Docker).
+# If your Supabase CLI version rejects a key here, run `supabase init` to regenerate a config
+# for your version, then re-apply the two values that matter for this project:
+#   - auth.email.enable_confirmations = false  (so local signup works without email)
+#   - storage.enabled = true                   (so cover-image re-hosting works)
+# Docs: https://supabase.com/docs/guides/local-development
+
+project_id = "wishlist-gpt"
+
+[api]
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+
+[studio]
+port = 54323
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = [
+  "http://localhost:3000",
+  "http://localhost:3000/auth/callback",
+  "http://127.0.0.1:3000/auth/callback",
+]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+# Off for local dev: sign up at /login and you're immediately usable (no email step).
+enable_confirmations = false
+double_confirm_changes = false
+
+# Analytics (logflare + vector) is off: the vector container mounts the Docker socket, which
+# fails under Colima ("operation not supported"). Disabling it keeps db/auth/storage/studio.
+[analytics]
+enabled = false
