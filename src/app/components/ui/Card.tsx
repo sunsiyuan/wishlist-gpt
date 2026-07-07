@@ -12,9 +12,9 @@ export default function Card({
   ...props
 }: CardProps) {
   const baseStyles =
-    "bg-background-light rounded-card p-4 shadow-card dark:bg-background-dark-light dark:shadow-card-dark";
+    "bg-background-light rounded-card p-4 border border-border dark:bg-background-dark-light dark:border-border-dark";
   const interactiveStyles = interactive
-    ? "cursor-pointer hover:shadow-lg transition-shadow duration-200"
+    ? "cursor-pointer hover:shadow-card hover:-translate-y-0.5 dark:hover:shadow-card-dark transition-all duration-150"
     : "";
 
   return (

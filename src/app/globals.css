@@ -4,14 +4,19 @@
 
 @layer base {
   body {
-    @apply text-gray-900 bg-background dark:text-gray-100 dark:bg-background-dark;
+    @apply text-primary bg-background dark:text-primary-dark dark:bg-background-dark font-sans;
+  }
+  /* Keyboard focus is always visible, in the accent. */
+  :focus-visible {
+    outline: 2px solid theme("colors.accent.DEFAULT");
+    outline-offset: 2px;
   }
 }
 
 @layer components {
-  /* Custom component styles can be added here */
+  /* Landing ground: high-contrast near-black with a single restrained accent glow. */
   .homepage-bg {
-    background-color: #0a0a0a;
-    background-image: radial-gradient(ellipse at top, rgba(139, 0, 0, 0.15) 0%, transparent 50%);
+    background-color: #000000;
+    background-image: radial-gradient(ellipse at top, rgba(254, 44, 85, 0.14) 0%, transparent 55%);
   }
 }
