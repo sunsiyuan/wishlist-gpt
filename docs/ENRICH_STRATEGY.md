@@ -1,5 +1,13 @@
 # ENRICH_STRATEGY.md
 
+> ⚠️ **DEPRECATED (Apps SDK / MCP migration).** 服务端商品富化（enrichment）与标注台（`/ops`）已移除。
+> 现在商品的标题/图片/价格/商家由调用方 Agent（ChatGPT）在 `add_to_wishlist` 时提供，服务端只做
+> URL canonical 化与字段落库（见 `src/server/items/addItem.ts`）。本文件仅作历史参考。
+>
+> **DEPRECATED.** Server-side enrichment and the `/ops` annotation console were removed. Product
+> title/image/price/merchant are now supplied by the calling agent (ChatGPT) via `add_to_wishlist`.
+> Kept for historical reference only.
+
 > **Scope / Why this doc exists**
 >
 > ChatGPT is increasingly recommending products from a small set of commerce ecosystems (in order): **Etsy → Shopify → Walmart → Target**.

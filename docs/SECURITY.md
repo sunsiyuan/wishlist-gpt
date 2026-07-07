@@ -1,8 +1,10 @@
 # SECURITY
 
 ## 0) 安全边界一句话 / One-line security boundary
-CN：`/me`、`/items`、`/shares` 必须通过 **OAuth `Authorization: Bearer`** 访问；`/api/shares*` 仅允许 Supabase cookie session（显式拒绝 Authorization 头）；`/api/oauth/authorize` 的 Supabase session 校验可受 `OAUTH_ALLOW_AUTH_HEADER_LOGIN` 影响，但 Bearer 校验不受影响。  
-EN: `/me`, `/items`, and `/shares` require **OAuth `Authorization: Bearer`**; `/api/shares*` only allows Supabase cookie sessions (explicitly rejects Authorization headers); Supabase session handling for `/api/oauth/authorize` can be affected by `OAUTH_ALLOW_AUTH_HEADER_LOGIN`, but Bearer verification is not.
+CN：**`/api/mcp`** 必须通过 **OAuth 2.1 `Authorization: Bearer`** 访问，且 access token 的 `aud` 必须绑定到本 MCP resource（`<BASE_URL>/api/mcp`，RFC 8707）——受众不匹配一律 401。授权码流强制 PKCE `S256`；ChatGPT 通过 DCR（`/oauth/register`）自注册。`/api/*` Web 路由仍以 Supabase cookie session 为主。  
+EN: **`/api/mcp`** requires **OAuth 2.1 `Authorization: Bearer`**, and the access token `aud` MUST be bound to this MCP resource (`<BASE_URL>/api/mcp`, RFC 8707) — audience mismatch is rejected with 401. The authorization-code flow requires PKCE `S256`; ChatGPT self-registers via DCR (`/oauth/register`). Web `/api/*` routes remain primarily Supabase cookie-session based.
+
+> ⚠️ 旧的 Actions 根级 `/me` `/items` `/shares` 路由已移除；本文件下方历史条目仅作参考。
 
 ---
 

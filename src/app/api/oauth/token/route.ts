@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { consumeOauthCode } from "../../../../server/oauth/code-store";
 import { createAccessToken } from "../../../../server/oauth/access-token";
-import { getAllowedRedirectUris, isRedirectUriAllowed } from "../../../../server/oauth/clients";
+import {
+  isRedirectUriAllowedAsync,
+  resolveClientRedirectUris,
+} from "../../../../server/oauth/clients";
 import { REFRESH_TOKEN_TTL_SECONDS } from "../../../../server/oauth/config";
 import { findValidRefreshToken, insertRefreshToken } from "../../../../server/oauth/refresh-store";
-import { generateRefreshToken, hashToken } from "../../../../server/oauth/tokens";
+import { generateRefreshToken, hashToken, verifyPkceS256 } from "../../../../server/oauth/tokens";
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: "invalid_request", error_description: message }, { status });
@@ -26,13 +29,15 @@ export async function POST(request: NextRequest) {
   if (!clientId) {
     return jsonError("client_id is required");
   }
-  if (!getAllowedRedirectUris(clientId)) {
+  if (!(await resolveClientRedirectUris(clientId))) {
     return jsonError("unknown client_id");
   }
 
   if (grantType === "authorization_code") {
     const code = formData.get("code")?.toString();
     const redirectUri = formData.get("redirect_uri")?.toString();
+    const codeVerifier = formData.get("code_verifier")?.toString();
+    const resource = formData.get("resource")?.toString();
 
     if (!code) {
       return jsonError("code is required");
@@ -40,7 +45,7 @@ export async function POST(request: NextRequest) {
     if (!redirectUri) {
       return jsonError("redirect_uri is required");
     }
-    if (!isRedirectUriAllowed(clientId, redirectUri)) {
+    if (!(await isRedirectUriAllowedAsync(clientId, redirectUri))) {
       return jsonError("redirect_uri is not allowed");
     }
 
@@ -56,9 +61,22 @@ export async function POST(request: NextRequest) {
       return jsonError("invalid or expired code", 400);
     }
 
+    // PKCE (RFC 7636): if the authorization request bound a code_challenge, a matching
+    // S256 code_verifier is required here.
+    if (record.code_challenge) {
+      if (!codeVerifier) {
+        return jsonError("code_verifier is required", 400);
+      }
+      if (!verifyPkceS256(codeVerifier, record.code_challenge)) {
+        return jsonError("invalid code_verifier", 400);
+      }
+    }
+
     const accessToken = createAccessToken({
       userId: record.user_id,
       clientId,
+      resource: resource ?? record.resource ?? undefined,
+      scope: record.scope ?? undefined,
     });
 
     const refreshToken = generateRefreshToken();
@@ -82,6 +100,7 @@ export async function POST(request: NextRequest) {
 
   if (grantType === "refresh_token") {
     const refreshToken = formData.get("refresh_token")?.toString();
+    const resource = formData.get("resource")?.toString();
     if (!refreshToken) {
       return jsonError("refresh_token is required");
     }
@@ -101,6 +120,7 @@ export async function POST(request: NextRequest) {
     const accessToken = createAccessToken({
       userId: record.user_id,
       clientId,
+      resource,
     });
 
     return NextResponse.json({

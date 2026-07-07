@@ -7,6 +7,10 @@ export type OauthCodeRecord = {
   redirect_uri: string;
   expires_at: string;
   used_at: string | null;
+  code_challenge?: string | null;
+  code_challenge_method?: string | null;
+  resource?: string | null;
+  scope?: string | null;
 };
 
 export async function insertOauthCode(record: OauthCodeRecord): Promise<OauthCodeRecord> {

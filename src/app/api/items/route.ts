@@ -1,22 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { after } from "next/server";
 import { getBearerToken, verifyAccessToken } from "../../../server/auth/bearer";
 import { getSupabaseUserId } from "../../../server/auth/supabase";
-import type { DisplayFieldUpdate } from "../../../server/items/store";
-import {
-  createOrTouchItem,
-  listItemsForUser,
-  updateItemDisplayFields,
-  updateItemCanonicalUrl,
-  insertItemEnrichAttempt,
-} from "../../../server/items/store";
-import { enrichItemBestEffort, type EnrichAttempt } from "../../../server/items/enrich";
-import {
-  deriveDisplayDefaults,
-  extractDisplayHints,
-} from "../../../server/items/displayFields";
-import { sanitizeSourceUrl, TRACKING_PARAM_CONFIG } from "../../../server/items/sanitizeUrl";
-import { supabaseAdminFetch } from "../../../server/supabase/admin";
+import { listItemsForUser } from "../../../server/items/store";
+import { addItemForUser } from "../../../server/items/addItem";
 
 function jsonError(status: number, code: string, message: string) {
   return NextResponse.json({ error: { code, message } }, { status });
@@ -155,158 +141,11 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "invalid_url", "url is required and must be a string");
   }
   try {
-    const item = await createOrTouchItem({
+    const finalItem = await addItemForUser({
       userId: auth.userId,
       url: urlValue,
+      hints: body as Record<string, unknown>,
     });
-
-    // Fill canonical_url if missing (fill-only)
-    let itemWithCanonicalUrl = item;
-    if (!item.canonical_url) {
-      const sanitized = sanitizeSourceUrl(urlValue.trim(), TRACKING_PARAM_CONFIG);
-      if (sanitized) {
-        const updated = await updateItemCanonicalUrl({
-          userId: auth.userId,
-          itemId: item.id,
-          canonicalUrl: sanitized,
-        });
-        if (updated) {
-          itemWithCanonicalUrl = updated;
-        }
-      }
-    }
-
-    // Deeplink convenience: if canonical_url scheme is not http/https and missing title/image,
-    // set enrich_attempts=3 to enter Ops queue immediately
-    const canonicalUrl = itemWithCanonicalUrl.canonical_url;
-    if (canonicalUrl) {
-      try {
-        const url = new URL(canonicalUrl);
-        const scheme = url.protocol.toLowerCase();
-        const isHttp = scheme === "http:" || scheme === "https:";
-        if (!isHttp) {
-          // Non-http(s) deeplink: check if missing title or image
-          const missingTitle = !item.display_product_title?.trim();
-          const missingImage = !item.display_cover_image_url?.trim();
-          if (missingTitle || missingImage) {
-            // Set enrich_attempts=3 and enrich_last_attempt_at=now() to enter Ops queue
-            // Note: These fields are not in DisplayFieldUpdate, so we update directly
-            const now = new Date().toISOString();
-            await supabaseAdminFetch(
-              `/rest/v1/items?id=eq.${item.id}&user_id=eq.${auth.userId}`,
-              {
-                method: "PATCH",
-                headers: {
-                  Prefer: "return=minimal",
-                },
-                body: JSON.stringify({
-                  enrich_attempts: 3,
-                  enrich_last_attempt_at: now,
-                  updated_at: now,
-                }),
-              },
-            );
-            // Best-effort: ignore errors
-          }
-        }
-      } catch {
-        // URL parse failed, skip deeplink convenience logic
-      }
-    }
-
-    const displayHints = extractDisplayHints(body as Record<string, unknown>);
-    const derivedDefaults = deriveDisplayDefaults({ url: urlValue, existing: displayHints });
-    const updates: DisplayFieldUpdate = { ...displayHints, ...derivedDefaults };
-    const hasPriceUpdate =
-      updates.display_price_amount_minor !== undefined ||
-      updates.display_currency !== undefined ||
-      updates.display_price_text !== undefined;
-    if (hasPriceUpdate) {
-      updates.display_price_updated_at = new Date().toISOString();
-    }
-    const updatedItem =
-      Object.keys(updates).length > 0
-        ? await updateItemDisplayFields({
-            userId: auth.userId,
-            itemId: itemWithCanonicalUrl.id,
-            updates,
-          })
-        : itemWithCanonicalUrl;
-
-    // Log GPTs input as first attempt (best effort, non-blocking)
-    after(async () => {
-      try {
-        const bodyRecord = body as Record<string, unknown>;
-        const providedFields: string[] = [];
-        const inputDetails: Record<string, unknown> = {};
-
-        // Whitelisted fields from request body
-        const whitelistedFields = [
-          "url",
-          "display_product_title",
-          "display_cover_image_url",
-          "display_price_text",
-          "display_price_amount_minor",
-          "display_currency",
-          "display_merchant_domain",
-          "display_merchant_logo_url",
-        ];
-
-        for (const field of whitelistedFields) {
-          if (field in bodyRecord && bodyRecord[field] !== undefined) {
-            inputDetails[field] = bodyRecord[field];
-            providedFields.push(field);
-          }
-        }
-
-        const attempt: EnrichAttempt = {
-          strategy: "gpts_input",
-          started_at: new Date().toISOString(),
-          duration_ms: 0,
-          request: {
-            source: "actions",
-            path: "/items",
-          },
-          details: {
-            input: inputDetails,
-            provided_fields: providedFields,
-          },
-        };
-
-        await insertItemEnrichAttempt({
-          userId: auth.userId,
-          itemId: item.id,
-          sourceUrl: itemWithCanonicalUrl.canonical_url ?? urlValue.trim(),
-          runGroupId: crypto.randomUUID(),
-          strategy: attempt.strategy,
-          attempt,
-        });
-      } catch (error) {
-        // Silently fail - best effort
-        console.warn("[items] Failed to log GPTs input attempt", {
-          item_id: item.id,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-    });
-
-    // Enrichment: only run if canonical_url is http/https
-    const finalItem = updatedItem ?? itemWithCanonicalUrl;
-    if (finalItem.canonical_url) {
-      try {
-        const url = new URL(finalItem.canonical_url);
-        const scheme = url.protocol.toLowerCase();
-        if (scheme === "http:" || scheme === "https:") {
-          enrichItemBestEffort({
-            userId: auth.userId,
-            itemId: finalItem.id,
-            url: finalItem.canonical_url,
-          });
-        }
-      } catch {
-        // URL parse failed, skip enrichment
-      }
-    }
 
     return NextResponse.json({
       item: {

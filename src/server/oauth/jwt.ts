@@ -13,6 +13,8 @@ export type JwtPayload = {
   aud: string;
   exp: number;
   iat: number;
+  client_id?: string;
+  scope?: string;
 };
 
 export function signJwt(payload: Omit<JwtPayload, "exp" | "iat">, secret: string, expiresInSeconds: number): string {

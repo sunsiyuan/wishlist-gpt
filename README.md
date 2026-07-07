@@ -2,44 +2,63 @@
 
 ## 简介 / Overview
 
-WishlistGPT 是一个智能愿望清单服务，通过 ChatGPT Actions 让用户能够自然语言对话的方式管理购物清单。用户可以直接在 ChatGPT 中发送产品链接，AI 助手会自动保存到愿望清单，并支持分享、查看和管理。
+WishlistGPT 是一个智能愿望清单服务，作为一个 **ChatGPT App**（基于 OpenAI Apps SDK / MCP）运行。用户可以在 ChatGPT 里直接发送产品链接，助手会把商品保存到愿望清单，并在对话中用一个**内嵌交互组件（widget）**展示清单，支持一键分享。
 
-WishlistGPT is an intelligent wishlist service that enables users to manage shopping lists through natural language conversations with ChatGPT. Users can send product links directly in ChatGPT, and the AI assistant automatically saves them to the wishlist, with support for sharing, viewing, and management.
+WishlistGPT is an intelligent wishlist service that runs as a **ChatGPT App** built on the OpenAI **Apps SDK (MCP)**. Users share product links inside ChatGPT; the assistant saves them to a wishlist and renders an **interactive inline widget** of the list, with one-click sharing.
+
+> **架构变更 / Architecture change**: 本项目已从旧的 **ChatGPT Actions（OpenAPI）** 生态迁移到 **Apps SDK（MCP server + widget + OAuth 2.1）**。Actions 相关的 `actions/`、OpenAPI 生成、根级 `/items` `/me` `/shares` `/feedback` 路由均已移除。
+>
+> Migrated from the legacy **ChatGPT Actions (OpenAPI)** ecosystem to the **Apps SDK (MCP server + widget + OAuth 2.1)**. The Actions surface (`actions/`, OpenAPI generation, root `/items` `/me` `/shares` `/feedback` routes) has been removed.
 
 ### 核心功能 / Core Features
 
-- **ChatGPT 集成 / ChatGPT Integration**: 通过 Actions/OpenAPI 与 ChatGPT 无缝集成，支持自然语言交互
-- **智能保存 / Smart Saving**: 自动提取产品信息（标题、图片、价格等）并保存到愿望清单
-- **分享功能 / Sharing**: 生成公开分享链接，方便与他人分享愿望清单
-- **Web 界面 / Web Interface**: 提供完整的 Web 应用，支持查看、编辑、管理愿望清单
-- **自动丰富 / Auto Enrichment**: 后台自动抓取和丰富产品信息，提升展示效果
+- **ChatGPT App 集成**: 通过 MCP server 暴露工具（tools），ChatGPT 用自然语言调用
+- **模型侧解析 / Agent-provided data**: 商品的标题、图片、价格、商家由**调用方 Agent（ChatGPT）在写入时提供**，服务端不再做抓取/富化（enrichment）
+- **内嵌 Widget**: 在 ChatGPT 对话内直接渲染愿望清单网格，含分享按钮
+- **分享功能**: 生成公开分享链接（`/s/<id>`）
+- **Web 界面**: 完整的 Web 应用，用于查看、编辑、管理愿望清单
 
 ---
 
-## 与 ChatGPT 的交互 / ChatGPT Integration
+## 与 ChatGPT 的集成 / ChatGPT Integration
 
-WishlistGPT 通过 **ChatGPT Actions** 与 ChatGPT 集成。用户可以在 ChatGPT 对话中：
+WishlistGPT 通过 **MCP（Model Context Protocol）** 与 ChatGPT 集成。MCP endpoint：
 
-- 发送产品链接，AI 自动保存到愿望清单
-- 查看愿望清单内容
-- 分享愿望清单给他人
-- 使用自然语言管理清单（添加、查看、分享等）
+```
+POST <BASE_URL>/api/mcp        # Streamable HTTP (JSON-RPC 2.0)
+```
 
-### 配置与策略 / Configuration & Strategy
+### 工具 / Tools
 
-所有与 ChatGPT 交互的策略和配置都在 `actions/` 目录中：
+| Tool | 说明 |
+|------|------|
+| `list_wishlist` | 列出用户已保存的商品（附带 widget） |
+| `add_to_wishlist` | 保存一个或多个商品。Agent 传入 `url` 以及能确定的 `title` / `image_url` / `price_text` / `price_amount_minor` / `currency` / `merchant_domain`（不确定则省略，不要编造） |
+| `share_wishlist` | 创建/复用公开分享链接 |
+| `send_feedback` | 提交反馈 |
 
-- **`actions/CONFIG.md`**: ChatGPT GPT 的配置信息（描述、对话启动器等）
-- **`actions/GPTS_INSTRUCTIONS.md`**: 详细的 GPT 指令，定义 AI 助手的行为规范、交互流程、错误处理等
-- **`actions/openapi.template.yaml`**: OpenAPI 规范模板，定义 API 接口契约
+### Widget
 
-### OpenAPI 生成 / OpenAPI Generation
+内嵌组件是一个自包含的 HTML 文档（`src/server/mcp/widget.ts`），注册为 MCP resource `ui://widget/wishlist.html`（mimetype `text/html+skybridge`）。它从 `window.openai.toolOutput` 读取商品数据渲染，并通过 `window.openai.callTool` 触发分享等操作——无需外部资源加载或 CORS。
 
-- **模板**: `actions/openapi.template.yaml`（包含 `__BASE_URL__` 占位符）
-- **生成命令**: `npm run gen:openapi`（`npm run build` 的 `prebuild` 也会自动执行）
-- **产物**: `public/openapi.yaml`
+### 在 ChatGPT 里连接（开发者模式）/ Connect in ChatGPT (developer mode)
 
-Base URL 由 `scripts/gen-openapi.mjs` 根据 `BASE_URL` 或 Vercel 环境变量自动推导。
+1. 本地起服务并用隧道暴露（如 `ngrok http 3000`）
+2. ChatGPT → Settings → Connectors → 开启 developer mode → 添加 `<tunnel>/api/mcp`
+3. 首次调用会走 OAuth：ChatGPT 通过 DCR 自注册客户端并引导登录授权
+
+---
+
+## 认证 / Authentication (OAuth 2.1)
+
+MCP server 作为 OAuth 2.1 受保护资源（protected resource），access token 的受众（`aud`）绑定到 MCP resource URL（RFC 8707）。
+
+- **发现 / Discovery**:
+  - `GET /.well-known/oauth-protected-resource` (RFC 9728)
+  - `GET /.well-known/oauth-authorization-server` (RFC 8414)
+- **PKCE**: 授权码流强制 `S256`
+- **DCR**: `POST /oauth/register`（RFC 7591），ChatGPT 自注册客户端
+- **端点**: `/oauth/authorize`、`/oauth/token`、`/oauth/register`
 
 ---
 
@@ -47,24 +66,13 @@ Base URL 由 `scripts/gen-openapi.mjs` 根据 `BASE_URL` 或 Vercel 环境变量
 
 ### 环境变量 / Environment Variables
 
-**必需 / Required:**
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`（或 `NEXT_PUBLIC_SUPABASE_ANON_KEY`）
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `OAUTH_ALLOWED_CLIENTS_JSON`
-- `OAUTH_SIGNING_SECRET`
+见 `.env.example`。必需：`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`（或 `_ANON_KEY`）、`SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`OAUTH_ALLOWED_CLIENTS_JSON`、`OAUTH_SIGNING_SECRET`。
 
-**可选但常用 / Optional but common:**
-- `OAUTH_ALLOW_AUTH_HEADER_LOGIN`
-- `BASE_URL`
-- `OPENGRAPH_IO_APP_ID`（opengraph.io 兜底抓取）
-- `CRON_SECRET`（Vercel Cron Jobs 安全密钥）
-- `CHATGPT_GPT_URL` 或 `NEXT_PUBLIC_CHATGPT_GPT_URL`（ChatGPT GPT 链接）
+> **重要**: 修改 `.env*` 后请重启 `npm run dev`，避免旧进程缓存。
 
-> **重要 / Important**: 修改 `.env*` 后，务必**重启终端**并重启 `npm run dev`，避免旧进程导致"改了但没生效"。  
-> After changing `.env*`, **restart your terminal** and restart `npm run dev` to avoid stale-process confusion.
+### 数据库 / Database
+
+应用迁移，特别是 MCP 所需的 `014_oauth_mcp.sql`（PKCE 列 + `oauth_clients` DCR 表）。
 
 ### 安装与启动 / Install & Run
 
@@ -73,24 +81,22 @@ npm install
 npm run dev
 ```
 
-访问 `/login` 进行登录，或访问 `/app` 查看愿望清单界面。
+访问 `/login` 登录，或 `/app` 查看愿望清单。MCP endpoint 在 `/api/mcp`。
+
+### 冒烟测试 / Smoke tests
+
+```bash
+BASE_URL=http://localhost:3000 npm run smoke:mcp     # 发现文档 + /api/mcp 401 挑战
+npm run smoke:all                                    # preflight + oauth + mcp
+```
+
+用 MCP Inspector 做完整握手：`npx @modelcontextprotocol/inspector` → Streamable HTTP → `http://localhost:3000/api/mcp`。
 
 ---
 
-## 文档 / Documentation
+## OpenAI 电商协议 / Agentic Commerce (note)
 
-本项目采用严格的文档规范，只有以下文档是"规范来源"：
-
-- **`README.md`**（本文件）- 项目简介和快速开始
-- **`docs/MVP_SPEC.md`** - API 契约和验收标准
-- **`docs/PROJECT_MAP.md`** - 代码组织和文件位置索引
-- **`docs/CHEATSHEET.md`** - 速查手册和排障指南
-- **`docs/SECURITY.md`** - 安全策略和生产默认值
-- **`docs/ENRICH_STRATEGY.md`** - 产品信息丰富策略文档
-
-**ChatGPT 相关策略**：
-- **`actions/CONFIG.md`** - ChatGPT GPT 配置
-- **`actions/GPTS_INSTRUCTIONS.md`** - GPT 指令和行为规范
+OpenAI 的 **Agentic Commerce Protocol (ACP) / Instant Checkout**（与 Stripe 共建）仍在推进，但自 2026 年 3 月起，OpenAI 把 Instant Checkout **收敛到 Apps** 里由零售商 app 完成结算，而非直接在商品结果里下单。对本项目而言，未来若要支持"从愿望清单直接购买"，可通过 Apps SDK 的 `window.openai.requestCheckout()` 接入 ACP。目前不在范围内。
 
 ---
 
@@ -98,24 +104,28 @@ npm run dev
 
 - **框架 / Framework**: Next.js (App Router)
 - **数据库 / Database**: Supabase (PostgreSQL)
-- **认证 / Auth**: Supabase Auth + OAuth 2.0 (Authorization Code Flow)
-- **部署 / Deployment**: Vercel
-- **集成 / Integration**: ChatGPT Actions (OpenAPI)
+- **认证 / Auth**: Supabase Auth + OAuth 2.1 (Authorization Code + PKCE, DCR)
+- **集成 / Integration**: OpenAI Apps SDK / MCP（`mcp-handler` + `@modelcontextprotocol/sdk`）
+- **部署 / Deployment**: Vercel (Fluid Compute)
+
+---
+
+## 文档 / Documentation
+
+- **`README.md`**（本文件）- 项目简介和快速开始
+- **`docs/MVP_SPEC.md`** - API/工具契约
+- **`docs/PROJECT_MAP.md`** - 代码组织和文件位置索引
+- **`docs/CHEATSHEET.md`** - 速查手册和排障
+- **`docs/SECURITY.md`** - 安全策略
 
 ---
 
 ## 维护规则 / Maintenance Rules
 
-如果改动了 API 路由、OpenAPI 生成路径、关键环境变量或 ChatGPT 交互策略，必须同步更新：
+如果改动了 MCP 工具、OAuth 流程、关键环境变量或 widget，请同步更新：
 
-- `docs/MVP_SPEC.md`（API 契约）
+- `docs/MVP_SPEC.md`（工具/API 契约）
 - `docs/CHEATSHEET.md`（使用指南）
 - `docs/PROJECT_MAP.md`（文件位置）
-- `actions/GPTS_INSTRUCTIONS.md`（GPT 指令，如涉及交互逻辑）
 
-If you change API routes, OpenAPI generation paths, key env vars, or ChatGPT interaction strategies, update:
-
-- `docs/MVP_SPEC.md` (API contract)
-- `docs/CHEATSHEET.md` (usage guide)
-- `docs/PROJECT_MAP.md` (file locations)
-- `actions/GPTS_INSTRUCTIONS.md` (GPT instructions, if interaction logic is involved)
+If you change MCP tools, the OAuth flow, key env vars, or the widget, update the docs above.

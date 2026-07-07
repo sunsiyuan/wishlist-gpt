@@ -22,6 +22,6 @@ export function verifyAccessToken(token: string): AccessTokenClaims | null {
   }
   return {
     userId: payload.sub,
-    clientId: payload.aud,
+    clientId: payload.client_id ?? payload.aud,
   };
 }

@@ -6,9 +6,8 @@ import { NextRequest, NextResponse } from "next/server";
  * 
  * Tasks executed in order:
  * 1. /api/metrics/daily - User behavior daily report
- * 2. /api/cron/enrich - Enrichment retries
- * 3. /api/cron/system-health - System health report
- * 
+ * 2. /api/cron/system-health - System health report
+ *
  * Each task runs independently - failures in one task don't block others.
  */
 export async function GET(request: NextRequest) {
@@ -44,28 +43,7 @@ export async function GET(request: NextRequest) {
     };
   }
 
-  // Task 2: Enrichment
-  try {
-    const enrichResponse = await fetch(`${baseUrl}/api/cron/enrich`, {
-      method: "GET",
-      headers: {
-        Authorization: authHeader || "",
-      },
-    });
-    const enrichData = await enrichResponse.json();
-    results.enrich = {
-      ok: enrichResponse.ok,
-      data: enrichData,
-      error: enrichResponse.ok ? undefined : enrichData.error || `HTTP ${enrichResponse.status}`,
-    };
-  } catch (error) {
-    results.enrich = {
-      ok: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-
-  // Task 3: System health
+  // Task 2: System health
   try {
     const healthResponse = await fetch(`${baseUrl}/api/cron/system-health`, {
       method: "GET",

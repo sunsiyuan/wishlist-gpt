@@ -1,8 +1,19 @@
 # PROJECT_MAP
 
+> ⚠️ **Apps SDK / MCP migration**: 项目已从 ChatGPT Actions 迁移到 OpenAI Apps SDK（MCP）。
+> 新增关键位置：
+> - MCP server: `src/app/api/mcp/route.ts`（`createMcpHandler` + `withMcpAuth`）
+> - MCP tools: `src/server/mcp/tools.ts`（`list_wishlist` / `add_to_wishlist` / `share_wishlist` / `send_feedback`）
+> - Widget: `src/server/mcp/widget.ts`（resource `ui://widget/wishlist.html`）
+> - MCP token 校验: `src/server/mcp/auth.ts`
+> - OAuth 2.1: `src/app/.well-known/*`（发现）、`src/app/api/oauth/register`（DCR）、`src/server/oauth/*`（PKCE、resource/aud、client-store）
+> - 共享写入逻辑: `src/server/items/addItem.ts`
+>
+> 已移除：`actions/`、OpenAPI 生成、根级 `/items` `/me` `/shares` `/feedback`、服务端富化（`enrich`）与标注台（`/ops`）、`/api/cron/enrich`、`/api/dev`。
+
 ## 0. 单一导航入口 / Single navigation entry
-CN：本项目的规范性文档只保留：`README.md`、`MVP_SPEC`、`PROJECT_MAP`、`CHEATSHEET`、`SECURITY`、`ENRICH_STRATEGY`。其他任何文档都不再是规范来源。  
-EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEATSHEET`, `SECURITY`, `ENRICH_STRATEGY`. No other doc is normative.
+CN：本项目的规范性文档只保留：`README.md`、`MVP_SPEC`、`PROJECT_MAP`、`CHEATSHEET`、`SECURITY`。其他任何文档都不再是规范来源。（`ENRICH_STRATEGY` 已随服务端富化移除而废弃。）  
+EN: Normative docs are limited to: `README.md`, `MVP_SPEC`, `PROJECT_MAP`, `CHEATSHEET`, `SECURITY`. (`ENRICH_STRATEGY` is deprecated — server-side enrichment was removed.)
 
 ---
 

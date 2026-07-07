@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanitizeNextPath } from "../../../../server/auth/next-path";
 import { getSupabaseUserId } from "../../../../server/auth/supabase";
-import { isRedirectUriAllowed } from "../../../../server/oauth/clients";
+import { isRedirectUriAllowedAsync } from "../../../../server/oauth/clients";
 import { CODE_TTL_SECONDS, OAUTH_STATE_COOKIE } from "../../../../server/oauth/config";
 import { insertOauthCode } from "../../../../server/oauth/code-store";
 import { generateOauthCode } from "../../../../server/oauth/tokens";
@@ -23,6 +23,10 @@ export async function GET(request: NextRequest) {
   const clientId = searchParams.get("client_id");
   const redirectUri = searchParams.get("redirect_uri");
   const state = searchParams.get("state");
+  const codeChallenge = searchParams.get("code_challenge");
+  const codeChallengeMethod = searchParams.get("code_challenge_method");
+  const resource = searchParams.get("resource");
+  const scope = searchParams.get("scope");
 
   if (!responseType || responseType !== "code") {
     return jsonError("response_type must be code");
@@ -36,7 +40,11 @@ export async function GET(request: NextRequest) {
   if (!state) {
     return jsonError("state is required");
   }
-  if (!isRedirectUriAllowed(clientId, redirectUri)) {
+  // PKCE: if a challenge is supplied it must be S256 (plain is not accepted).
+  if (codeChallenge && codeChallengeMethod && codeChallengeMethod !== "S256") {
+    return jsonError("code_challenge_method must be S256", 400);
+  }
+  if (!(await isRedirectUriAllowedAsync(clientId, redirectUri))) {
     return jsonError("redirect_uri is not allowed", 400);
   }
 
@@ -83,6 +91,10 @@ export async function GET(request: NextRequest) {
     redirect_uri: redirectUri,
     expires_at: expiresAt,
     used_at: null,
+    code_challenge: codeChallenge,
+    code_challenge_method: codeChallenge ? (codeChallengeMethod ?? "S256") : null,
+    resource,
+    scope,
   });
 
   const redirectUrl = new URL(redirectUri);

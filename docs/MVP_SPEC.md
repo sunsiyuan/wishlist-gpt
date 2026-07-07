@@ -3,6 +3,16 @@
 > CN：本文件是 WishlistGPT 的**对外 contract + 验收标准**（normative）。  
 > EN: This file is the **normative external contract + acceptance criteria** for WishlistGPT.
 
+> ⚠️ **Apps SDK / MCP migration**: 对外契约现在是 **MCP tools**，不再是 Actions/OpenAPI REST。
+> 当前工具契约（详见 README「工具」表 + `src/server/mcp/tools.ts` 的 zod schema）：
+> - `list_wishlist()` → `{ items: DisplayItem[] }`（附 widget）
+> - `add_to_wishlist({ items: [{ url, title?, image_url?, price_text?, price_amount_minor?, currency?, merchant_domain? }] })` → `{ items, added, failed }`（商品字段由 Agent 提供；服务端不再富化）
+> - `share_wishlist()` → `{ share_id, share_url }`
+> - `send_feedback({ message })` → `{ ok }`
+>
+> 认证：OAuth 2.1（PKCE `S256`、DCR、`aud` 绑定到 `<BASE_URL>/api/mcp`）。
+> 本文件下方涉及 Actions/`getMe`/`createItem`/OpenAPI 的历史章节仅作参考，已不再是规范来源。
+
 ---
 
 ## 0) 文档约定 / Doc conventions

@@ -1,8 +1,11 @@
 # CHEATSHEET
 
 ## 0) 目标：最小闭环 / Goal: the minimal closed loop
-CN：你要跑通的闭环只有一条：**Actions Connect → getMe → createItem → listItems**。  
-EN: There is only one loop you must get working: **Actions Connect → getMe → createItem → listItems**.
+CN：你要跑通的闭环只有一条：**在 ChatGPT 里连接 MCP（`/api/mcp`）→ OAuth 授权 → `add_to_wishlist` → `list_wishlist`（widget）→ `share_wishlist`**。  
+EN: The one loop to get working: **connect the MCP server (`/api/mcp`) in ChatGPT → OAuth → `add_to_wishlist` → `list_wishlist` (widget) → `share_wishlist`**.
+
+> ⚠️ 旧的 Actions 闭环（`Actions Connect → getMe → createItem → listItems`）已废弃。
+> 本地排障：`BASE_URL=http://localhost:3000 npm run smoke:mcp`；完整握手用 MCP Inspector 连 `http://localhost:3000/api/mcp`。
 
 ---
 
