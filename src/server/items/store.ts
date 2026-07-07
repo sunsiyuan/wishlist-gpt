@@ -9,27 +9,27 @@ export type ItemRecord = {
   updated_at: string;
   personal_note: string | null;
   deleted_at: string | null;
-  display_cover_image_url: string | null;
-  display_product_title: string | null;
-  display_merchant_logo_url: string | null;
-  display_merchant_domain: string | null;
-  display_price_amount_minor: number | null;
-  display_currency: string | null;
-  display_price_text: string | null;
-  display_price_updated_at: string | null;
+  image_url: string | null;
+  title: string | null;
+  merchant_domain: string | null;
+  category: string | null;
+  price_amount_minor: number | null;
+  currency: string | null;
+  price_text: string | null;
+  price_updated_at: string | null;
 };
 
 export type DisplayFieldUpdate = Partial<
   Pick<
     ItemRecord,
-    | "display_cover_image_url"
-    | "display_product_title"
-    | "display_merchant_logo_url"
-    | "display_merchant_domain"
-    | "display_price_amount_minor"
-    | "display_currency"
-    | "display_price_text"
-    | "display_price_updated_at"
+    | "image_url"
+    | "title"
+    | "merchant_domain"
+    | "category"
+    | "price_amount_minor"
+    | "currency"
+    | "price_text"
+    | "price_updated_at"
   >
 >;
 
@@ -44,14 +44,14 @@ const ITEM_SELECT = [
   "updated_at",
   "personal_note",
   "deleted_at",
-  "display_cover_image_url",
-  "display_product_title",
-  "display_merchant_logo_url",
-  "display_merchant_domain",
-  "display_price_amount_minor",
-  "display_currency",
-  "display_price_text",
-  "display_price_updated_at",
+  "image_url",
+  "title",
+  "merchant_domain",
+  "category",
+  "price_amount_minor",
+  "currency",
+  "price_text",
+  "price_updated_at",
 ].join(",");
 
 function resolveOrder(sort: ItemSort): string {

@@ -63,15 +63,17 @@ create table if not exists public.items (
   updated_at timestamptz not null default now(),
   personal_note text,
   deleted_at timestamptz,
-  -- Display fields supplied by the calling agent (title/image/price/merchant).
-  display_cover_image_url text,
-  display_product_title text,
-  display_merchant_logo_url text,
-  display_merchant_domain text,
-  display_price_amount_minor int,
-  display_currency text,
-  display_price_text text,
-  display_price_updated_at timestamptz,
+  -- Product fields supplied by the calling agent. The merchant logo is derived from
+  -- merchant_domain on read (not stored). Exact-URL dedup via the unique constraint below;
+  -- semantic dedup (tracking-param variants) is handled by the calling agent.
+  image_url text,
+  title text,
+  merchant_domain text,
+  category text,
+  price_amount_minor int,
+  currency text,
+  price_text text,
+  price_updated_at timestamptz,
   unique (user_id, url_original)
 );
 

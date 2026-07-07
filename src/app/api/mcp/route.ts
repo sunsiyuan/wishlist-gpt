@@ -9,7 +9,7 @@ const handler = createMcpHandler(
   {
     serverInfo: { name: "wishlist-gpt", version: "1.0.0" },
     instructions:
-      "WishlistGPT saves products to a personal wishlist. When the user shares a product, call add_to_wishlist with the exact URL plus the title, image URL, price and merchant you can determine from the page or conversation — never invent values, omit anything you're unsure of. Use list_wishlist to show saved items and share_wishlist to produce a public link. Never claim an item was saved unless add_to_wishlist returned it.",
+      "WishlistGPT saves products to a personal wishlist. When the user shares a product, call add_to_wishlist with the exact URL (never altered) plus the title, image URL, price, merchant domain, and best-fit category you can determine from the page or conversation — never invent values, omit anything you're unsure of. Avoid duplicates: don't re-add a product already on the list (call list_wishlist first if unsure). Use list_wishlist to show saved items and share_wishlist for a public link. Never claim an item was saved unless add_to_wishlist returned it.",
   },
   { basePath: "/api" },
 );

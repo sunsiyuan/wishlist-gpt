@@ -14,14 +14,13 @@ const ITEM_SELECT = [
   "updated_at",
   "personal_note",
   "deleted_at",
-  "display_cover_image_url",
-  "display_product_title",
-  "display_merchant_logo_url",
-  "display_merchant_domain",
-  "display_price_amount_minor",
-  "display_currency",
-  "display_price_text",
-  "display_price_updated_at",
+  "image_url",
+  "title",
+  "merchant_domain",
+  "price_amount_minor",
+  "currency",
+  "price_text",
+  "price_updated_at",
 ].join(",");
 
 /**

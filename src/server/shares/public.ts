@@ -3,14 +3,13 @@ import { supabaseAdminFetch } from "../supabase/admin";
 export type PublicShareItem = {
   id: string;
   created_at: string;
-  display_cover_image_url: string | null;
-  display_product_title: string | null;
-  display_merchant_logo_url: string | null;
-  display_merchant_domain: string | null;
-  display_price_amount_minor: number | null;
-  display_currency: string | null;
-  display_price_text: string | null;
-  display_price_updated_at: string | null;
+  image_url: string | null;
+  title: string | null;
+  merchant_domain: string | null;
+  price_amount_minor: number | null;
+  currency: string | null;
+  price_text: string | null;
+  price_updated_at: string | null;
   personal_note: string | null;
   canonical_url: string | null;
 };
@@ -18,14 +17,13 @@ export type PublicShareItem = {
 type PublicShareItemRecord = {
   id: string;
   created_at: string;
-  display_cover_image_url: string | null;
-  display_product_title: string | null;
-  display_merchant_logo_url: string | null;
-  display_merchant_domain: string | null;
-  display_price_amount_minor: number | null;
-  display_currency: string | null;
-  display_price_text: string | null;
-  display_price_updated_at: string | null;
+  image_url: string | null;
+  title: string | null;
+  merchant_domain: string | null;
+  price_amount_minor: number | null;
+  currency: string | null;
+  price_text: string | null;
+  price_updated_at: string | null;
   personal_note: string | null;
   canonical_url: string | null;
   url_original: string | null;
@@ -67,14 +65,13 @@ export async function getPublicShareItems(shareId: string): Promise<PublicShareI
     select: [
       "id",
       "created_at",
-      "display_cover_image_url",
-      "display_product_title",
-      "display_merchant_logo_url",
-      "display_merchant_domain",
-      "display_price_amount_minor",
-      "display_currency",
-      "display_price_text",
-      "display_price_updated_at",
+      "image_url",
+      "title",
+      "merchant_domain",
+      "price_amount_minor",
+      "currency",
+      "price_text",
+      "price_updated_at",
       "personal_note",
       "canonical_url",
       "url_original",
@@ -88,14 +85,13 @@ export async function getPublicShareItems(shareId: string): Promise<PublicShareI
   return data.map((item) => ({
     id: item.id,
     created_at: item.created_at,
-    display_cover_image_url: item.display_cover_image_url,
-    display_product_title: item.display_product_title,
-    display_merchant_logo_url: item.display_merchant_logo_url,
-    display_merchant_domain: item.display_merchant_domain,
-    display_price_amount_minor: item.display_price_amount_minor,
-    display_currency: item.display_currency,
-    display_price_text: item.display_price_text,
-    display_price_updated_at: item.display_price_updated_at,
+    image_url: item.image_url,
+    title: item.title,
+    merchant_domain: item.merchant_domain,
+    price_amount_minor: item.price_amount_minor,
+    currency: item.currency,
+    price_text: item.price_text,
+    price_updated_at: item.price_updated_at,
     personal_note: item.personal_note,
     canonical_url: item.canonical_url ?? item.url_original ?? null,
   }));

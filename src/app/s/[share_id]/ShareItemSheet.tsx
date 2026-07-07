@@ -6,6 +6,7 @@ import {
   getCardTitle,
   getCoverFallbackLabel,
   getLogoFallbackText,
+  getMerchantLogoUrl,
   getPriceText,
   getSourceUrl,
   resolveDomain,
@@ -73,9 +74,9 @@ export default function ShareItemSheet({
             <span className="text-gray-400 dark:text-gray-500 text-sm">
               {getCoverFallbackLabel(item)}
             </span>
-            {item.display_cover_image_url ? (
+            {item.image_url ? (
               <img
-                src={item.display_cover_image_url}
+                src={item.image_url}
                 alt={title}
                 className="w-full h-full object-cover absolute inset-0"
                 onError={(event) => {
@@ -94,7 +95,7 @@ export default function ShareItemSheet({
                 >
                   <span>{getLogoFallbackText(item)}</span>
                   <img
-                    src={item.display_merchant_logo_url ?? ""}
+                    src={getMerchantLogoUrl(item) ?? ""}
                     alt={domain ?? "Merchant"}
                     className="absolute inset-0 w-full h-full object-contain"
                     onError={(event) => {

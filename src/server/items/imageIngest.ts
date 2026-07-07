@@ -145,7 +145,7 @@ async function rehostItemImage(params: {
   await updateItemDisplayFields({
     userId,
     itemId,
-    updates: { display_cover_image_url: publicImageUrl(objectPath) },
+    updates: { image_url: publicImageUrl(objectPath) },
   });
 
   // Best-effort analytics: how often re-hosting succeeds (already inside after(), so track inline).

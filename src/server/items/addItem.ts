@@ -51,11 +51,11 @@ export async function addItemForUser(params: {
   const derivedDefaults = deriveDisplayDefaults({ url: trimmedUrl, existing: displayHints });
   const updates: DisplayFieldUpdate = { ...displayHints, ...derivedDefaults };
   const hasPriceUpdate =
-    updates.display_price_amount_minor !== undefined ||
-    updates.display_currency !== undefined ||
-    updates.display_price_text !== undefined;
+    updates.price_amount_minor !== undefined ||
+    updates.currency !== undefined ||
+    updates.price_text !== undefined;
   if (hasPriceUpdate) {
-    updates.display_price_updated_at = new Date().toISOString();
+    updates.price_updated_at = new Date().toISOString();
   }
 
   const finalItem =
@@ -64,11 +64,11 @@ export async function addItemForUser(params: {
       : current;
 
   // Re-host the cover image to durable storage so the link doesn't expire (best-effort, async).
-  if (finalItem.display_cover_image_url) {
+  if (finalItem.image_url) {
     rehostItemImageBestEffort({
       userId,
       itemId: finalItem.id,
-      imageUrl: finalItem.display_cover_image_url,
+      imageUrl: finalItem.image_url,
     });
   }
 

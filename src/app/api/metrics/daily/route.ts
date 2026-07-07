@@ -232,23 +232,23 @@ async function querySystemHealthMetrics(): Promise<{
     ? (await missingCanonicalUrlRes.json()).length
     : 0;
 
-  // Missing display_product_title
+  // Missing title
   const missingTitleRes = await supabaseAdminFetch(
-    `/rest/v1/items?deleted_at=is.null&or=(display_product_title.is.null,display_product_title.eq.)&select=id`,
+    `/rest/v1/items?deleted_at=is.null&or=(title.is.null,title.eq.)&select=id`,
     { method: "GET" },
   );
   const missingTitle = missingTitleRes.ok ? (await missingTitleRes.json()).length : 0;
 
-  // Missing display_cover_image_url
+  // Missing image_url
   const missingImageRes = await supabaseAdminFetch(
-    `/rest/v1/items?deleted_at=is.null&or=(display_cover_image_url.is.null,display_cover_image_url.eq.)&select=id`,
+    `/rest/v1/items?deleted_at=is.null&or=(image_url.is.null,image_url.eq.)&select=id`,
     { method: "GET" },
   );
   const missingImage = missingImageRes.ok ? (await missingImageRes.json()).length : 0;
 
-  // Missing display_price_text
+  // Missing price_text
   const missingPriceRes = await supabaseAdminFetch(
-    `/rest/v1/items?deleted_at=is.null&or=(display_price_text.is.null,display_price_text.eq.)&select=id`,
+    `/rest/v1/items?deleted_at=is.null&or=(price_text.is.null,price_text.eq.)&select=id`,
     { method: "GET" },
   );
   const missingPrice = missingPriceRes.ok ? (await missingPriceRes.json()).length : 0;
@@ -257,19 +257,19 @@ async function querySystemHealthMetrics(): Promise<{
   // Note: We need to query all items and filter in application layer
   // (Supabase REST API doesn't support complex AND/OR conditions easily)
   const allItemsRes = await supabaseAdminFetch(
-    `/rest/v1/items?deleted_at=is.null&select=display_product_title,display_cover_image_url,display_price_text`,
+    `/rest/v1/items?deleted_at=is.null&select=title,image_url,price_text`,
     { method: "GET" },
   );
   const allItems = allItemsRes.ok ? await allItemsRes.json() : [];
   const healthyItems = allItems.filter(
     (item: {
-      display_product_title: string | null;
-      display_cover_image_url: string | null;
-      display_price_text: string | null;
+      title: string | null;
+      image_url: string | null;
+      price_text: string | null;
     }) => {
-      const hasTitle = Boolean(item.display_product_title?.trim());
-      const hasImage = Boolean(item.display_cover_image_url?.trim());
-      const hasPrice = Boolean(item.display_price_text?.trim());
+      const hasTitle = Boolean(item.title?.trim());
+      const hasImage = Boolean(item.image_url?.trim());
+      const hasPrice = Boolean(item.price_text?.trim());
       return hasTitle && hasImage && hasPrice;
     },
   ).length;

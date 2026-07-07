@@ -9,51 +9,51 @@ const MAX_PRICE_TEXT_LENGTH = 120;
 const MAX_CURRENCY_LENGTH = 10;
 
 export type DisplayHintFields = {
-  display_cover_image_url?: string;
-  display_product_title?: string;
-  display_merchant_logo_url?: string;
-  display_merchant_domain?: string;
-  display_price_amount_minor?: number;
-  display_currency?: string;
-  display_price_text?: string;
+  image_url?: string;
+  title?: string;
+  merchant_domain?: string;
+  price_amount_minor?: number;
+  currency?: string;
+  price_text?: string;
+  category?: string;
 };
 
 export function extractDisplayHints(body: Record<string, unknown>): DisplayHintFields {
   const displayHints: DisplayHintFields = {};
 
-  const coverUrl = sanitizeDisplayUrl(body.display_cover_image_url);
+  const coverUrl = sanitizeDisplayUrl(body.image_url);
   if (coverUrl) {
-    displayHints.display_cover_image_url = coverUrl;
+    displayHints.image_url = coverUrl;
   }
 
-  const title = sanitizeDisplayTitle(body.display_product_title);
+  const title = sanitizeDisplayTitle(body.title);
   if (title) {
-    displayHints.display_product_title = title;
+    displayHints.title = title;
   }
 
-  const merchantLogoUrl = sanitizeDisplayUrl(body.display_merchant_logo_url);
-  if (merchantLogoUrl) {
-    displayHints.display_merchant_logo_url = merchantLogoUrl;
-  }
-
-  const merchantDomain = sanitizeDisplayDomain(body.display_merchant_domain);
+  const merchantDomain = sanitizeDisplayDomain(body.merchant_domain);
   if (merchantDomain) {
-    displayHints.display_merchant_domain = merchantDomain;
+    displayHints.merchant_domain = merchantDomain;
   }
 
-  const priceAmountMinor = sanitizePriceAmountMinor(body.display_price_amount_minor);
+  const category = sanitizeDisplayTitle(body.category);
+  if (category) {
+    displayHints.category = category;
+  }
+
+  const priceAmountMinor = sanitizePriceAmountMinor(body.price_amount_minor);
   if (priceAmountMinor !== null) {
-    displayHints.display_price_amount_minor = priceAmountMinor;
+    displayHints.price_amount_minor = priceAmountMinor;
   }
 
-  const currency = sanitizeCurrency(body.display_currency);
+  const currency = sanitizeCurrency(body.currency);
   if (currency) {
-    displayHints.display_currency = currency;
+    displayHints.currency = currency;
   }
 
-  const priceText = sanitizePriceText(body.display_price_text);
+  const priceText = sanitizePriceText(body.price_text);
   if (priceText) {
-    displayHints.display_price_text = priceText;
+    displayHints.price_text = priceText;
   }
 
   return displayHints;
@@ -64,19 +64,13 @@ export function deriveDisplayDefaults(params: {
   existing: DisplayHintFields;
 }): DisplayHintFields {
   const updates: DisplayHintFields = {};
-  if (!params.existing.display_merchant_domain) {
+  if (!params.existing.merchant_domain) {
     const domain = deriveMerchantDomainFromUrl(params.url);
     if (domain) {
-      updates.display_merchant_domain = domain;
+      updates.merchant_domain = domain;
     }
   }
-
-  const domainForLogo =
-    params.existing.display_merchant_domain ?? updates.display_merchant_domain ?? null;
-  if (!params.existing.display_merchant_logo_url && domainForLogo) {
-    updates.display_merchant_logo_url = buildFaviconUrl(domainForLogo);
-  }
-
+  // Merchant logo is no longer stored — it's derived from merchant_domain on read.
   return updates;
 }
 

@@ -20,6 +20,7 @@ import {
   getCardTitle,
   getCoverFallbackLabel,
   getLogoFallbackText,
+  getMerchantLogoUrl,
   getNotePreview,
   getPriceText,
   getSourceUrl,
@@ -35,14 +36,14 @@ export type AppItem = {
   created_at: string;
   updated_at: string;
   personal_note: string | null;
-  display_cover_image_url: string | null;
-  display_product_title: string | null;
-  display_merchant_logo_url: string | null;
-  display_merchant_domain: string | null;
-  display_price_amount_minor: number | null;
-  display_currency: string | null;
-  display_price_text: string | null;
-  display_price_updated_at: string | null;
+  image_url: string | null;
+  title: string | null;
+  merchant_domain: string | null;
+  category: string | null;
+  price_amount_minor: number | null;
+  currency: string | null;
+  price_text: string | null;
+  price_updated_at: string | null;
 };
 
 type AppClientProps = {
@@ -951,9 +952,9 @@ export default function AppClient({
                       <span className="text-secondary dark:text-secondary-dark text-xs">
                         {getCoverFallbackLabel(item)}
                       </span>
-                      {item.display_cover_image_url ? (
+                      {item.image_url ? (
                         <img
-                          src={item.display_cover_image_url}
+                          src={item.image_url}
                           alt={title}
                           className="w-full h-full object-cover absolute inset-0"
                           onError={(event) => {
@@ -974,7 +975,7 @@ export default function AppClient({
                               >
                                 <span>{logoFallback}</span>
                                 <img
-                                  src={item.display_merchant_logo_url ?? ""}
+                                  src={getMerchantLogoUrl(item) ?? ""}
                                   alt={domain ?? "Merchant"}
                                   className="absolute inset-0 w-full h-full object-contain"
                                   onError={(event) => {
@@ -1087,9 +1088,9 @@ export default function AppClient({
                 <span className="text-gray-400 dark:text-gray-500 text-sm">
                   {getCoverFallbackLabel(activeItem)}
                 </span>
-                {activeItem.display_cover_image_url ? (
+                {activeItem.image_url ? (
                   <img
-                    src={activeItem.display_cover_image_url}
+                    src={activeItem.image_url}
                     alt={getCardTitle(activeItem)}
                     className="w-full h-full object-cover absolute inset-0"
                     onError={(event) => {
@@ -1108,7 +1109,7 @@ export default function AppClient({
                     >
                       <span>{getLogoFallbackText(activeItem)}</span>
                       <img
-                        src={activeItem.display_merchant_logo_url ?? ""}
+                        src={getMerchantLogoUrl(activeItem) ?? ""}
                         alt={resolveDomain(activeItem) ?? "Merchant"}
                         className="absolute inset-0 w-full h-full object-contain"
                         onError={(event) => {

@@ -1,10 +1,10 @@
 export type DisplayItem = {
-  display_product_title: string | null;
-  display_merchant_domain: string | null;
-  display_merchant_logo_url: string | null;
-  display_price_amount_minor: number | null;
-  display_currency: string | null;
-  display_price_text: string | null;
+  title: string | null;
+  merchant_domain: string | null;
+  price_amount_minor: number | null;
+  currency: string | null;
+  price_text: string | null;
+  category?: string | null;
   personal_note: string | null;
   canonical_url?: string | null;
   url_original?: string | null;
@@ -12,13 +12,22 @@ export type DisplayItem = {
 
 const NOTE_PLACEHOLDER = "Add a note…";
 
+/** Merchant logo, derived from the domain on read (no longer stored). */
+export function getMerchantLogoUrl(item: DisplayItem): string | null {
+  const domain = resolveDomain(item);
+  if (!domain) {
+    return null;
+  }
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=128`;
+}
+
 export function getSourceUrl(item: DisplayItem): string | null {
   return item.canonical_url ?? item.url_original ?? null;
 }
 
 export function resolveDomain(item: DisplayItem): string | null {
-  if (item.display_merchant_domain) {
-    return item.display_merchant_domain;
+  if (item.merchant_domain) {
+    return item.merchant_domain;
   }
   const sourceUrl = getSourceUrl(item);
   if (!sourceUrl) {
@@ -34,7 +43,7 @@ export function resolveDomain(item: DisplayItem): string | null {
 }
 
 export function getCardTitle(item: DisplayItem): string {
-  const title = item.display_product_title?.trim();
+  const title = item.title?.trim();
   if (title) {
     return title;
   }
@@ -46,14 +55,14 @@ export function getCardTitle(item: DisplayItem): string {
 }
 
 export function shouldShowPriceRow(item: DisplayItem): boolean {
-  const hasAmount = item.display_price_amount_minor !== null && !!item.display_currency;
-  const hasText = Boolean(item.display_price_text?.trim());
+  const hasAmount = item.price_amount_minor !== null && !!item.currency;
+  const hasText = Boolean(item.price_text?.trim());
   return hasAmount || hasText;
 }
 
 export function getPriceText(item: DisplayItem, locale?: string): string | null {
-  const hasAmount = item.display_price_amount_minor !== null && !!item.display_currency;
-  const priceText = item.display_price_text?.trim();
+  const hasAmount = item.price_amount_minor !== null && !!item.currency;
+  const priceText = item.price_text?.trim();
   if (hasAmount) {
     // Use locale from user's preferred_language, fallback to "en-US"
     // Ensure locale format is correct (e.g., "en-US" not just "en")
@@ -61,11 +70,11 @@ export function getPriceText(item: DisplayItem, locale?: string): string | null 
     try {
       const formatter = new Intl.NumberFormat(safeLocale, {
         style: "currency",
-        currency: item.display_currency ?? "",
+        currency: item.currency ?? "",
         // Use narrow symbol format (e.g., "$" instead of "USD")
         currencyDisplay: "symbol",
       });
-      const amount = (item.display_price_amount_minor ?? 0) / 100;
+      const amount = (item.price_amount_minor ?? 0) / 100;
       return formatter.format(amount);
     } catch (error) {
       // Fallback to price_text if formatting fails
@@ -84,7 +93,7 @@ export function getNotePreview(item: DisplayItem): { text: string; isPlaceholder
 }
 
 export function shouldRenderMerchantLogo(item: DisplayItem): boolean {
-  return Boolean(item.display_merchant_logo_url);
+  return Boolean(resolveDomain(item));
 }
 
 export function getLogoFallbackText(item: DisplayItem): string {

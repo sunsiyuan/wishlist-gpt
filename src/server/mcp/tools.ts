@@ -14,6 +14,7 @@ import { sendTelegramFeedback } from "../feedback/notify";
 import { trackBestEffort } from "../tracking/trackBestEffort";
 import {
   getCardTitle,
+  getMerchantLogoUrl,
   getPriceText,
   getSourceUrl,
   resolveDomain,
@@ -39,6 +40,26 @@ function widgetResourceDomains(): string[] {
   }
   return domains;
 }
+
+// Controlled category set — an enum (not free text) so items classify consistently and the
+// filter chips stay meaningful. The agent picks the best fit, or "Other".
+const CATEGORIES = [
+  "Fashion",
+  "Shoes",
+  "Beauty",
+  "Home",
+  "Kitchen",
+  "Tech",
+  "Gaming",
+  "Books",
+  "Toys & Baby",
+  "Sports & Outdoors",
+  "Food & Drink",
+  "Jewelry",
+  "Pets",
+  "Gifts",
+  "Other",
+] as const;
 
 /** _meta that binds a tool result to the inline wishlist widget (Apps SDK convention). */
 const WISHLIST_WIDGET_META = {
@@ -90,8 +111,8 @@ function toDisplayItem(item: ItemRecord) {
     url: getSourceUrl(item),
     domain: resolveDomain(item),
     price: getPriceText(item),
-    image: item.display_cover_image_url,
-    logo: item.display_merchant_logo_url,
+    image: item.image_url,
+    logo: getMerchantLogoUrl(item),
     note: item.personal_note,
   };
 }
@@ -189,28 +210,61 @@ export function registerWishlistApp(server: McpServer): void {
     {
       title: "Add to wishlist",
       description:
-        "Save one or more products to the user's wishlist. For each product, pass the exact URL the user provided, and — when you can determine them from the page or the conversation — the product title, image URL, price and merchant domain. Do not invent values: omit any field you are unsure about.",
+        "Save one or more products to the user's wishlist. For each product, pass the exact URL the user provided, and — when you can determine them from the page or the conversation — the product title, image URL, price, merchant domain, and a short category. Do not invent values: omit any field you are unsure about. Avoid duplicates: if a product already appears on the list (call list_wishlist first if unsure), don't add it again.",
       inputSchema: {
         items: z
           .array(
             z.object({
-              url: z.string().min(1).describe("The product URL, exactly as the user provided it."),
-              title: z.string().optional().describe("Product title/name."),
-              image_url: z.string().optional().describe("Direct URL to the product's main image."),
+              url: z
+                .string()
+                .min(1)
+                .describe(
+                  "The product page URL, verbatim as the user gave it. Do NOT modify, shorten, follow redirects, or swap locale/variant.",
+                ),
+              title: z
+                .string()
+                .optional()
+                .describe(
+                  "The product's name as shown on the page — just the product, no merchant name and no marketing tagline. Keep it concise.",
+                ),
+              image_url: z
+                .string()
+                .optional()
+                .describe(
+                  "Direct https URL to the product's main image file (jpg/png/webp) — NOT the product page URL. Omit if you don't have a real image URL.",
+                ),
               price_text: z
                 .string()
                 .optional()
-                .describe('Human-readable price exactly as shown, e.g. "$29.99".'),
+                .describe(
+                  'The price exactly as shown, including the currency symbol, e.g. "$29.99". Use the current price the user would pay (the sale price if on sale).',
+                ),
               price_amount_minor: z
                 .number()
                 .int()
+                .nonnegative()
                 .optional()
-                .describe("Price in minor units (e.g. cents): 2999 for $29.99."),
-              currency: z.string().optional().describe("ISO 4217 currency code, e.g. USD."),
+                .describe(
+                  "Numeric price in minor units (cents): 2999 for $29.99. Provide ONLY together with currency, and only when you are certain of the exact amount.",
+                ),
+              currency: z
+                .string()
+                .optional()
+                .describe(
+                  "ISO 4217 code, uppercase (USD, EUR, GBP …). Provide only together with price_amount_minor.",
+                ),
               merchant_domain: z
                 .string()
                 .optional()
-                .describe('Merchant domain without www, e.g. "nike.com".'),
+                .describe(
+                  'The bare registrable domain, lowercase, no scheme/www/path, e.g. "nike.com".',
+                ),
+              category: z
+                .enum(CATEGORIES)
+                .optional()
+                .describe(
+                  "Best-fit category from the allowed list, for filtering. Use \"Other\" only when nothing fits.",
+                ),
             }),
           )
           .min(1)
@@ -239,12 +293,13 @@ export function registerWishlistApp(server: McpServer): void {
             userId,
             url: entry.url,
             hints: {
-              display_product_title: entry.title,
-              display_cover_image_url: entry.image_url,
-              display_price_text: entry.price_text,
-              display_price_amount_minor: entry.price_amount_minor,
-              display_currency: entry.currency,
-              display_merchant_domain: entry.merchant_domain,
+              title: entry.title,
+              image_url: entry.image_url,
+              price_text: entry.price_text,
+              price_amount_minor: entry.price_amount_minor,
+              currency: entry.currency,
+              merchant_domain: entry.merchant_domain,
+              category: entry.category,
             },
           });
           added += 1;
