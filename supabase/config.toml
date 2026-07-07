@@ -42,6 +42,11 @@ enable_signup = true
 enable_confirmations = false
 double_confirm_changes = false
 
+# OTP sign-in email includes the 6-digit code the app's /login screen expects.
+[auth.email.template.magic_link]
+subject = "Your WishlistGPT sign-in code"
+content_path = "./supabase/templates/magic_link.html"
+
 # Analytics (logflare + vector) is off: the vector container mounts the Docker socket, which
 # fails under Colima ("operation not supported"). Disabling it keeps db/auth/storage/studio.
 [analytics]
