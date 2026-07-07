@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import { getChatGptAppUrl } from "../lib/chatgpt";
 
 export default function HomePage() {
+  const chatGptAppUrl = getChatGptAppUrl();
   return (
     <div className="homepage-bg min-h-screen flex flex-col items-center justify-center px-4">
       <div className="flex flex-col items-center gap-8 max-w-md w-full">
@@ -24,13 +26,17 @@ export default function HomePage() {
 
         {/* CTAs */}
         <div className="flex flex-col items-center gap-4 w-full">
-          {/* Primary Button */}
-          <Link
-            href="/go/chatgpt"
-            className="w-full px-6 py-3 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-100 transition-colors text-center"
-          >
-            Open in ChatGPT
-          </Link>
+          {/* Primary Button — shown once the app has a shareable ChatGPT link */}
+          {chatGptAppUrl ? (
+            <a
+              href={chatGptAppUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full px-6 py-3 bg-white text-gray-900 rounded-lg font-medium hover:bg-gray-100 transition-colors text-center"
+            >
+              Open in ChatGPT
+            </a>
+          ) : null}
 
           {/* Secondary Link */}
           <Link

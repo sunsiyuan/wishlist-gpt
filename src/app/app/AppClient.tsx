@@ -26,7 +26,7 @@ import {
   shouldRenderMerchantLogo,
   shouldShowPriceRow,
 } from "../../lib/itemDisplay";
-import { getChatGptUrlClient } from "../../lib/chatgpt";
+import { getChatGptAppUrl } from "../../lib/chatgpt";
 
 export type AppItem = {
   id: string;
@@ -95,8 +95,7 @@ function returnToChatGPT() {
   if (typeof document === "undefined") {
     return;
   }
-  const chatGptUrl = getChatGptUrlClient();
-  window.location.href = chatGptUrl;
+  window.location.href = getChatGptAppUrl() ?? "https://chatgpt.com";
 }
 
 function Toast({ toast }: { toast: ToastState }) {
