@@ -24,6 +24,22 @@ type Extra = RequestHandlerExtra<ServerRequest, ServerNotification>;
 
 const WIDGET_MIME_TYPE = "text/html+skybridge";
 
+// Merchant favicons are always served from Google's favicon service; cover images are re-hosted
+// to Supabase Storage. The widget sandbox CSP must allowlist both so images render.
+const FAVICON_HOST = "https://www.google.com";
+
+function widgetResourceDomains(): string[] {
+  const domains = [FAVICON_HOST];
+  try {
+    if (process.env.SUPABASE_URL) {
+      domains.unshift(new URL(process.env.SUPABASE_URL).origin);
+    }
+  } catch {
+    // Ignore a malformed SUPABASE_URL; favicons still render.
+  }
+  return domains;
+}
+
 /** _meta that binds a tool result to the inline wishlist widget (Apps SDK convention). */
 const WISHLIST_WIDGET_META = {
   "openai/outputTemplate": WISHLIST_WIDGET_URI,
@@ -100,6 +116,7 @@ function firstHeader(value: string | string[] | undefined): string | undefined {
  * Tools call the existing `src/server/*` stores directly (no HTTP hop).
  */
 export function registerWishlistApp(server: McpServer): void {
+  const resourceDomains = widgetResourceDomains();
   server.registerResource(
     "wishlist-widget",
     WISHLIST_WIDGET_URI,
@@ -109,6 +126,18 @@ export function registerWishlistApp(server: McpServer): void {
       _meta: {
         "openai/widgetDescription": "An interactive grid of the user's saved wishlist items.",
         "openai/widgetPrefersBorder": true,
+        // Sandbox CSP: allow cover images (Supabase Storage) + merchant favicons (Google).
+        // Set in both the OpenAI-specific (snake_case) and MCP Apps standard (camelCase) forms.
+        "openai/widgetCSP": {
+          connect_domains: [],
+          resource_domains: resourceDomains,
+        },
+        ui: {
+          csp: {
+            connectDomains: [],
+            resourceDomains,
+          },
+        },
       },
     },
     async () => ({
