@@ -13,6 +13,7 @@ const PROFILE_SELECT = [
   "policy_version",
   "nickname",
   "avatar_name",
+  "avatar_url",
   "created_at",
   "updated_at",
 ].join(",");

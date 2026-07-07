@@ -154,7 +154,8 @@ create table if not exists public.profiles (
   accepted_at timestamptz not null,
   policy_version text not null,
   nickname text not null default 'Nickname',
-  avatar_name text not null,
+  avatar_name text not null, -- legacy preset id (now a secondary fallback)
+  avatar_url text, -- uploaded photo (Supabase Storage); takes precedence over preset/monogram
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -207,7 +208,9 @@ comment on column public.follows.list_ref is 'List reference in format "u:<owner
 -- ---------------------------------------------------------------------------
 
 insert into storage.buckets (id, name, public)
-values ('item-images', 'item-images', true)
+values
+  ('item-images', 'item-images', true),
+  ('avatars', 'avatars', true)
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
