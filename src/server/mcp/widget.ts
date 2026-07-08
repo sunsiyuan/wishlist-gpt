@@ -131,6 +131,16 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
     );
   }
 
+  // The share link is kept here (and mirrored to widgetState) so it survives the host's
+  // re-renders — a detached toast node gets wiped when ChatGPT rebuilds the widget.
+  var sharedLink = null;
+
+  function currentShareLink() {
+    if (sharedLink) return sharedLink;
+    var st = (window.openai && window.openai.widgetState) || {};
+    return st.shareUrl || null;
+  }
+
   function render() {
     var items = getItems();
     if (!items.length) {
@@ -139,13 +149,17 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
       return;
     }
     var count = items.length;
+    var link = currentShareLink();
+    var toast = link
+      ? '<div class="toast">Shareable link · <a href="' + esc(link) +
+        '" target="_blank" rel="noopener noreferrer">' + esc(link) + "</a></div>"
+      : "";
     var head =
       '<div class="head"><div class="title">Your wishlist <span class="count">· ' + count +
       " item" + (count === 1 ? "" : "s") + '</span></div>' +
-      '<button class="share" id="share-btn">Share list</button></div>';
+      '<button class="share" id="share-btn">' + (link ? "Shared ✓" : "Share list") + "</button></div>";
     root.innerHTML =
-      "<div>" + head + '<div class="grid">' + items.map(cardHtml).join("") + "</div>" +
-      '<div id="toast-slot"></div></div>';
+      "<div>" + head + '<div class="grid">' + items.map(cardHtml).join("") + "</div>" + toast + "</div>";
 
     var btn = document.getElementById("share-btn");
     if (btn) {
@@ -153,19 +167,24 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
         if (!window.openai || !window.openai.callTool) return;
         btn.disabled = true;
         btn.textContent = "Sharing…";
-        window.openai
-          .callTool("share_wishlist", {})
+        Promise.resolve(window.openai.callTool("share_wishlist", {}))
           .then(function (res) {
-            var sc = (res && res.structuredContent) || res || {};
-            var link = sc.share_url;
-            var slot = document.getElementById("toast-slot");
-            if (link && slot) {
-              slot.innerHTML =
-                '<div class="toast">Shareable link · <a href="' + esc(link) +
-                '" target="_blank" rel="noopener noreferrer">' + esc(link) + "</a></div>";
+            var sc =
+              (res && (res.structuredContent || (res.result && res.result.structuredContent))) ||
+              res ||
+              {};
+            var url = sc.share_url || (res && res.share_url) || null;
+            if (url) {
+              sharedLink = url;
+              if (window.openai && window.openai.setWidgetState) {
+                var prev = window.openai.widgetState || {};
+                var next = {};
+                for (var k in prev) next[k] = prev[k];
+                next.shareUrl = url;
+                try { window.openai.setWidgetState(next); } catch (e) {}
+              }
             }
-            btn.textContent = "Share list";
-            btn.disabled = false;
+            render();
           })
           .catch(function () {
             btn.textContent = "Share list";
