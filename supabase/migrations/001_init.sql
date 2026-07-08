@@ -163,7 +163,6 @@ create table if not exists public.profiles (
 );
 
 comment on column public.profiles.nickname is 'User display name for social features (non-PII)';
-comment on column public.profiles.avatar_name is 'Tapback avatar identifier (e.g., "default", "cat", etc.)';
 
 alter table public.profiles enable row level security;
 
