@@ -4,10 +4,11 @@ import { supabaseAdminFetch } from "../supabase/admin";
 import { isPrivateIpLiteral, normalizeHostname } from "./displayFields";
 
 const BUCKET = "item-images";
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_IMAGE_BYTES = 12 * 1024 * 1024; // 12 MB — high-res product PDP images run large
 const FETCH_TIMEOUT_MS = 5000;
+// A realistic browser UA — many sites 403 unknown bots but serve pages/images to browsers.
 const IMAGE_USER_AGENT =
-  "Mozilla/5.0 (compatible; WishlistGPT/1.0; +https://wishlistgpt.com)";
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
 
 // content-type -> file extension for the formats we accept.
 const ALLOWED_CONTENT_TYPES: Record<string, string> = {
@@ -130,4 +131,83 @@ export async function rehostItemImage(params: {
   }
 
   return publicImageUrl(objectPath);
+}
+
+const MAX_HTML_BYTES = 2 * 1024 * 1024; // 2 MB — og tags live in <head>, near the top
+
+/**
+ * Extract the first usable social-preview image from a page's HTML:
+ * og:image (or its secure_url/url variants), then twitter:image, then link rel=image_src.
+ */
+function extractOgImage(html: string): string | null {
+  const patterns: RegExp[] = [
+    /<meta[^>]+(?:property|name)=["']og:image(?::secure_url|:url)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:image(?::secure_url|:url)?["']/i,
+    /<meta[^>]+(?:name|property)=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["']twitter:image(?::src)?["']/i,
+    /<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i,
+  ];
+  for (const re of patterns) {
+    const match = html.match(re);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  return null;
+}
+
+/**
+ * Fallback used only when the calling agent didn't supply an image: fetch the product page
+ * (SSRF-guarded), pull its Open Graph / Twitter card image, and return an absolute URL.
+ * Best-effort — returns null on any failure. The returned URL is then re-hosted like any other.
+ */
+export async function fetchOgImageUrl(pageUrl: string): Promise<string | null> {
+  const safeUrl = toSafeRemoteUrl(pageUrl);
+  if (!safeUrl) {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  let html: string;
+  try {
+    const response = await fetch(safeUrl, {
+      redirect: "follow",
+      signal: controller.signal,
+      headers: { "user-agent": IMAGE_USER_AGENT, accept: "text/html,application/xhtml+xml" },
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+    if (!contentType.includes("html")) {
+      return null;
+    }
+    const declaredLength = Number(response.headers.get("content-length") ?? "0");
+    if (declaredLength && declaredLength > MAX_HTML_BYTES * 4) {
+      return null;
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    html = buffer.subarray(0, MAX_HTML_BYTES).toString("utf8");
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const candidate = extractOgImage(html);
+  if (!candidate) {
+    return null;
+  }
+  try {
+    // Resolve protocol-relative / relative image URLs against the page, and upgrade http -> https
+    // (og:image is often declared http even though the CDN serves https, and re-hosting is https-only).
+    const resolved = new URL(candidate, safeUrl);
+    if (resolved.protocol === "http:") {
+      resolved.protocol = "https:";
+    }
+    return resolved.toString();
+  } catch {
+    return null;
+  }
 }

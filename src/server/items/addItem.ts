@@ -8,7 +8,7 @@ import {
 } from "./store";
 import { deriveDisplayDefaults, extractDisplayHints } from "./displayFields";
 import { sanitizeSourceUrl, TRACKING_PARAM_CONFIG } from "./sanitizeUrl";
-import { rehostItemImage } from "./imageIngest";
+import { fetchOgImageUrl, rehostItemImage } from "./imageIngest";
 
 /**
  * Create (or touch) a wishlist item and apply caller-provided display fields.
@@ -51,13 +51,19 @@ export async function addItemForUser(params: {
   const derivedDefaults = deriveDisplayDefaults({ url: trimmedUrl, existing: displayHints });
   const updates: DisplayFieldUpdate = { ...displayHints, ...derivedDefaults };
 
-  // Re-host the cover image synchronously so the returned item carries the stable, CSP-safe
-  // storage URL (the widget renders from a snapshot and won't auto-refresh on a later update).
-  if (updates.image_url) {
+  // Determine the cover image: prefer the agent-provided URL; if it didn't supply one, fall back
+  // to the product page's Open Graph image so covers still show. Then re-host it synchronously so
+  // the returned item carries the stable, CSP-safe storage URL (the widget renders from a snapshot
+  // and won't auto-refresh on a later update).
+  let imageSource: string | null | undefined = updates.image_url;
+  if (!imageSource) {
+    imageSource = await fetchOgImageUrl(current.canonical_url ?? trimmedUrl);
+  }
+  if (imageSource) {
     const hosted = await rehostItemImage({
       userId,
       itemId: current.id,
-      imageUrl: updates.image_url,
+      imageUrl: imageSource,
     });
     if (hosted) {
       updates.image_url = hosted;
