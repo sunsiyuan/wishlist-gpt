@@ -5,6 +5,7 @@ import { isRedirectUriAllowedAsync } from "../../../../server/oauth/clients";
 import { CODE_TTL_SECONDS, OAUTH_STATE_COOKIE } from "../../../../server/oauth/config";
 import { insertOauthCode } from "../../../../server/oauth/code-store";
 import { generateOauthCode } from "../../../../server/oauth/tokens";
+import { resolveOrigin } from "../../../../server/oauth/resource";
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: "invalid_request", error_description: message }, { status });
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
   }
   if (!existingState) {
     if (!userId) {
-      const loginUrl = new URL("/login", request.url);
+      const loginUrl = new URL("/login", resolveOrigin(request));
       loginUrl.searchParams.set("next", nextPath);
       const response = NextResponse.redirect(loginUrl, 302);
       response.cookies.set(OAUTH_STATE_COOKIE, state, {
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!userId) {
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL("/login", resolveOrigin(request));
     loginUrl.searchParams.set("next", nextPath);
     return NextResponse.redirect(loginUrl, 302);
   }
