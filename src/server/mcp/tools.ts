@@ -300,11 +300,11 @@ export function registerWishlistApp(server: McpServer): void {
     },
     async (args, extra) => {
       const userId = requireUserId(extra);
-      const failed: { url: string; reason: string }[] = [];
-      let added = 0;
-      for (const entry of args.items) {
-        try {
-          await addItemForUser({
+      // Run items concurrently — each does a synchronous image re-host, so a sequential loop
+      // would be N× slower. Batch latency ≈ the slowest single item.
+      const results = await Promise.allSettled(
+        args.items.map((entry) =>
+          addItemForUser({
             userId,
             url: entry.url,
             hints: {
@@ -318,15 +318,21 @@ export function registerWishlistApp(server: McpServer): void {
               options: entry.options,
               variant_url: entry.variant_url,
             },
-          });
+          }),
+        ),
+      );
+      const failed: { url: string; reason: string }[] = [];
+      let added = 0;
+      results.forEach((result, i) => {
+        if (result.status === "fulfilled") {
           added += 1;
-        } catch (error) {
+        } else {
           failed.push({
-            url: entry.url,
-            reason: error instanceof Error ? error.message : "unknown_error",
+            url: args.items[i].url,
+            reason: result.reason instanceof Error ? result.reason.message : "unknown_error",
           });
         }
-      }
+      });
 
       const items = (await listItemsForUser({ userId })).map(toDisplayItem);
       trackTool(extra, "mcp.add_to_wishlist", {

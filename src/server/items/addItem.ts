@@ -8,7 +8,7 @@ import {
 } from "./store";
 import { deriveDisplayDefaults, extractDisplayHints } from "./displayFields";
 import { sanitizeSourceUrl, TRACKING_PARAM_CONFIG } from "./sanitizeUrl";
-import { rehostItemImageBestEffort } from "./imageIngest";
+import { rehostItemImage } from "./imageIngest";
 
 /**
  * Create (or touch) a wishlist item and apply caller-provided display fields.
@@ -58,19 +58,23 @@ export async function addItemForUser(params: {
     updates.price_updated_at = new Date().toISOString();
   }
 
+  // Re-host the cover image synchronously so the returned item carries the stable, CSP-safe
+  // storage URL (the widget renders from a snapshot and won't auto-refresh on a later update).
+  if (updates.image_url) {
+    const hosted = await rehostItemImage({
+      userId,
+      itemId: current.id,
+      imageUrl: updates.image_url,
+    });
+    if (hosted) {
+      updates.image_url = hosted;
+    }
+  }
+
   const finalItem =
     Object.keys(updates).length > 0
       ? (await updateItemDisplayFields({ userId, itemId: current.id, updates })) ?? current
       : current;
-
-  // Re-host the cover image to durable storage so the link doesn't expire (best-effort, async).
-  if (finalItem.image_url) {
-    rehostItemImageBestEffort({
-      userId,
-      itemId: finalItem.id,
-      imageUrl: finalItem.image_url,
-    });
-  }
 
   return finalItem;
 }

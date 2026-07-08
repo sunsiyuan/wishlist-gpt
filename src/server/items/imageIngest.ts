@@ -1,16 +1,13 @@
 import "server-only";
 
-import { after } from "next/server";
 import { supabaseAdminFetch } from "../supabase/admin";
 import { isPrivateIpLiteral, normalizeHostname } from "./displayFields";
-import { updateItemDisplayFields } from "./store";
-import { trackEvent } from "../tracking/trackEvent";
 
 const BUCKET = "item-images";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 const FETCH_TIMEOUT_MS = 5000;
 const IMAGE_USER_AGENT =
-  "Mozilla/5.0 (compatible; WishlistGPT/1.0; +https://wishlist-gpt.vercel.app)";
+  "Mozilla/5.0 (compatible; WishlistGPT/1.0; +https://wishlistgpt.com)";
 
 // content-type -> file extension for the formats we accept.
 const ALLOWED_CONTENT_TYPES: Record<string, string> = {
@@ -27,7 +24,8 @@ function supabaseBaseUrl(): string {
 }
 
 function publicImageUrl(objectPath: string): string {
-  return `${supabaseBaseUrl()}/storage/v1/object/public/${BUCKET}/${objectPath}`;
+  // Cache-bust so a re-add (same object path, upsert) shows the new image immediately.
+  return `${supabaseBaseUrl()}/storage/v1/object/public/${BUCKET}/${objectPath}?v=${Date.now()}`;
 }
 
 function isAlreadyRehosted(imageUrl: string): boolean {
@@ -60,39 +58,26 @@ function toSafeRemoteUrl(raw: string): URL | null {
 }
 
 /**
- * Best-effort: fetch the agent-provided cover image once and re-host it to durable
- * storage so the wishlist doesn't depend on expiring/hotlink-protected merchant URLs.
- * Runs after the response; failures are swallowed and the original URL is kept.
+ * Fetch the agent-provided cover image once and re-host it to durable storage so the wishlist
+ * doesn't depend on expiring/hotlink-protected merchant URLs (and so the widget only ever loads
+ * images from our own domain — CSP-safe).
+ *
+ * Runs synchronously as part of add-item so the returned item already carries the stable URL.
+ * Returns the new public URL on success, or null to signal "keep the current image_url"
+ * (already re-hosted, unsafe/unreachable source, wrong type, too large, or upload failed).
  */
-export function rehostItemImageBestEffort(params: {
+export async function rehostItemImage(params: {
   userId: string;
   itemId: string;
   imageUrl: string;
-}): void {
-  after(async () => {
-    try {
-      await rehostItemImage(params);
-    } catch (error) {
-      console.warn("[image] rehost failed", {
-        item_id: params.itemId,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-}
-
-async function rehostItemImage(params: {
-  userId: string;
-  itemId: string;
-  imageUrl: string;
-}): Promise<void> {
+}): Promise<string | null> {
   const { userId, itemId, imageUrl } = params;
   if (!supabaseBaseUrl() || isAlreadyRehosted(imageUrl)) {
-    return;
+    return null;
   }
   const safeUrl = toSafeRemoteUrl(imageUrl);
   if (!safeUrl) {
-    return;
+    return null;
   }
 
   const controller = new AbortController();
@@ -104,26 +89,28 @@ async function rehostItemImage(params: {
       signal: controller.signal,
       headers: { "user-agent": IMAGE_USER_AGENT, accept: "image/*" },
     });
+  } catch {
+    return null;
   } finally {
     clearTimeout(timeout);
   }
   if (!response.ok) {
-    return;
+    return null;
   }
 
   const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
   const ext = ALLOWED_CONTENT_TYPES[contentType];
   if (!ext) {
-    return;
+    return null;
   }
   const declaredLength = Number(response.headers.get("content-length") ?? "0");
   if (declaredLength && declaredLength > MAX_IMAGE_BYTES) {
-    return;
+    return null;
   }
 
   const bytes = Buffer.from(await response.arrayBuffer());
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMAGE_BYTES) {
-    return;
+    return null;
   }
 
   const objectPath = `${userId}/${itemId}.${ext}`;
@@ -139,25 +126,8 @@ async function rehostItemImage(params: {
   });
   if (!upload.ok) {
     console.warn("[image] storage upload failed", { item_id: itemId, status: upload.status });
-    return;
+    return null;
   }
 
-  await updateItemDisplayFields({
-    userId,
-    itemId,
-    updates: { image_url: publicImageUrl(objectPath) },
-  });
-
-  // Best-effort analytics: how often re-hosting succeeds (already inside after(), so track inline).
-  try {
-    await trackEvent({
-      event_name: "mcp.image_rehost",
-      user_id: userId,
-      share_id: null,
-      client_id: null,
-      meta: { request_id: crypto.randomUUID(), x_vercel_id: null, ext, bytes: bytes.byteLength },
-    });
-  } catch {
-    // ignore tracking failures
-  }
+  return publicImageUrl(objectPath);
 }
