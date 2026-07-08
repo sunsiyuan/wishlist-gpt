@@ -162,8 +162,8 @@ export default function SharePageClient({
     : follows;
 
   return (
-    <main className="min-h-screen bg-background dark:bg-background-dark text-gray-900 dark:text-gray-100 py-8 px-5 pb-12">
-      <div className="max-w-3xl mx-auto">
+    <main className="min-h-screen bg-background dark:bg-background-dark text-gray-900 dark:text-gray-100 py-8 px-5 lg:px-8 pb-12">
+      <div className="max-w-3xl lg:max-w-6xl mx-auto">
         <header className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2 relative">
             {/* List Owner Switcher - only show if logged in */}
@@ -320,7 +320,7 @@ export default function SharePageClient({
         {items.length === 0 ? (
           <p className="text-secondary dark:text-secondary-dark">No items yet.</p>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {items.map((item) => {
               const title = getCardTitle(item);
               const priceText = getPriceText(item, locale);
@@ -340,11 +340,11 @@ export default function SharePageClient({
                       handleCardOpen(item);
                     }
                   }}
-                  className="bg-background-light dark:bg-background-dark-light rounded-card p-4 shadow-card dark:shadow-card-dark cursor-pointer hover:shadow-lg transition-shadow duration-200"
+                  className="bg-background-light dark:bg-background-dark-light rounded-card p-4 border border-border dark:border-border-dark cursor-pointer hover:-translate-y-0.5 hover:shadow-card dark:hover:shadow-card-dark transition-all duration-150"
                 >
                   <div className="flex gap-4">
-                    <div className="w-24 h-24 rounded-xl bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 relative flex items-center justify-center">
-                      <span className="text-gray-400 dark:text-gray-500 text-xs">
+                    <div className="w-24 h-24 rounded-xl bg-[#F5F5F4] dark:bg-[#1E1E20] overflow-hidden flex-shrink-0 relative flex items-center justify-center">
+                      <span className="text-secondary dark:text-secondary-dark text-xs">
                         {getCoverFallbackLabel(item)}
                       </span>
                       {item.image_url ? (
@@ -390,8 +390,8 @@ export default function SharePageClient({
                         </h2>
                       </div>
                       {showPriceRow ? (
-                        <div className="mt-1.5 text-gray-600 dark:text-gray-400">
-                          <span>{priceText}</span>
+                        <div className="mt-1.5">
+                          <span className="text-[0.95rem] font-bold tabular-nums">{priceText}</span>
                         </div>
                       ) : null}
                       <p
