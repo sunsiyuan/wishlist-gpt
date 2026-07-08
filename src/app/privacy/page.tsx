@@ -28,7 +28,31 @@ export default function PrivacyPage() {
             <strong>Minimal diagnostics:</strong> basic request/log identifiers to troubleshoot
             issues and prevent abuse.
           </li>
+          <li>
+            <strong>Early-access interest:</strong> if you tap &ldquo;Buy with AI&rdquo; or
+            &ldquo;Gift with AI,&rdquo; we record that interest (including the product link) to
+            gauge demand for the feature.
+          </li>
         </ul>
+
+        <div>
+          <h2 className="text-xl font-semibold mb-2 mt-6">Using WishlistGPT inside ChatGPT</h2>
+          <p>
+            When you use WishlistGPT through ChatGPT, the ChatGPT assistant sends us the product
+            details you choose to save (such as the link, title, image, and price). We receive and
+            store only what is needed to add the item to your list. Your ChatGPT conversation itself
+            stays with OpenAI and is governed by{" "}
+            <a
+              href="https://openai.com/policies/row-privacy-policy/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80"
+            >
+              OpenAI&apos;s privacy policy
+            </a>
+            ; we do not receive your full chat history.
+          </p>
+        </div>
 
         <div>
           <h2 className="text-xl font-semibold mb-2 mt-6">How we use data</h2>
@@ -62,9 +86,28 @@ export default function PrivacyPage() {
         </div>
 
         <div>
+          <h2 className="text-xl font-semibold mb-2 mt-6">Your controls</h2>
+          <p>
+            You can delete individual items and revoke or rotate a share link at any time from the
+            app. To delete your account and associated data, contact us using the address below.
+          </p>
+        </div>
+
+        <div>
           <h2 className="text-xl font-semibold mb-2 mt-6">Data retention & deletion</h2>
           <p>
-            We keep data while your account is active. You can request deletion by contacting us.
+            We keep your wishlist and account data while your account is active. When you request
+            account deletion, we remove your personal data within 30 days (backup copies are purged
+            on our normal backup cycle). Minimal diagnostic logs are retained for roughly 90 days
+            and then deleted.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold mb-2 mt-6">Children</h2>
+          <p>
+            WishlistGPT is not directed to children. You must be at least 13 years old (or the
+            minimum age required in your country) to use it.
           </p>
         </div>
 

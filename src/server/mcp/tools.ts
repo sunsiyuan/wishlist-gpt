@@ -127,7 +127,7 @@ function resolveOrigin(extra: Extra): string {
   if (proto && host) {
     return `${proto}://${host}`;
   }
-  return process.env.BASE_URL?.replace(/\/+$/, "") ?? "https://wishlist-gpt.vercel.app";
+  return process.env.BASE_URL?.replace(/\/+$/, "") ?? "https://wishlistgpt.com";
 }
 
 function firstHeader(value: string | string[] | undefined): string | undefined {
