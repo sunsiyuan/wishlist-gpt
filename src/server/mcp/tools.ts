@@ -235,7 +235,7 @@ export function registerWishlistApp(server: McpServer): void {
                 .string()
                 .optional()
                 .describe(
-                  "Direct https URL to the product's main image file (jpg/png/webp) — NOT the product page URL. Strongly preferred: whenever you've seen the product (page, search result, or listing), include its main image (e.g. the og:image). This is the card's cover, so provide it if at all possible. Omit only if you genuinely don't have one; never guess.",
+                  "Direct https URL to the product's main image file (jpg/png/webp) — NOT the product page URL. Pick the largest primary/hero product shot — not a thumbnail, not an image from a \"related/recommended products\" section, not a site logo or banner. If the user has settled on a variant (e.g. a color in options), prefer that variant's image so the cover matches what they'll actually buy. Strongly preferred: whenever you've seen the product (page, search result, or listing), include its main image (e.g. the og:image). This is the card's cover, so provide it if at all possible. Omit only if you genuinely don't have one; never guess.",
                 ),
               price_text: z
                 .string()
