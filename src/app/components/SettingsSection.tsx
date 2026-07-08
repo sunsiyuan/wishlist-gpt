@@ -16,15 +16,15 @@ export default function SettingsSection({
   children,
 }: SettingsSectionProps) {
   return (
-    <div className="border border-border dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark-light overflow-hidden">
+    <div className="border border-border dark:border-border-dark rounded-card bg-background-light dark:bg-background-dark-light overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
         aria-expanded={isOpen}
         aria-controls={`settings-section-${title.toLowerCase().replace(/\s+/g, "-")}`}
       >
-        <span className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</span>
+        <span className="text-base font-semibold text-primary dark:text-primary-dark">{title}</span>
         {isOpen ? (
           <ChevronUpIcon className="w-5 h-5 text-secondary dark:text-secondary-dark" />
         ) : (

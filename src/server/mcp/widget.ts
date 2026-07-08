@@ -83,11 +83,23 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
 
   .empty { text-align: center; color: var(--muted); padding: 40px 16px; font-size: 14px; }
   .empty b { color: var(--fg); font-weight: 700; }
-  .toast {
-    margin: 12px 2px 0; padding: 10px 12px; border-radius: var(--rb);
-    border: 1px solid var(--line); background: var(--surface); font-size: 13px; word-break: break-all;
+  .sharebar {
+    margin: 12px 2px 0; display: flex; align-items: center; gap: 10px;
+    padding: 8px 8px 8px 12px; border-radius: var(--rb);
+    border: 1px solid var(--line); background: var(--sunken);
   }
-  .toast a { color: var(--accent); font-weight: 700; }
+  .sharebar .ico { flex: none; width: 15px; height: 15px; color: var(--muted); }
+  .sharebar .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .sharebar .lbl { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .sharebar .url { font-size: 12.5px; font-weight: 600; color: var(--fg); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sharebar .url:hover { text-decoration: underline; }
+  .copy {
+    flex: none; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg);
+    border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .copy:hover { border-color: var(--fg); }
+  .copy.done { border-color: var(--accent); color: var(--accent); cursor: default; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
@@ -132,7 +144,7 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
   }
 
   // The share link is kept here (and mirrored to widgetState) so it survives the host's
-  // re-renders — a detached toast node gets wiped when ChatGPT rebuilds the widget.
+  // re-renders — the share bar is rebuilt from this when ChatGPT re-renders the widget.
   var sharedLink = null;
 
   function currentShareLink() {
@@ -145,21 +157,27 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
     var items = getItems();
     if (!items.length) {
       root.innerHTML =
-        '<div class="empty">Nothing saved yet. <b>Paste a product link</b> and I\\'ll add it.</div>';
+        '<div class="empty"><b>Save a product</b> you like from our chat — or paste a link.</div>';
       return;
     }
     var count = items.length;
     var link = currentShareLink();
-    var toast = link
-      ? '<div class="toast">Shareable link · <a href="' + esc(link) +
-        '" target="_blank" rel="noopener noreferrer">' + esc(link) + "</a></div>"
+    var shareBar = link
+      ? '<div class="sharebar">' +
+        '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle>' +
+        '<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>' +
+        '<div class="meta"><span class="lbl">Share link</span>' +
+        '<a class="url" href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + esc(link) + "</a></div>" +
+        '<button class="copy" id="copy-btn" type="button">Copy</button>' +
+        "</div>"
       : "";
     var head =
       '<div class="head"><div class="title">Your wishlist <span class="count">· ' + count +
       " item" + (count === 1 ? "" : "s") + '</span></div>' +
       '<button class="share" id="share-btn">' + (link ? "Shared ✓" : "Share list") + "</button></div>";
     root.innerHTML =
-      "<div>" + head + '<div class="grid">' + items.map(cardHtml).join("") + "</div>" + toast + "</div>";
+      "<div>" + head + '<div class="grid">' + items.map(cardHtml).join("") + "</div>" + shareBar + "</div>";
 
     var btn = document.getElementById("share-btn");
     if (btn) {
@@ -190,6 +208,31 @@ export const WISHLIST_WIDGET_HTML = /* html */ `<!DOCTYPE html>
             btn.textContent = "Share list";
             btn.disabled = false;
           });
+      });
+    }
+
+    var copyBtn = document.getElementById("copy-btn");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", function () {
+        var url = currentShareLink();
+        if (!url) return;
+        var done = function () {
+          copyBtn.textContent = "Copied ✓";
+          copyBtn.className = "copy done";
+          setTimeout(function () {
+            copyBtn.textContent = "Copy";
+            copyBtn.className = "copy";
+          }, 1600);
+        };
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(done, function () { window.open(url, "_blank"); });
+          } else {
+            window.open(url, "_blank");
+          }
+        } catch (e) {
+          window.open(url, "_blank");
+        }
       });
     }
   }

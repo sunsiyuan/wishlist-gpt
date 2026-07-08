@@ -14,9 +14,12 @@
 }
 
 @layer components {
-  /* Landing ground: high-contrast near-black with a single restrained accent glow. */
-  .homepage-bg {
-    background-color: #000000;
-    background-image: radial-gradient(ellipse at top, rgba(254, 44, 85, 0.14) 0%, transparent 55%);
+  /* Landing ground: theme-aware page with a single restrained accent glow up top.
+     Sits over bg-background / dark:bg-background-dark; the glow reads in both themes. */
+  .homepage-glow {
+    background-image: radial-gradient(ellipse 80% 46% at 50% -8%, rgba(254, 44, 85, 0.10), transparent 60%);
+  }
+  :root.dark .homepage-glow {
+    background-image: radial-gradient(ellipse 80% 46% at 50% -8%, rgba(254, 44, 85, 0.16), transparent 62%);
   }
 }

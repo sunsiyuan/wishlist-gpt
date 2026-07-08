@@ -98,11 +98,11 @@ export default function FeedbackModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 bg-black/35 flex items-end z-[65]"
+      className="fixed inset-0 bg-black/35 flex items-end md:items-center md:justify-center md:p-6 z-[65]"
       onClick={onClose}
     >
       <div
-        className="w-full bg-background-light dark:bg-background-dark-light rounded-t-[24px] p-6 shadow-modal dark:shadow-modal-dark"
+        className="w-full bg-background-light dark:bg-background-dark-light md:max-w-lg rounded-t-[24px] md:rounded-card p-6 shadow-modal dark:shadow-modal-dark"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-2">
@@ -110,7 +110,7 @@ export default function FeedbackModal({
           <button
             type="button"
             onClick={onClose}
-            className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-background-dark rounded transition-colors duration-200"
+            className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-background dark:hover:bg-background-dark rounded transition-colors duration-200"
             aria-label="Close feedback"
           >
             <XMarkIcon className="w-5 h-5" />
@@ -125,7 +125,7 @@ export default function FeedbackModal({
           placeholder="Type your feedback..."
           rows={5}
           maxLength={MAX_MESSAGE_LENGTH}
-          className="w-full mt-3 rounded-button border border-border dark:border-border-dark p-3 text-[0.95rem] font-inherit resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:text-gray-200"
+          className="w-full mt-3 rounded-button border border-border dark:border-border-dark p-3 text-[0.95rem] font-inherit resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:text-primary-dark"
         />
         <div className="flex justify-between items-center mt-2">
           <span
@@ -137,7 +137,7 @@ export default function FeedbackModal({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="border-none bg-primary text-white rounded-pill px-5 py-2 cursor-pointer font-semibold disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
+            className="border-none bg-accent text-accent-fg rounded-button px-5 py-2 cursor-pointer font-semibold disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
           >
             {isSubmitting ? "Sending..." : "Submit"}
           </button>

@@ -95,11 +95,11 @@ export default function EarlyAccessModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 bg-black/35 flex items-end z-[65]"
+      className="fixed inset-0 bg-black/35 flex items-end md:items-center md:justify-center md:p-6 z-[65]"
       onClick={onClose}
     >
       <div
-        className="w-full bg-background-light dark:bg-background-dark-light rounded-t-[24px] p-6 shadow-modal dark:shadow-modal-dark"
+        className="w-full bg-background-light dark:bg-background-dark-light md:max-w-lg rounded-t-[24px] md:rounded-card p-6 shadow-modal dark:shadow-modal-dark"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-2">
@@ -107,7 +107,7 @@ export default function EarlyAccessModal({
           <button
             type="button"
             onClick={onClose}
-            className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-background-dark rounded transition-colors duration-200"
+            className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-background dark:hover:bg-background-dark rounded transition-colors duration-200"
             aria-label="Close"
           >
             <XMarkIcon className="w-5 h-5" />
@@ -121,7 +121,7 @@ export default function EarlyAccessModal({
           type="button"
           onClick={handleJoinWaitlist}
           disabled={isSubmitting || !sourceUrl}
-          className="w-full mt-4 border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill py-3 font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-primary/90 dark:hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          className="w-full mt-4 border-none bg-accent text-accent-fg rounded-button py-3 font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
         >
           {isSubmitting ? "Processing..." : "Join waitlist & continue on website"}
         </button>

@@ -46,20 +46,20 @@ export default function DarkModeToggle() {
 
   if (!mounted) {
     return (
-      <div className="flex items-center justify-between py-3 px-4 border border-border dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark-light">
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Dark mode</span>
-        <div className="w-10 h-6 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+      <div className="flex items-center justify-between py-3 px-4 border border-border dark:border-border-dark rounded-card bg-background-light dark:bg-background-dark-light">
+        <span className="text-sm font-medium text-secondary dark:text-secondary-dark">Dark mode</span>
+        <div className="w-10 h-6 bg-sunken dark:bg-sunken-dark rounded-full"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-between py-3 px-4 border border-border dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark-light">
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Dark mode</span>
+    <div className="flex items-center justify-between py-3 px-4 border border-border dark:border-border-dark rounded-card bg-background-light dark:bg-background-dark-light">
+      <span className="text-sm font-medium text-secondary dark:text-secondary-dark">Dark mode</span>
       <button
         type="button"
         onClick={toggleDarkMode}
-        className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 dark:bg-gray-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+        className="relative inline-flex h-6 w-11 items-center rounded-full bg-sunken dark:bg-sunken-dark transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
         aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       >
         <span
@@ -68,9 +68,9 @@ export default function DarkModeToggle() {
           }`}
         >
           {isDark ? (
-            <SunIcon className="h-4 w-4 text-gray-700" />
+            <SunIcon className="h-4 w-4 text-secondary dark:text-secondary-dark" />
           ) : (
-            <MoonIcon className="h-4 w-4 text-gray-700" />
+            <MoonIcon className="h-4 w-4 text-secondary dark:text-secondary-dark" />
           )}
         </span>
       </button>

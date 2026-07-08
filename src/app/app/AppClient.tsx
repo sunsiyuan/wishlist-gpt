@@ -104,7 +104,7 @@ function Toast({ toast }: { toast: ToastState }) {
     <div
       role="status"
       className={`fixed bottom-[88px] left-1/2 -translate-x-1/2 ${
-        toast.tone === "error" ? "bg-red-950" : "bg-primary dark:bg-primary-dark"
+        toast.tone === "error" ? "bg-error" : "bg-primary dark:bg-primary-dark"
       } text-white py-3 px-4 rounded-pill flex items-center gap-3 shadow-toast dark:shadow-toast-dark z-[60]`}
     >
       <span className="text-[0.95rem]">{toast.message}</span>
@@ -157,7 +157,7 @@ function OverflowMenuPopover({
           event.stopPropagation();
           setOpen((prev) => !prev);
         }}
-        className="w-8 h-8 rounded-full border border-border-light bg-background-light dark:bg-background-dark-light dark:border-border-dark cursor-pointer text-xl leading-none hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+        className="w-8 h-8 rounded-full border border-border-light bg-background-light dark:bg-background-dark-light dark:border-border-dark cursor-pointer text-xl leading-none hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
       >
         ⋯
       </button>
@@ -173,7 +173,7 @@ function OverflowMenuPopover({
               setOpen(false);
               onEdit();
             }}
-            className="w-full py-2.5 px-3.5 text-left border-none bg-transparent cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+            className="w-full py-2.5 px-3.5 text-left border-none bg-transparent cursor-pointer hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
           >
             Edit note
           </button>
@@ -183,7 +183,7 @@ function OverflowMenuPopover({
               setOpen(false);
               onDelete();
             }}
-            className="w-full py-2.5 px-3.5 text-left border-none bg-transparent text-red-600 dark:text-red-400 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-200"
+            className="w-full py-2.5 px-3.5 text-left border-none bg-transparent text-error dark:text-error-dark cursor-pointer hover:bg-error/10 dark:hover:bg-error-dark/15 transition-colors duration-200"
           >
             Delete
           </button>
@@ -634,9 +634,9 @@ export default function AppClient({
     activeItem !== null && noteDraft !== (activeItem.personal_note ?? "");
 
   return (
-    <div className="min-h-screen bg-background dark:bg-background-dark text-gray-900 dark:text-gray-100 pb-28">
-      <div className="max-w-3xl lg:max-w-6xl mx-auto px-5 lg:px-8 pt-6">
-        <header className="flex justify-between items-center mb-6">
+    <div className="min-h-screen bg-background dark:bg-background-dark text-primary dark:text-primary-dark pb-28">
+      <div className="max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto px-5 lg:px-8 pt-6">
+        <header className="flex justify-between items-center mb-6 md:mb-8 md:pb-5 md:border-b border-border dark:border-border-dark">
           <div className="flex items-center gap-2 relative">
             {/* List Owner Switcher */}
             <button
@@ -678,7 +678,7 @@ export default function AppClient({
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-button text-left ${
                       !isFollowingView
                         ? "bg-primary/10 dark:bg-primary-dark/10"
-                        : "hover:bg-gray-50 dark:hover:bg-background-dark"
+                        : "hover:bg-background dark:hover:bg-background-dark"
                     } transition-colors duration-200`}
                   >
                     {userProfile && (
@@ -714,7 +714,7 @@ export default function AppClient({
                             className={`w-full flex items-center gap-2 px-3 py-2 rounded-button text-left ${
                               currentListRef === follow.list_ref
                                 ? "bg-primary/10 dark:bg-primary-dark/10"
-                                : "hover:bg-gray-50 dark:hover:bg-background-dark"
+                                : "hover:bg-background dark:hover:bg-background-dark"
                             } transition-colors duration-200`}
                           >
                             <Avatar nickname={follow.owner.nickname} size={24} />
@@ -787,9 +787,10 @@ export default function AppClient({
             <a
               href={`/app/settings?next=${encodeURIComponent(pathname + (searchParams.toString() ? `?${searchParams.toString()}` : ""))}`}
               aria-label="Settings"
-              className="no-underline text-secondary dark:text-secondary-dark text-lg hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
+              className="flex items-center gap-1.5 no-underline text-secondary dark:text-secondary-dark hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
             >
               <Cog6ToothIcon className="w-5 h-5" />
+              <span className="hidden md:inline text-[0.95rem] font-medium">Settings</span>
             </a>
           </div>
         </header>
@@ -800,7 +801,7 @@ export default function AppClient({
               <Avatar nickname={currentOwner.nickname} size={64} />
             </div>
             <h2 className="text-xl font-semibold mb-2">Owner has made it private</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-secondary dark:text-secondary-dark mb-6">
               This list is no longer shared. Ask the owner to re-share if you'd like to see it again.
             </p>
             <button
@@ -840,7 +841,7 @@ export default function AppClient({
                   });
                 }
               }}
-              className="px-4 py-2 bg-primary text-white font-semibold rounded-pill hover:bg-primary/90 transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
+              className="px-4 py-2 bg-primary text-white font-semibold rounded-button hover:bg-primary/90 transition-colors duration-200 dark:bg-primary-dark dark:text-black dark:hover:bg-white/90"
             >
               Remove from following
             </button>
@@ -851,7 +852,7 @@ export default function AppClient({
               <button
                 type="button"
                 onClick={() => setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"))}
-                className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-3.5 py-1.5 cursor-pointer text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200 flex items-center gap-1.5"
+                className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-button px-3.5 py-1.5 cursor-pointer text-sm hover:bg-background dark:hover:bg-background-dark transition-colors duration-200 flex items-center gap-1.5"
               >
                 {sortOrder === "desc" ? (
                   <>
@@ -870,7 +871,7 @@ export default function AppClient({
             <button
               type="button"
               onClick={handleOpenShare}
-              className="border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill px-5 py-2 cursor-pointer text-[0.95rem] font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200 flex items-center gap-1.5"
+              className="border-none bg-accent text-accent-fg rounded-button px-5 py-2 cursor-pointer text-[0.95rem] font-semibold hover:bg-accent/90 transition-colors duration-200 flex items-center gap-1.5"
             >
               <ShareIcon className="w-4 h-4" />
               Share
@@ -881,19 +882,19 @@ export default function AppClient({
         )}
         {!hasItems && !isLoadingFollowedItems && !sharingDisabled ? (
           <div className="text-center bg-background-light dark:bg-background-dark-light rounded-card p-10 shadow-card dark:shadow-card-dark">
-            <p className="text-gray-600 dark:text-gray-400 mb-5">
-              Add items in ChatGPT. Tap here for Cheatsheet.
+            <p className="text-secondary dark:text-secondary-dark mb-5">
+              Save products from ChatGPT and they show up here. Tap for the Cheatsheet.
             </p>
             <button
               type="button"
               onClick={() => setIsCheatsheetOpen(true)}
-              className="border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill px-6 py-3 cursor-pointer font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200"
+              className="border-none bg-accent text-accent-fg rounded-button px-6 py-3 cursor-pointer font-semibold hover:bg-accent/90 transition-colors duration-200"
             >
               Open Cheatsheet
             </button>
           </div>
         ) : !isLoadingFollowedItems && !sharingDisabled ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sortedItems.map((item) => {
               const title = getCardTitle(item);
               const priceText = getPriceText(item, locale);
@@ -938,7 +939,7 @@ export default function AppClient({
                           <div className="flex items-start gap-2">
                             {shouldShowLogo ? (
                               <div
-                                className="w-[18px] h-[18px] mt-[2px] rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[0.6rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
+                                className="w-[18px] h-[18px] mt-[2px] rounded-full border border-border dark:border-border-dark flex items-center justify-center text-[0.6rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
                                 aria-label={domain ?? "Merchant"}
                               >
                                 <span>{logoFallback}</span>
@@ -983,8 +984,8 @@ export default function AppClient({
                       <p
                         className={`mt-2.5 text-sm ${
                           notePreview.isPlaceholder
-                            ? "text-gray-400 dark:text-gray-500"
-                            : "text-gray-700 dark:text-gray-300"
+                            ? "text-secondary dark:text-secondary-dark"
+                            : "text-secondary dark:text-secondary-dark"
                         }`}
                       >
                         {notePreview.text}
@@ -1006,7 +1007,7 @@ export default function AppClient({
                       }}
                       className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap ${
                         getSourceUrl(item)
-                          ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark"
+                          ? "cursor-pointer hover:bg-background dark:hover:bg-background-dark"
                           : "cursor-not-allowed opacity-60"
                       } transition-colors duration-200`}
                       disabled={!getSourceUrl(item)}
@@ -1023,11 +1024,11 @@ export default function AppClient({
                             itemId: item.id,
                           });
                         }}
-                        className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                        className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
                       >
                         Gift
                         <SparklesIcon
-                          className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
+                          className="ml-1.5 w-3.5 h-3.5 text-accent inline-block"
                           title="Early access"
                         />
                       </button>
@@ -1044,16 +1045,16 @@ export default function AppClient({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 bg-black/35 flex items-end z-40"
+          className="fixed inset-0 bg-black/35 flex items-end md:items-center md:justify-center md:p-6 z-40"
           onClick={() => setActiveItemId(null)}
         >
           <div
-            className="w-full h-[70vh] max-h-[90vh] overflow-y-auto bg-background-light dark:bg-background-dark-light rounded-t-[24px] p-6 shadow-modal dark:shadow-modal-dark"
+            className="w-full h-[70vh] md:h-auto max-h-[90vh] md:max-h-[85vh] overflow-y-auto bg-background-light dark:bg-background-dark-light md:max-w-lg rounded-t-[24px] md:rounded-card p-6 shadow-modal dark:shadow-modal-dark"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex gap-4 mb-5">
-              <div className="w-[120px] h-[120px] rounded-[20px] bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 relative flex items-center justify-center">
-                <span className="text-gray-400 dark:text-gray-500 text-sm">
+              <div className="w-[120px] h-[120px] rounded-[20px] bg-sunken dark:bg-sunken-dark overflow-hidden flex-shrink-0 relative flex items-center justify-center">
+                <span className="text-secondary dark:text-secondary-dark text-sm">
                   {getCoverFallbackLabel(activeItem)}
                 </span>
                 {activeItem.image_url ? (
@@ -1072,7 +1073,7 @@ export default function AppClient({
                 <div className="flex items-center gap-2">
                   {shouldRenderMerchantLogo(activeItem) ? (
                     <div
-                      className="w-6 h-6 rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[0.7rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
+                      className="w-6 h-6 rounded-full border border-border dark:border-border-dark flex items-center justify-center text-[0.7rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
                       aria-label={resolveDomain(activeItem) ?? "Merchant"}
                     >
                       <span>{getLogoFallbackText(activeItem)}</span>
@@ -1090,7 +1091,7 @@ export default function AppClient({
                   <h2 className="m-0 text-lg font-semibold">{getCardTitle(activeItem)}</h2>
                 </div>
                 {shouldShowPriceRow(activeItem) && activePriceText ? (
-                  <div className="mt-1.5 text-gray-600 dark:text-gray-400">
+                  <div className="mt-1.5 text-secondary dark:text-secondary-dark">
                     <span>{activePriceText}</span>
                   </div>
                 ) : null}
@@ -1108,14 +1109,14 @@ export default function AppClient({
                   onChange={(event) => setNoteDraft(event.target.value)}
                   placeholder={NOTE_PLACEHOLDER}
                   rows={3}
-                  className="w-full mt-2 rounded-button border border-border dark:border-border-dark p-3 text-[0.95rem] font-inherit resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:text-gray-200"
+                  className="w-full mt-2 rounded-button border border-border dark:border-border-dark p-3 text-[0.95rem] font-inherit resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:text-primary-dark"
                 />
                 {isNoteDirty ? (
                   <div className="flex justify-end mt-3">
                     <button
                       type="button"
                       onClick={handleSaveNote}
-                      className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-4 py-1.5 font-semibold cursor-pointer text-gray-900 dark:text-gray-100 text-sm hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                      className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-button px-4 py-1.5 font-semibold cursor-pointer text-primary dark:text-primary-dark text-sm hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
                     >
                       Save
                     </button>
@@ -1129,7 +1130,7 @@ export default function AppClient({
                   <label className="block text-sm text-secondary dark:text-secondary-dark mb-2">
                     Note
                   </label>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
+                  <p className="text-secondary dark:text-secondary-dark text-sm whitespace-pre-wrap">
                     {activeItem.personal_note}
                   </p>
                 </div>
@@ -1144,9 +1145,9 @@ export default function AppClient({
                     openSourceUrl(activeItemSourceUrl);
                   }
                 }}
-                className={`flex-1 border border-border dark:border-border-dark bg-white text-gray-900 rounded-button py-3 font-medium text-sm whitespace-nowrap ${
+                className={`flex-1 bg-accent text-accent-fg rounded-button py-3 font-semibold text-sm whitespace-nowrap ${
                   activeItemSourceUrl
-                    ? "cursor-pointer hover:bg-gray-100"
+                    ? "cursor-pointer hover:bg-accent/90"
                     : "cursor-not-allowed opacity-60"
                 } transition-colors duration-200`}
                 disabled={!activeItemSourceUrl}
@@ -1163,11 +1164,11 @@ export default function AppClient({
                       itemId: activeItem.id,
                     });
                   }}
-                  className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                  className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
                 >
                   Gift
                   <SparklesIcon
-                    className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
+                    className="ml-1.5 w-3.5 h-3.5 text-accent inline-block"
                     title="Early access"
                   />
                 </button>
@@ -1178,7 +1179,7 @@ export default function AppClient({
               <button
                 type="button"
                 onClick={() => handleDelete(activeItem, true)}
-                className="w-full mt-3 border-none bg-transparent text-red-600 dark:text-red-400 py-1.5 font-semibold underline cursor-pointer hover:text-red-700 dark:hover:text-red-300 transition-colors duration-200"
+                className="w-full mt-3 border-none bg-transparent text-error dark:text-error-dark py-1.5 font-semibold underline cursor-pointer hover:text-error dark:hover:text-error-dark transition-colors duration-200"
               >
                 Delete
               </button>
@@ -1191,11 +1192,11 @@ export default function AppClient({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 bg-black/35 flex items-end z-50"
+          className="fixed inset-0 bg-black/35 flex items-end md:items-center md:justify-center md:p-6 z-50"
           onClick={() => setIsCheatsheetOpen(false)}
         >
           <div
-            className="w-full max-h-[85vh] overflow-y-auto bg-background-light dark:bg-background-dark-light rounded-t-[24px] p-6 shadow-modal dark:shadow-modal-dark"
+            className="w-full max-h-[85vh] overflow-y-auto bg-background-light dark:bg-background-dark-light md:max-w-lg rounded-t-[24px] md:rounded-card p-6 shadow-modal dark:shadow-modal-dark"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-2">
@@ -1206,31 +1207,31 @@ export default function AppClient({
               <button
                 type="button"
                 onClick={() => setIsCheatsheetOpen(false)}
-                className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-background-dark rounded transition-colors duration-200"
+                className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-background dark:hover:bg-background-dark rounded transition-colors duration-200"
                 aria-label="Close"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
             <p className="text-sm text-secondary dark:text-secondary-dark mb-6">
-              🔍 Discover in ChatGPT, then paste a link to save.
+              🔍 Discover in ChatGPT — save what it recommends, or paste a link.
             </p>
 
             {/* Section A: Discover examples */}
             <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-primary dark:text-primary-dark mb-3 flex items-center gap-2">
                 <span>💡</span>
                 <span>Discover examples (send to ChatGPT)</span>
               </h3>
               <div className="space-y-3">
                 {/* Example 1 */}
-                <div className="flex items-start justify-between gap-3 p-3.5 bg-gray-50 dark:bg-gray-800 rounded-button border border-gray-200 dark:border-gray-700">
+                <div className="flex items-start justify-between gap-3 p-3.5 bg-background dark:bg-background-dark-light rounded-button border border-border dark:border-border-dark">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5 flex items-center gap-1.5">
+                    <div className="text-sm font-medium text-primary dark:text-primary-dark mb-1.5 flex items-center gap-1.5">
                       <span>🔥</span>
                       <span>Trending / hot picks</span>
                     </div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400 break-words leading-relaxed pl-5">
+                    <div className="text-xs text-secondary dark:text-secondary-dark break-words leading-relaxed pl-5">
                       What's trending right now for gifts in the $30–$50 range? Pick 4 hot items and tell me why they're popular.
                     </div>
                   </div>
@@ -1241,7 +1242,7 @@ export default function AppClient({
                         "What's trending right now for gifts in the $30–$50 range? Pick 4 hot items and tell me why they're popular.",
                       )
                     }
-                    className="flex-shrink-0 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-background-dark transition-colors duration-200"
+                    className="flex-shrink-0 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-button px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
                   >
                     {copiedText ===
                     "What's trending right now for gifts in the $30–$50 range? Pick 4 hot items and tell me why they're popular."
@@ -1251,13 +1252,13 @@ export default function AppClient({
                 </div>
 
                 {/* Example 2 */}
-                <div className="flex items-start justify-between gap-3 p-3.5 bg-gray-50 dark:bg-gray-800 rounded-button border border-gray-200 dark:border-gray-700">
+                <div className="flex items-start justify-between gap-3 p-3.5 bg-background dark:bg-background-dark-light rounded-button border border-border dark:border-border-dark">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1.5 flex items-center gap-1.5">
+                    <div className="text-sm font-medium text-primary dark:text-primary-dark mb-1.5 flex items-center gap-1.5">
                       <span>⚡</span>
                       <span>Buy online, use immediately</span>
                     </div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400 break-words leading-relaxed pl-5">
+                    <div className="text-xs text-secondary dark:text-secondary-dark break-words leading-relaxed pl-5">
                       Suggest experience-based gifts that are purchasable online and can be used immediately. Budget $30–$50. Give 3 options.
                     </div>
                   </div>
@@ -1268,7 +1269,7 @@ export default function AppClient({
                         "Suggest experience-based gifts that are purchasable online and can be used immediately. Budget $30–$50. Give 3 options.",
                       )
                     }
-                    className="flex-shrink-0 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-gray-100 dark:hover:bg-background-dark transition-colors duration-200"
+                    className="flex-shrink-0 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-button px-3 py-1.5 text-xs font-semibold cursor-pointer hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
                   >
                     {copiedText ===
                     "Suggest experience-based gifts that are purchasable online and can be used immediately. Budget $30–$50. Give 3 options."
@@ -1281,26 +1282,26 @@ export default function AppClient({
 
             {/* Section B: Save instructions */}
             <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-primary dark:text-primary-dark mb-3 flex items-center gap-2">
                 <span>💾</span>
                 <span>Save (in ChatGPT)</span>
               </h3>
-              <div className="space-y-2.5 text-sm text-gray-700 dark:text-gray-300 pl-5">
+              <div className="space-y-2.5 text-sm text-secondary dark:text-secondary-dark pl-5">
                 <p className="flex items-start gap-2">
                   <span className="text-base">1.</span>
-                  <span>Paste a product link and say: <strong className="text-gray-900 dark:text-gray-100">Save</strong></span>
+                  <span>When ChatGPT shows you a product, say <strong className="text-primary dark:text-primary-dark">Save</strong> — it keeps the photo &amp; price.</span>
                 </p>
                 <p className="flex items-start gap-2">
                   <span className="text-base">2.</span>
-                  <span>Or just paste the link alone.</span>
+                  <span>Got a link from elsewhere? Paste it and say <strong className="text-primary dark:text-primary-dark">Save</strong> (or just paste it).</span>
                 </p>
                 <p className="flex items-start gap-2">
                   <span className="text-base">3.</span>
-                  <span>You can also <strong className="text-gray-900 dark:text-gray-100">@WishlistGPT</strong> in your other chats to save from there.</span>
+                  <span>You can also <strong className="text-primary dark:text-primary-dark">@WishlistGPT</strong> in your other chats to save from there.</span>
                 </p>
                 <p className="text-xs text-secondary dark:text-secondary-dark pt-1 flex items-start gap-2">
                   <span>💡</span>
-                  <span>Also works: <code className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs">Add</code> · <code className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs">Wishlist</code></span>
+                  <span>Also works: <code className="bg-sunken dark:bg-sunken-dark px-1.5 py-0.5 rounded text-xs">Add</code> · <code className="bg-sunken dark:bg-sunken-dark px-1.5 py-0.5 rounded text-xs">Wishlist</code></span>
                 </p>
               </div>
             </div>
@@ -1309,14 +1310,14 @@ export default function AppClient({
             <button
               type="button"
               onClick={() => setIsCheatsheetOpen(false)}
-              className="w-full border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill py-3 cursor-pointer font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200"
+              className="w-full border-none bg-accent text-accent-fg rounded-button py-3 cursor-pointer font-semibold hover:bg-accent/90 transition-colors duration-200"
             >
               Got it
             </button>
             <button
               type="button"
               onClick={() => setIsFeedbackOpen(true)}
-              className="w-full mt-3 border-none bg-transparent text-gray-900 dark:text-gray-100 py-1.5 font-semibold underline cursor-pointer hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
+              className="w-full mt-3 border-none bg-transparent text-primary dark:text-primary-dark py-1.5 font-semibold underline cursor-pointer hover:text-primary dark:hover:text-primary-dark transition-colors duration-200"
             >
               Send feedback
             </button>
@@ -1330,11 +1331,11 @@ export default function AppClient({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 bg-black/35 flex items-end z-[55]"
+          className="fixed inset-0 bg-black/35 flex items-end md:items-center md:justify-center md:p-6 z-[55]"
           onClick={() => setIsShareOpen(false)}
         >
           <div
-            className="w-full bg-background-light dark:bg-background-dark-light rounded-t-[24px] p-6 shadow-modal dark:shadow-modal-dark"
+            className="w-full bg-background-light dark:bg-background-dark-light md:max-w-lg rounded-t-[24px] md:rounded-card p-6 shadow-modal dark:shadow-modal-dark"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-2">
@@ -1342,7 +1343,7 @@ export default function AppClient({
               <button
                 type="button"
                 onClick={() => setIsShareOpen(false)}
-                className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-background-dark rounded transition-colors duration-200"
+                className="border-none bg-transparent text-xl cursor-pointer p-1 hover:bg-background dark:hover:bg-background-dark rounded transition-colors duration-200"
                 aria-label="Close"
               >
                 <XMarkIcon className="w-5 h-5" />
@@ -1350,14 +1351,14 @@ export default function AppClient({
             </div>
             <div className="mt-4">
               {shareState.shareUrl && !shareState.isRevoked ? (
-                <div className="flex items-center gap-3 bg-gray-100 dark:bg-gray-800 rounded-button p-3">
-                  <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 overflow-hidden text-ellipsis whitespace-nowrap">
+                <div className="flex items-center gap-3 bg-sunken dark:bg-sunken-dark rounded-button p-3">
+                  <span className="flex-1 text-sm text-secondary dark:text-secondary-dark overflow-hidden text-ellipsis whitespace-nowrap">
                     {shareState.shareUrl}
                   </span>
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    className="border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill px-3.5 py-1.5 cursor-pointer text-sm font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200"
+                    className="border-none bg-primary text-white dark:bg-primary-dark dark:text-black rounded-button px-3.5 py-1.5 cursor-pointer text-sm font-semibold hover:bg-primary/90 dark:hover:bg-white/90 transition-colors duration-200"
                   >
                     Copy link
                   </button>
@@ -1372,7 +1373,7 @@ export default function AppClient({
                   <button
                     type="button"
                     onClick={handleShareSystem}
-                    className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill py-3 cursor-pointer font-semibold hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                    className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-button py-3 cursor-pointer font-semibold hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
                   >
                     Share…
                   </button>
@@ -1380,7 +1381,7 @@ export default function AppClient({
                 <button
                   type="button"
                   onClick={handleRevoke}
-                  className="flex-1 border-none bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-pill py-3 cursor-pointer font-semibold hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors duration-200"
+                  className="flex-1 border-none bg-error/10 dark:bg-error-dark/15 text-error dark:text-error-dark rounded-button py-3 cursor-pointer font-semibold hover:bg-error/15 dark:hover:bg-error-dark/25 transition-colors duration-200"
                 >
                   Stop sharing
                 </button>
@@ -1390,17 +1391,17 @@ export default function AppClient({
                 <button
                   type="button"
                   onClick={handleGenerateNewLink}
-                  className="border-none bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill px-6 py-3 cursor-pointer font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200"
+                  className="border-none bg-accent text-accent-fg rounded-button px-6 py-3 cursor-pointer font-semibold hover:bg-accent/90 transition-colors duration-200"
                 >
                   Generate new link
                 </button>
               </div>
             )}
             {shareStatus ? (
-              <p className="mt-3 text-gray-600 dark:text-gray-400">{shareStatus}</p>
+              <p className="mt-3 text-secondary dark:text-secondary-dark">{shareStatus}</p>
             ) : null}
             {shareError ? (
-              <p className="mt-3 text-red-600 dark:text-red-400">{shareError}</p>
+              <p className="mt-3 text-error dark:text-error-dark">{shareError}</p>
             ) : null}
           </div>
         </div>
@@ -1410,12 +1411,13 @@ export default function AppClient({
         type="button"
         aria-label="Back to ChatGPT"
         onClick={returnToChatGPT}
-        className={`fixed right-5 bottom-5 w-[52px] h-[52px] rounded-full bg-transparent text-secondary hover:text-primary hover:bg-gray-100 dark:text-secondary-dark dark:hover:text-primary-dark dark:hover:bg-background-dark-light border border-border dark:border-border-dark ${
+        className={`fixed right-5 bottom-5 w-[52px] h-[52px] rounded-full md:w-auto md:h-auto md:px-4 md:py-2.5 md:rounded-button gap-2 bg-transparent md:bg-background-light md:dark:bg-background-dark-light text-secondary hover:text-primary hover:bg-background dark:text-secondary-dark dark:hover:text-primary-dark dark:hover:bg-background-dark-light border border-border dark:border-border-dark ${
           showReturnButton ? "flex" : "hidden"
         } items-center justify-center shadow-toast dark:shadow-toast-dark cursor-pointer z-[70] transition-colors duration-200`}
         title="Back to ChatGPT"
       >
-        <PlusIcon className="w-6 h-6" aria-hidden="true" />
+        <PlusIcon className="w-6 h-6 md:w-5 md:h-5" aria-hidden="true" />
+        <span className="hidden md:inline text-[0.95rem] font-medium">Back to ChatGPT</span>
       </button>
 
       {toast ? <Toast toast={toast} /> : null}

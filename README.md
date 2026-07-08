@@ -2,9 +2,9 @@
 
 ## 简介 / Overview
 
-WishlistGPT 是一个智能愿望清单服务，作为一个 **ChatGPT App**（基于 OpenAI Apps SDK / MCP）运行。用户可以在 ChatGPT 里直接发送产品链接，助手会把商品保存到愿望清单，并在对话中用一个**内嵌交互组件（widget）**展示清单，支持一键分享。
+WishlistGPT 是一个智能愿望清单服务，作为一个 **ChatGPT App**（基于 OpenAI Apps SDK / MCP）运行。当用户在 ChatGPT 里研究或挑选商品时，助手会推荐真实商品（自带标题、图片、价格），用户说一句就能把想要的存进愿望清单（也可以自己发一个产品链接）；清单在对话中用一个**内嵌交互组件（widget）**展示，支持一键分享。
 
-WishlistGPT is an intelligent wishlist service that runs as a **ChatGPT App** built on the OpenAI **Apps SDK (MCP)**. Users share product links inside ChatGPT; the assistant saves them to a wishlist and renders an **interactive inline widget** of the list, with one-click sharing.
+WishlistGPT is an intelligent wishlist service that runs as a **ChatGPT App** built on the OpenAI **Apps SDK (MCP)**. As people research and shop inside ChatGPT, the assistant recommends real products (with title, image, and price) and saves the ones they want to a wishlist — they can also paste a product link. The list renders as an **interactive inline widget**, with one-click sharing.
 
 > **架构变更 / Architecture change**: 本项目已从旧的 **ChatGPT Actions（OpenAPI）** 生态迁移到 **Apps SDK（MCP server + widget + OAuth 2.1）**。Actions 相关的 `actions/`、OpenAPI 生成、根级 `/items` `/me` `/shares` `/feedback` 路由均已移除。
 >

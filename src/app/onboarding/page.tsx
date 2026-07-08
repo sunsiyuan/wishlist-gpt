@@ -22,7 +22,7 @@ export default async function OnboardingPage() {
   return (
     <main className="max-w-md mx-auto my-8 px-6">
       <h1 className="mb-2 text-2xl font-bold">Finish setting up</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">
+      <p className="text-secondary dark:text-secondary-dark mb-6">
         Choose your country, language, and currency so we can personalize your wishlist.
       </p>
       <ProfileForm

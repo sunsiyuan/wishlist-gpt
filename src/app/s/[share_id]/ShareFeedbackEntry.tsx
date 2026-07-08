@@ -20,7 +20,7 @@ function Toast({ toast }: { toast: ToastState }) {
     <div
       role="status"
       className={`fixed bottom-6 left-1/2 -translate-x-1/2 ${
-        toast.tone === "error" ? "bg-red-950" : "bg-primary dark:bg-primary-dark"
+        toast.tone === "error" ? "bg-error" : "bg-primary dark:bg-primary-dark"
       } text-white py-2.5 px-4 rounded-pill flex items-center gap-3 shadow-toast dark:shadow-toast-dark z-[80]`}
     >
       <span className="text-sm">{toast.message}</span>
@@ -98,7 +98,7 @@ export default function ShareFeedbackEntry({ shareId, intent }: ShareFeedbackEnt
       <button
         type="button"
         onClick={handleFeedbackClick}
-        className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill px-6 py-2.5 cursor-pointer font-semibold hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+        className="border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-button px-6 py-2.5 cursor-pointer font-semibold hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
       >
         Feedback
       </button>

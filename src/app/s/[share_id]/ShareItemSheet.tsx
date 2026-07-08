@@ -62,16 +62,16 @@ export default function ShareItemSheet({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 bg-black/35 flex items-end z-40"
+      className="fixed inset-0 bg-black/35 flex items-end md:items-center md:justify-center md:p-6 z-40"
       onClick={onClose}
     >
       <div
-        className="w-full h-[70vh] max-h-[90vh] overflow-y-auto bg-background-light dark:bg-background-dark-light rounded-t-[24px] p-6 shadow-modal dark:shadow-modal-dark"
+        className="w-full h-[70vh] md:h-auto max-h-[90vh] md:max-h-[85vh] overflow-y-auto bg-background-light dark:bg-background-dark-light md:max-w-lg rounded-t-[24px] md:rounded-card p-6 shadow-modal dark:shadow-modal-dark"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex gap-4 mb-5">
-          <div className="w-[120px] h-[120px] rounded-[20px] bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0 relative flex items-center justify-center">
-            <span className="text-gray-400 dark:text-gray-500 text-sm">
+          <div className="w-[120px] h-[120px] rounded-[20px] bg-sunken dark:bg-sunken-dark overflow-hidden flex-shrink-0 relative flex items-center justify-center">
+            <span className="text-secondary dark:text-secondary-dark text-sm">
               {getCoverFallbackLabel(item)}
             </span>
             {item.image_url ? (
@@ -90,7 +90,7 @@ export default function ShareItemSheet({
             <div className="flex items-start gap-2">
               {shouldShowLogo ? (
                 <div
-                  className="w-[18px] h-[18px] mt-[2px] rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[0.6rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
+                  className="w-[18px] h-[18px] mt-[2px] rounded-full border border-border dark:border-border-dark flex items-center justify-center text-[0.6rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
                   aria-label={domain ?? "Merchant"}
                 >
                   <span>{getLogoFallbackText(item)}</span>
@@ -108,7 +108,7 @@ export default function ShareItemSheet({
               <h2 className="m-0 text-lg font-semibold">{title}</h2>
             </div>
             {showPriceRow ? (
-              <div className="mt-1.5 text-gray-600 dark:text-gray-400">
+              <div className="mt-1.5 text-secondary dark:text-secondary-dark">
                 <span>{priceText}</span>
               </div>
             ) : null}
@@ -120,7 +120,7 @@ export default function ShareItemSheet({
             <label className="block text-sm text-secondary dark:text-secondary-dark mb-2">
               Note
             </label>
-            <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap">
+            <p className="text-secondary dark:text-secondary-dark text-sm whitespace-pre-wrap">
               {item.personal_note}
             </p>
           </div>
@@ -135,9 +135,9 @@ export default function ShareItemSheet({
                 openSourceUrl(sourceUrl);
               }
             }}
-            className={`flex-1 border border-border dark:border-border-dark bg-white text-gray-900 rounded-button py-3 font-medium text-sm whitespace-nowrap ${
+            className={`flex-1 bg-accent text-accent-fg rounded-button py-3 font-semibold text-sm whitespace-nowrap ${
               sourceUrl
-                ? "cursor-pointer hover:bg-gray-100"
+                ? "cursor-pointer hover:bg-accent/90"
                 : "cursor-not-allowed opacity-60"
             } transition-colors duration-200`}
             disabled={!sourceUrl}
@@ -151,11 +151,11 @@ export default function ShareItemSheet({
                 event.stopPropagation();
                 onOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
               }}
-              className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+              className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-3 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
             >
               Gift
               <SparklesIcon
-                className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
+                className="ml-1.5 w-3.5 h-3.5 text-accent inline-block"
                 title="Early access"
               />
             </button>

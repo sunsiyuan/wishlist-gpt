@@ -161,9 +161,9 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
   return (
     <main className="p-8 max-w-md mx-auto">
       <h1 className="text-2xl font-bold mb-2">Sign in</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">Use your Supabase account to continue.</p>
+      <p className="text-secondary dark:text-secondary-dark mb-6">Use your Supabase account to continue.</p>
       {errorMsg ? (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-800">
+        <div className="mb-4 p-3 bg-error/10 border border-error/20 rounded-button dark:bg-error-dark/15 dark:border-error-dark/30">
           <p className="text-sm text-error dark:text-error-dark" role="alert">
             {errorMsg}
           </p>
@@ -173,7 +173,7 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
         type="button"
         onClick={handleGoogleLogin}
         disabled={isLoading}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-border rounded-lg text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200 dark:hover:bg-background-dark"
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-background-light dark:bg-background-dark-light border border-border dark:border-border-dark rounded-button text-primary dark:text-primary-dark font-medium hover:bg-background dark:hover:bg-background-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-background-dark-light dark:border-border-dark dark:text-primary-dark dark:hover:bg-background-dark"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -200,7 +200,7 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
           <div className="w-full border-t border-border dark:border-border-dark"></div>
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-background text-gray-500 dark:bg-background-dark dark:text-gray-400">
+          <span className="px-2 bg-background text-secondary dark:bg-background-dark dark:text-secondary-dark">
             Or continue with email
           </span>
         </div>
@@ -208,7 +208,7 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
       {step === "enter_email" ? (
         <form onSubmit={handleRequestCode} className="space-y-3">
           <label className="block">
-            <span className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+            <span className="block text-sm font-medium mb-1 text-secondary dark:text-secondary-dark">
               Email
             </span>
             <input
@@ -218,27 +218,27 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
               autoComplete="email"
               required
               disabled={isLoading}
-              className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-2 border border-border rounded-button focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </label>
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-button hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
+            className="w-full px-4 py-3 bg-accent text-accent-fg font-semibold rounded-button hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
           >
             {isLoading ? "Sending code..." : "Request code"}
           </button>
         </form>
       ) : step === "code_sent" || step === "verifying" ? (
         <div className="space-y-3">
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
+          <div className="p-3 bg-sunken border border-border rounded-button dark:bg-sunken-dark dark:border-border-dark">
+            <p className="text-sm text-secondary dark:text-secondary-dark">
               Code sent to <strong>{email}</strong>
             </p>
           </div>
           <form onSubmit={handleVerifyCode} className="space-y-3">
             <label className="block">
-              <span className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+              <span className="block text-sm font-medium mb-1 text-secondary dark:text-secondary-dark">
                 Verification code
               </span>
               <input
@@ -255,14 +255,14 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
                 autoComplete="one-time-code"
                 required
                 disabled={isLoading || step === "verifying"}
-                className="w-full px-4 py-2 border border-border rounded-lg text-center text-2xl tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 border border-border rounded-button text-center text-2xl tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-background-dark-light dark:border-border-dark dark:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="000000"
               />
             </label>
             <button
               type="submit"
               disabled={isLoading || step === "verifying"}
-              className="w-full px-4 py-3 bg-primary text-white font-semibold rounded-button hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200"
+              className="w-full px-4 py-3 bg-accent text-accent-fg font-semibold rounded-button hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
               {step === "verifying" ? "Verifying..." : "Verify"}
             </button>
@@ -280,14 +280,14 @@ export default function LoginClient({ nextPath }: LoginClientProps) {
               type="button"
               onClick={handleChangeEmail}
               disabled={isLoading || step === "verifying"}
-              className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="text-secondary hover:text-primary dark:text-secondary-dark dark:hover:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
               Change email
             </button>
           </div>
         </div>
       ) : null}
-      <p className="mt-6 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+      <p className="mt-6 text-xs text-secondary dark:text-secondary-dark leading-relaxed">
         You must be 13 or older to use WishlistGPT. By continuing, you agree to the Terms and
         acknowledge the Privacy Policy. Read the{" "}
         <a href="/terms" className="text-primary underline hover:text-primary/80 dark:text-primary-dark">

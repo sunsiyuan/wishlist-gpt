@@ -2,9 +2,9 @@ export default function PrivacyPage() {
   return (
     <main className="max-w-3xl mx-auto p-6 md:p-8">
       <h1 className="text-3xl font-bold mb-4 text-primary dark:text-primary-dark">Privacy Policy</h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Effective: 2026-07-08</p>
+      <p className="text-sm text-secondary dark:text-secondary-dark mb-8">Effective: 2026-07-08</p>
 
-      <div className="space-y-6 text-gray-700 dark:text-gray-300 leading-relaxed">
+      <div className="space-y-6 text-secondary dark:text-secondary-dark leading-relaxed">
         <p>
           WishlistGPT is a personal wishlist tool. You use it inside ChatGPT (and on the web), and
           it collects and processes only what&apos;s needed to run the service:

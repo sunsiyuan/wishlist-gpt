@@ -30,6 +30,11 @@ const config: Config = {
           dark: "#000000", // true black page
           "dark-light": "#161618", // surface / cards in dark
         },
+        // Sunken fill — thumbnails, placeholders, tracks. Mirrors the widget's --sunken.
+        sunken: {
+          DEFAULT: "#F5F5F4",
+          dark: "#1E1E20",
+        },
         border: {
           DEFAULT: "#EAEAEA",
           light: "#F0F0F0",

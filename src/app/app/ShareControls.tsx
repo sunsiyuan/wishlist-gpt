@@ -94,13 +94,13 @@ export default function ShareControls() {
   return (
     <section className="mt-8">
       <h2 className="text-xl font-semibold mb-2">Share</h2>
-      <p className="text-gray-600 dark:text-gray-400 mb-4">生成只读分享链接，并复制到剪贴板。</p>
+      <p className="text-secondary dark:text-secondary-dark mb-4">生成只读分享链接，并复制到剪贴板。</p>
       <div className="flex gap-2 flex-wrap">
         <button
           type="button"
           onClick={handleShare}
           disabled={isLoading}
-          className="px-4 py-2 bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+          className="px-4 py-2 bg-primary text-white dark:bg-primary-dark dark:text-black rounded-button font-semibold hover:bg-primary/90 dark:hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
         >
           Share
         </button>
@@ -109,7 +109,7 @@ export default function ShareControls() {
             type="button"
             onClick={handleRevoke}
             disabled={isLoading}
-            className="px-4 py-2 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-pill font-semibold hover:bg-gray-50 dark:hover:bg-background-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            className="px-4 py-2 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light rounded-button font-semibold hover:bg-background dark:hover:bg-background-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
           >
             Revoke
           </button>
@@ -121,18 +121,18 @@ export default function ShareControls() {
             type="text"
             readOnly
             value={shareUrl}
-            className="min-w-[260px] flex-grow px-4 py-2 border border-border dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark-light text-gray-900 dark:text-gray-100"
+            className="min-w-[260px] flex-grow px-4 py-2 border border-border dark:border-border-dark rounded-card bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark"
           />
           <button
             type="button"
             onClick={() => handleCopy(shareUrl)}
-            className="px-4 py-2 bg-primary text-white dark:bg-primary-dark dark:text-gray-900 rounded-pill font-semibold hover:bg-primary/90 dark:hover:bg-gray-200 transition-colors duration-200"
+            className="px-4 py-2 bg-primary text-white dark:bg-primary-dark dark:text-black rounded-button font-semibold hover:bg-primary/90 dark:hover:bg-white/90 transition-colors duration-200"
           >
             Copy
           </button>
         </div>
       ) : null}
-      {statusMessage ? <p className="mt-2 text-gray-700 dark:text-gray-300">{statusMessage}</p> : null}
+      {statusMessage ? <p className="mt-2 text-secondary dark:text-secondary-dark">{statusMessage}</p> : null}
       {errorMessage ? (
         <p className="mt-2 text-error dark:text-error-dark">{errorMessage}</p>
       ) : null}

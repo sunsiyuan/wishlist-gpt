@@ -162,8 +162,8 @@ export default function SharePageClient({
     : follows;
 
   return (
-    <main className="min-h-screen bg-background dark:bg-background-dark text-gray-900 dark:text-gray-100 py-8 px-5 lg:px-8 pb-12">
-      <div className="max-w-3xl lg:max-w-6xl mx-auto">
+    <main className="min-h-screen bg-background dark:bg-background-dark text-primary dark:text-primary-dark py-8 px-5 lg:px-8 pb-12">
+      <div className="max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto">
         <header className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2 relative">
             {/* List Owner Switcher - only show if logged in */}
@@ -201,7 +201,7 @@ export default function SharePageClient({
                           router.push("/app");
                           setIsSwitcherOpen(false);
                         }}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-button text-left hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-button text-left hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
                       >
                         {userProfile && (
                           <>
@@ -233,7 +233,7 @@ export default function SharePageClient({
                                   router.push(`/app?list_ref=${encodeURIComponent(follow.list_ref)}`);
                                   setIsSwitcherOpen(false);
                                 }}
-                                className="w-full flex items-center gap-2 px-3 py-2 rounded-button text-left hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-button text-left hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
                               >
                                 <Avatar nickname={follow.owner.nickname} size={24} />
                                 <span className="text-sm font-medium">{follow.owner.nickname}</span>
@@ -247,15 +247,13 @@ export default function SharePageClient({
                 )}
               </>
             ) : (
-              // Not logged in - show simple header
-              <div className="flex items-center gap-2">
-                {ownerProfile && (
-                  <Avatar nickname={ownerProfile.nickname} size={32} />
-                )}
-                <span className="text-lg font-semibold">
-                  {ownerProfile ? ownerProfile.nickname : "WishlistGPT"}
-                </span>
-              </div>
+              // Not logged in — the hero below carries the owner identity, so keep a light brand mark here.
+              <a
+                href="/"
+                className="text-lg font-semibold tracking-tight no-underline text-primary dark:text-primary-dark"
+              >
+                WishlistGPT
+              </a>
             )}
           </div>
 
@@ -277,10 +275,27 @@ export default function SharePageClient({
             )}
           </div>
         </header>
+
+        {/* Hero — frames whose list this is for a visitor landing on the share link */}
+        <section className="text-center pt-2 pb-9 sm:pt-4 sm:pb-12">
+          <div className="flex justify-center mb-4">
+            <Avatar nickname={ownerProfile?.nickname ?? "WishlistGPT"} size={72} />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+            {ownerProfile ? `${ownerProfile.nickname}'s wishlist` : "Shared wishlist"}
+          </h1>
+          <p className="mt-2 text-secondary dark:text-secondary-dark">
+            {items.length} {items.length === 1 ? "item" : "items"}
+            {isOwner ? " · this is your public list" : " · pick something to make their day"}
+          </p>
+        </section>
+
         {items.length === 0 ? (
-          <p className="text-secondary dark:text-secondary-dark">No items yet.</p>
+          <div className="text-center bg-background-light dark:bg-background-dark-light rounded-card border border-border dark:border-border-dark p-12">
+            <p className="text-secondary dark:text-secondary-dark">Nothing on this list yet.</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {items.map((item) => {
               const title = getCardTitle(item);
               const priceText = getPriceText(item, locale);
@@ -300,108 +315,104 @@ export default function SharePageClient({
                       handleCardOpen(item);
                     }
                   }}
-                  className="bg-background-light dark:bg-background-dark-light rounded-card p-4 border border-border dark:border-border-dark cursor-pointer hover:-translate-y-0.5 hover:shadow-card dark:hover:shadow-card-dark transition-all duration-150"
+                  className="flex flex-col overflow-hidden bg-background-light dark:bg-background-dark-light rounded-card border border-border dark:border-border-dark cursor-pointer hover:-translate-y-0.5 hover:shadow-card dark:hover:shadow-card-dark transition-all duration-150"
                 >
-                  <div className="flex gap-4">
-                    <div className="w-24 h-24 rounded-xl bg-[#F5F5F4] dark:bg-[#1E1E20] overflow-hidden flex-shrink-0 relative flex items-center justify-center">
-                      <span className="text-secondary dark:text-secondary-dark text-xs">
-                        {getCoverFallbackLabel(item)}
-                      </span>
-                      {item.image_url ? (
+                  {/* Cover — big square so the product photo carries the card */}
+                  <div className="relative aspect-square bg-sunken dark:bg-sunken-dark">
+                    <span className="absolute inset-0 grid place-items-center text-secondary dark:text-secondary-dark text-xs">
+                      {getCoverFallbackLabel(item)}
+                    </span>
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={title}
+                        className="absolute inset-0 w-full h-full object-cover"
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : null}
+                    {shouldShowLogo ? (
+                      <div
+                        className="absolute top-2 left-2 z-10 w-6 h-6 rounded-[7px] border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light flex items-center justify-center overflow-hidden text-[0.6rem] text-secondary dark:text-secondary-dark"
+                        aria-label={domain ?? "Merchant"}
+                      >
+                        <span>{getLogoFallbackText(item)}</span>
                         <img
-                          src={item.image_url}
-                          alt={title}
-                          className="w-full h-full object-cover absolute inset-0"
+                          src={getMerchantLogoUrl(item) ?? ""}
+                          alt={domain ?? "Merchant"}
+                          className="absolute inset-0 w-full h-full object-contain"
                           onError={(event) => {
                             event.currentTarget.onerror = null;
                             event.currentTarget.style.display = "none";
                           }}
                         />
-                      ) : null}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start gap-2">
-                        {shouldShowLogo ? (
-                          <div
-                            className="w-[18px] h-[18px] mt-[2px] rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center text-[0.6rem] text-secondary dark:text-secondary-dark relative bg-background-light dark:bg-background-dark-light overflow-hidden flex-shrink-0"
-                            aria-label={domain ?? "Merchant"}
-                          >
-                            <span>{getLogoFallbackText(item)}</span>
-                            <img
-                              src={getMerchantLogoUrl(item) ?? ""}
-                              alt={domain ?? "Merchant"}
-                              className="absolute inset-0 w-full h-full object-contain"
-                              onError={(event) => {
-                                event.currentTarget.onerror = null;
-                                event.currentTarget.style.display = "none";
-                              }}
-                            />
-                          </div>
-                        ) : null}
-                        <h2
-                          className="text-base font-medium m-0 leading-snug overflow-hidden"
-                          style={{
-                            display: "-webkit-box",
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: "vertical",
-                          }}
-                        >
-                          {title}
-                        </h2>
                       </div>
-                      {showPriceRow ? (
-                        <div className="mt-1.5">
-                          <span className="text-[0.95rem] font-bold tabular-nums">{priceText}</span>
-                        </div>
-                      ) : null}
+                    ) : null}
+                  </div>
+                  {/* Body */}
+                  <div className="flex flex-1 flex-col gap-1.5 p-3.5">
+                    {domain ? (
+                      <span className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-secondary dark:text-secondary-dark">
+                        {domain}
+                      </span>
+                    ) : null}
+                    <h2
+                      className="text-sm font-semibold m-0 leading-snug overflow-hidden"
+                      style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
+                    >
+                      {title}
+                    </h2>
+                    {showPriceRow ? (
+                      <span className="text-[0.95rem] font-bold tabular-nums">{priceText}</span>
+                    ) : null}
+                    {!notePreview.isPlaceholder ? (
                       <p
-                        className={`mt-2.5 text-sm ${
-                          notePreview.isPlaceholder
-                            ? "text-gray-400 dark:text-gray-500"
-                            : "text-gray-700 dark:text-gray-300"
-                        }`}
+                        className="text-sm text-secondary dark:text-secondary-dark overflow-hidden"
+                        style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}
                       >
                         {notePreview.text}
                       </p>
-                    </div>
-                  </div>
-                  <div
-                    className="flex gap-2 mt-3"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (sourceUrl) {
-                          openSourceUrl(sourceUrl);
-                        }
-                      }}
-                      className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap ${
-                        sourceUrl
-                          ? "cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark"
-                          : "cursor-not-allowed opacity-60"
-                      } transition-colors duration-200`}
-                      disabled={!sourceUrl}
+                    ) : null}
+                    <div
+                      className="flex gap-2 mt-auto pt-2.5"
+                      onClick={(event) => event.stopPropagation()}
                     >
-                      View on website
-                    </button>
-                    {!isOwner ? (
                       <button
                         type="button"
                         onClick={(event) => {
                           event.stopPropagation();
-                          handleOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
+                          if (sourceUrl) {
+                            openSourceUrl(sourceUrl);
+                          }
                         }}
-                        className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
+                        className={`flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap ${
+                          sourceUrl
+                            ? "cursor-pointer hover:bg-background dark:hover:bg-background-dark"
+                            : "cursor-not-allowed opacity-60"
+                        } transition-colors duration-200`}
+                        disabled={!sourceUrl}
                       >
-                        Gift
-                        <SparklesIcon
-                          className="ml-1.5 w-3.5 h-3.5 text-orange-500 inline-block"
-                          title="Early access"
-                        />
+                        View
                       </button>
-                    ) : null}
+                      {!isOwner ? (
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleOpenEarlyAccessModal({ sourceUrl, itemId: item.id });
+                          }}
+                          className="flex-1 border border-border dark:border-border-dark bg-background-light dark:bg-background-dark-light text-primary dark:text-primary-dark rounded-button py-2 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-background dark:hover:bg-background-dark transition-colors duration-200"
+                        >
+                          Gift
+                          <SparklesIcon
+                            className="ml-1.5 w-3.5 h-3.5 text-accent inline-block"
+                            title="Early access"
+                          />
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </article>
               );
@@ -448,7 +459,7 @@ export default function SharePageClient({
             }
           }}
           disabled={isFollowingLoading}
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 min-w-[200px] px-8 py-3 bg-primary text-white font-semibold rounded-button hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 dark:bg-primary-dark dark:text-gray-900 dark:hover:bg-gray-200 shadow-toast dark:shadow-toast-dark z-[60] flex items-center justify-center gap-2"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 min-w-[200px] px-8 py-3 bg-accent text-accent-fg font-semibold rounded-button hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-toast dark:shadow-toast-dark z-[60] flex items-center justify-center gap-2"
         >
           {!isLoggedIn ? (
             "Sign In"

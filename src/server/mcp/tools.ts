@@ -201,7 +201,7 @@ export function registerWishlistApp(server: McpServer): void {
             type: "text",
             text: displayItems.length
               ? `You have ${displayItems.length} item${displayItems.length === 1 ? "" : "s"} on your wishlist.`
-              : "Your wishlist is empty. Paste a product link to add something.",
+              : "Your wishlist is empty. Save a product from our chat, or paste a link to add one.",
           },
         ],
         structuredContent: { items: displayItems },
