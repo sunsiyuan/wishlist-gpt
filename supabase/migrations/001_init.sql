@@ -215,6 +215,20 @@ values
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
+-- Enable RLS on every public table (Supabase best practice — the anon key can
+-- reach any public-schema table via PostgREST, so each one must have the switch
+-- on). The tables below intentionally have no policy, which locks them to
+-- anon/authenticated; only the service_role key (which bypasses RLS) reads/writes
+-- them — exactly how the server uses them.
+-- ---------------------------------------------------------------------------
+alter table public.oauth_codes   enable row level security;
+alter table public.oauth_tokens  enable row level security;
+alter table public.oauth_clients enable row level security;
+alter table public.shares        enable row level security;
+alter table public.events        enable row level security;
+alter table public.feedback      enable row level security;
+
+-- ---------------------------------------------------------------------------
 -- Roles & grants (Supabase).
 -- Server-side code uses the service_role key (bypasses RLS) — it needs table grants.
 -- The browser uses anon/authenticated, gated by the RLS policies above, and only on the
