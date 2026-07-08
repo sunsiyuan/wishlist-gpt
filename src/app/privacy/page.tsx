@@ -2,22 +2,23 @@ export default function PrivacyPage() {
   return (
     <main className="max-w-3xl mx-auto p-6 md:p-8">
       <h1 className="text-3xl font-bold mb-4 text-primary dark:text-primary-dark">Privacy Policy</h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Effective: 2026-01-11</p>
-      
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Effective: 2026-07-08</p>
+
       <div className="space-y-6 text-gray-700 dark:text-gray-300 leading-relaxed">
         <p>
-          WishlistGPT is a personal wishlist tool. WishlistGPT collects and processes only what's
-          needed to run the service:
+          WishlistGPT is a personal wishlist tool. You use it inside ChatGPT (and on the web), and
+          it collects and processes only what&apos;s needed to run the service:
         </p>
-        
+
         <ul className="list-disc list-inside space-y-2 ml-4">
           <li>
-            <strong>Account data:</strong> an account identifier and (if you sign in with email)
-            your email address.
+            <strong>Account data:</strong> an account identifier, your email address (if you sign in
+            with email), a nickname, and any profile photo you upload.
           </li>
           <li>
-            <strong>Wishlist data:</strong> the product links you save and best-effort display
-            metadata (e.g., title, image, price) plus any notes you add.
+            <strong>Wishlist data:</strong> the products you save — the link, the details you or the
+            assistant provide (title, price, merchant, size/color), a saved copy of the cover image,
+            and any notes you add.
           </li>
           <li>
             <strong>Sharing data:</strong> share links you create to show a read-only list to

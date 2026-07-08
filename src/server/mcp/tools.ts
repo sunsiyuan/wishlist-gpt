@@ -179,7 +179,8 @@ export function registerWishlistApp(server: McpServer): void {
     "list_wishlist",
     {
       title: "View wishlist",
-      description: "List the products the user has saved to their wishlist.",
+      description:
+        "Show the user's saved wishlist as a visual grid — products with images, prices, variants and a share action. Use whenever they ask to see, review, or open their wishlist.",
       inputSchema: {},
       outputSchema: { items: z.array(z.object(displayItemSchema)) },
       annotations: { readOnlyHint: true, openWorldHint: false },
