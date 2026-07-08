@@ -685,17 +685,7 @@ export default function AppClient({
                   >
                     {userProfile && (
                       <>
-                        <img
-                          src={`https://tapback.co/api/avatar/${userProfile.avatar_name}.webp`}
-                          alt={userProfile.nickname}
-                          className="w-6 h-6 rounded-full"
-                          onError={(event) => {
-                            const target = event.currentTarget;
-                            target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect fill='%23ddd' width='24' height='24'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='12'%3E" +
-                              (userProfile.nickname.charAt(0).toUpperCase() || "?") +
-                              "%3C/text%3E%3C/svg%3E";
-                          }}
-                        />
+                        <Avatar avatarName={userProfile.avatar_name} nickname={userProfile.nickname} size={24} />
                         <span className="text-sm font-medium">{userProfile.nickname}</span>
                       </>
                     )}
@@ -729,17 +719,7 @@ export default function AppClient({
                                 : "hover:bg-gray-50 dark:hover:bg-background-dark"
                             } transition-colors duration-200`}
                           >
-                            <img
-                              src={`https://tapback.co/api/avatar/${follow.owner.avatar_name}.webp`}
-                              alt={follow.owner.nickname}
-                              className="w-6 h-6 rounded-full"
-                              onError={(event) => {
-                                const target = event.currentTarget;
-                                target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect fill='%23ddd' width='24' height='24'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='12'%3E" +
-                                  (follow.owner.nickname.charAt(0).toUpperCase() || "?") +
-                                  "%3C/text%3E%3C/svg%3E";
-                              }}
-                            />
+                            <Avatar avatarName={follow.owner.avatar_name} nickname={follow.owner.nickname} size={24} />
                             <span className="text-sm font-medium">{follow.owner.nickname}</span>
                           </button>
                         ))
@@ -819,17 +799,7 @@ export default function AppClient({
         {sharingDisabled && currentOwner ? (
           <div className="max-w-md mx-auto mt-12 text-center">
             <div className="mb-4">
-              <img
-                src={`https://tapback.co/api/avatar/${currentOwner.avatar_name}.webp`}
-                alt={currentOwner.nickname}
-                className="w-16 h-16 rounded-full mx-auto mb-4"
-                onError={(event) => {
-                  const target = event.currentTarget;
-                  target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect fill='%23ddd' width='64' height='64'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='24'%3E" +
-                    (currentOwner.nickname.charAt(0).toUpperCase() || "?") +
-                    "%3C/text%3E%3C/svg%3E";
-                }}
-              />
+              <Avatar avatarName={currentOwner.avatar_name} nickname={currentOwner.nickname} size={64} />
             </div>
             <h2 className="text-xl font-semibold mb-2">Owner has made it private</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">

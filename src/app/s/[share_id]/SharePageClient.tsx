@@ -21,6 +21,7 @@ import {
   shouldRenderMerchantLogo,
   shouldShowPriceRow,
 } from "../../../lib/itemDisplay";
+import Avatar from "../../components/Avatar";
 import ShareItemSheet from "./ShareItemSheet";
 import ShareFeedbackEntry from "./ShareFeedbackEntry";
 import EarlyAccessModal from "../../components/EarlyAccessModal";
@@ -176,17 +177,7 @@ export default function SharePageClient({
                 >
                   {ownerProfile ? (
                     <>
-                      <img
-                        src={`https://tapback.co/api/avatar/${ownerProfile.avatar_name}.webp`}
-                        alt={ownerProfile.nickname}
-                        className="w-8 h-8 rounded-full"
-                        onError={(event) => {
-                          const target = event.currentTarget;
-                          target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect fill='%23ddd' width='32' height='32'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='16'%3E" +
-                            (ownerProfile.nickname.charAt(0).toUpperCase() || "?") +
-                            "%3C/text%3E%3C/svg%3E";
-                        }}
-                      />
+                      <Avatar avatarName={ownerProfile.avatar_name} nickname={ownerProfile.nickname} size={32} />
                       <span className="text-lg font-semibold">{ownerProfile.nickname}</span>
                     </>
                   ) : (
@@ -215,17 +206,7 @@ export default function SharePageClient({
                       >
                         {userProfile && (
                           <>
-                            <img
-                              src={`https://tapback.co/api/avatar/${userProfile.avatar_name}.webp`}
-                              alt={userProfile.nickname}
-                              className="w-6 h-6 rounded-full"
-                              onError={(event) => {
-                                const target = event.currentTarget;
-                                target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect fill='%23ddd' width='24' height='24'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='12'%3E" +
-                                  (userProfile.nickname.charAt(0).toUpperCase() || "?") +
-                                  "%3C/text%3E%3C/svg%3E";
-                              }}
-                            />
+                            <Avatar avatarName={userProfile.avatar_name} nickname={userProfile.nickname} size={24} />
                             <span className="text-sm font-medium">{userProfile.nickname}</span>
                           </>
                         )}
@@ -255,17 +236,7 @@ export default function SharePageClient({
                                 }}
                                 className="w-full flex items-center gap-2 px-3 py-2 rounded-button text-left hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                               >
-                                <img
-                                  src={`https://tapback.co/api/avatar/${follow.owner.avatar_name}.webp`}
-                                  alt={follow.owner.nickname}
-                                  className="w-6 h-6 rounded-full"
-                                  onError={(event) => {
-                                    const target = event.currentTarget;
-                                    target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect fill='%23ddd' width='24' height='24'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='12'%3E" +
-                                      (follow.owner.nickname.charAt(0).toUpperCase() || "?") +
-                                      "%3C/text%3E%3C/svg%3E";
-                                  }}
-                                />
+                                <Avatar avatarName={follow.owner.avatar_name} nickname={follow.owner.nickname} size={24} />
                                 <span className="text-sm font-medium">{follow.owner.nickname}</span>
                               </button>
                             ))
@@ -280,17 +251,7 @@ export default function SharePageClient({
               // Not logged in - show simple header
               <div className="flex items-center gap-2">
                 {ownerProfile && (
-                  <img
-                    src={`https://tapback.co/api/avatar/${ownerProfile.avatar_name}.webp`}
-                    alt={ownerProfile.nickname}
-                    className="w-8 h-8 rounded-full"
-                    onError={(event) => {
-                      const target = event.currentTarget;
-                      target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect fill='%23ddd' width='32' height='32'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999' font-size='16'%3E" +
-                        (ownerProfile.nickname.charAt(0).toUpperCase() || "?") +
-                        "%3C/text%3E%3C/svg%3E";
-                    }}
-                  />
+                  <Avatar avatarName={ownerProfile.avatar_name} nickname={ownerProfile.nickname} size={32} />
                 )}
                 <span className="text-lg font-semibold">
                   {ownerProfile ? ownerProfile.nickname : "WishlistGPT"}
