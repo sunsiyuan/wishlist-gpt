@@ -20,7 +20,6 @@ const ITEM_SELECT = [
   "price_amount_minor",
   "currency",
   "price_text",
-  "price_updated_at",
 ].join(",");
 
 /**

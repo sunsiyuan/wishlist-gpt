@@ -52,7 +52,6 @@ export async function GET(request: NextRequest) {
               sharing_disabled: true,
               owner: {
                 nickname: ownerProfile.nickname,
-                avatar_name: ownerProfile.avatar_name,
               },
             });
           }
@@ -75,7 +74,6 @@ export async function GET(request: NextRequest) {
           price_amount_minor: item.price_amount_minor,
           currency: item.currency,
           price_text: item.price_text,
-          price_updated_at: item.price_updated_at,
         })),
       });
     } catch (error) {
@@ -104,7 +102,6 @@ export async function GET(request: NextRequest) {
           price_amount_minor: item.price_amount_minor,
           currency: item.currency,
           price_text: item.price_text,
-          price_updated_at: item.price_updated_at,
         })),
       });
   } catch (error) {
@@ -150,7 +147,6 @@ export async function POST(request: NextRequest) {
         price_amount_minor: finalItem.price_amount_minor,
         currency: finalItem.currency,
         price_text: finalItem.price_text,
-        price_updated_at: finalItem.price_updated_at,
       },
     });
   } catch (error) {

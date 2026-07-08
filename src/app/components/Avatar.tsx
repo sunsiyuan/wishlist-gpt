@@ -5,7 +5,6 @@ import { getMonogram, resolveAvatar } from "../../lib/avatar";
 
 type AvatarProps = {
   avatarUrl?: string | null;
-  avatarName?: string | null;
   nickname?: string | null;
   email?: string | null;
   size?: number;
@@ -13,23 +12,22 @@ type AvatarProps = {
 };
 
 /**
- * Renders a user's avatar: uploaded photo → chosen preset → initial monogram.
- * If an image fails to load, it falls back to the monogram (never an empty avatar).
+ * Renders a user's avatar: uploaded photo → initial monogram.
+ * If the photo fails to load, it falls back to the monogram (never an empty avatar).
  */
 export default function Avatar({
   avatarUrl,
-  avatarName,
   nickname,
   email,
   size = 32,
   className = "",
 }: AvatarProps) {
-  const resolved = resolveAvatar({ avatarUrl, avatarName, nickname, email });
+  const resolved = resolveAvatar({ avatarUrl, nickname, email });
   const [imageFailed, setImageFailed] = useState(false);
   const dims = { width: size, height: size };
   const label = nickname || email || "Avatar";
 
-  if ((resolved.kind === "image" || resolved.kind === "preset") && !imageFailed) {
+  if (resolved.kind === "image" && !imageFailed) {
     return (
       <img
         src={resolved.url}

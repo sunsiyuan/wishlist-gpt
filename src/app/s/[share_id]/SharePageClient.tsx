@@ -30,7 +30,6 @@ type FollowWithOwner = {
   list_ref: string;
   owner: {
     nickname: string;
-    avatar_name: string;
   };
 };
 
@@ -38,11 +37,11 @@ type SharePageClientProps = {
   items: PublicShareItem[];
   shareId: string;
   locale: string;
-  ownerProfile: { nickname: string; avatar_name: string } | null;
+  ownerProfile: { nickname: string } | null;
   isLoggedIn: boolean;
   isFollowing: boolean;
   isOwner: boolean;
-  userProfile: { nickname: string; avatar_name: string } | null;
+  userProfile: { nickname: string } | null;
   follows: FollowWithOwner[];
   followingCount: number;
   currentListRef: string | null;
@@ -177,7 +176,7 @@ export default function SharePageClient({
                 >
                   {ownerProfile ? (
                     <>
-                      <Avatar avatarName={ownerProfile.avatar_name} nickname={ownerProfile.nickname} size={32} />
+                      <Avatar nickname={ownerProfile.nickname} size={32} />
                       <span className="text-lg font-semibold">{ownerProfile.nickname}</span>
                     </>
                   ) : (
@@ -206,7 +205,7 @@ export default function SharePageClient({
                       >
                         {userProfile && (
                           <>
-                            <Avatar avatarName={userProfile.avatar_name} nickname={userProfile.nickname} size={24} />
+                            <Avatar nickname={userProfile.nickname} size={24} />
                             <span className="text-sm font-medium">{userProfile.nickname}</span>
                           </>
                         )}
@@ -236,7 +235,7 @@ export default function SharePageClient({
                                 }}
                                 className="w-full flex items-center gap-2 px-3 py-2 rounded-button text-left hover:bg-gray-50 dark:hover:bg-background-dark transition-colors duration-200"
                               >
-                                <Avatar avatarName={follow.owner.avatar_name} nickname={follow.owner.nickname} size={24} />
+                                <Avatar nickname={follow.owner.nickname} size={24} />
                                 <span className="text-sm font-medium">{follow.owner.nickname}</span>
                               </button>
                             ))
@@ -251,7 +250,7 @@ export default function SharePageClient({
               // Not logged in - show simple header
               <div className="flex items-center gap-2">
                 {ownerProfile && (
-                  <Avatar avatarName={ownerProfile.avatar_name} nickname={ownerProfile.nickname} size={32} />
+                  <Avatar nickname={ownerProfile.nickname} size={32} />
                 )}
                 <span className="text-lg font-semibold">
                   {ownerProfile ? ownerProfile.nickname : "WishlistGPT"}

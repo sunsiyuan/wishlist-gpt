@@ -18,7 +18,6 @@ export type ItemRecord = {
   price_amount_minor: number | null;
   currency: string | null;
   price_text: string | null;
-  price_updated_at: string | null;
 };
 
 export type DisplayFieldUpdate = Partial<
@@ -33,7 +32,6 @@ export type DisplayFieldUpdate = Partial<
     | "price_amount_minor"
     | "currency"
     | "price_text"
-    | "price_updated_at"
   >
 >;
 
@@ -57,7 +55,6 @@ const ITEM_SELECT = [
   "price_amount_minor",
   "currency",
   "price_text",
-  "price_updated_at",
 ].join(",");
 
 function resolveOrder(sort: ItemSort): string {

@@ -51,13 +51,10 @@ export async function GET(request: NextRequest) {
       const now = new Date().toISOString();
       const profileData = {
         user_id: userId,
-        country_code: DEFAULT_PROFILE_CONTEXT.country_code,
         preferred_language: DEFAULT_PROFILE_CONTEXT.preferred_language,
-        preferred_currency: DEFAULT_PROFILE_CONTEXT.preferred_currency,
         accepted_at: now,
         policy_version: POLICY_VERSION,
         nickname: "Nickname", // Default nickname (will be updated in onboarding)
-        avatar_name: "default", // Default avatar (will be updated in onboarding)
       };
 
       const profileResponse = await supabaseAdminFetch("/rest/v1/profiles", {

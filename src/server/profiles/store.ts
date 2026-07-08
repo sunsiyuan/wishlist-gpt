@@ -6,13 +6,10 @@ import type { ProfileRecord } from "../../lib/profile";
 
 const PROFILE_SELECT = [
   "user_id",
-  "country_code",
   "preferred_language",
-  "preferred_currency",
   "accepted_at",
   "policy_version",
   "nickname",
-  "avatar_name",
   "avatar_url",
   "created_at",
   "updated_at",

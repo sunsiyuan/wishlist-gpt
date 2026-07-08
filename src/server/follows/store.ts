@@ -15,7 +15,6 @@ export type FollowWithOwner = {
   list_ref: string;
   owner: {
     nickname: string;
-    avatar_name: string;
   };
 };
 
@@ -85,7 +84,6 @@ export async function getFollowsForUser(
       list_ref: follow.list_ref,
       owner: {
         nickname: ownerProfile.nickname,
-        avatar_name: ownerProfile.avatar_name,
       },
     });
   }
@@ -155,7 +153,6 @@ export async function createFollow(
       list_ref: listRef,
       owner: {
         nickname: ownerProfile.nickname,
-        avatar_name: ownerProfile.avatar_name,
       },
     };
   }
@@ -189,7 +186,6 @@ export async function createFollow(
     list_ref: data.list_ref,
     owner: {
       nickname: ownerProfile.nickname,
-      avatar_name: ownerProfile.avatar_name,
     },
   };
 }

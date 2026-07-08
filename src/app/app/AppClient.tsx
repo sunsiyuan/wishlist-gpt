@@ -43,13 +43,12 @@ export type AppItem = {
   price_amount_minor: number | null;
   currency: string | null;
   price_text: string | null;
-  price_updated_at: string | null;
 };
 
 type AppClientProps = {
   items: AppItem[];
   locale: string;
-  userProfile: { nickname: string; avatar_name: string } | null;
+  userProfile: { nickname: string } | null;
   initialListRef: string | null;
 };
 
@@ -198,7 +197,6 @@ type FollowWithOwner = {
   list_ref: string;
   owner: {
     nickname: string;
-    avatar_name: string;
   };
 };
 
@@ -242,7 +240,7 @@ export default function AppClient({
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
   const [follows, setFollows] = useState<FollowWithOwner[]>([]);
   const [followingCount, setFollowingCount] = useState(0);
-  const [currentOwner, setCurrentOwner] = useState<{ nickname: string; avatar_name: string } | null>(
+  const [currentOwner, setCurrentOwner] = useState<{ nickname: string } | null>(
     userProfile,
   );
   const [isFollowingView, setIsFollowingView] = useState(currentListRef !== null);
@@ -328,7 +326,7 @@ export default function AppClient({
       setSharingDisabled(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentListRef, follows.length, initialItems.length, userProfile?.nickname, userProfile?.avatar_name]);
+  }, [currentListRef, follows.length, initialItems.length, userProfile?.nickname]);
 
   // Track list switch
   useEffect(() => {
@@ -649,7 +647,7 @@ export default function AppClient({
               {currentOwner ? (
                 <>
                   <Avatar
-                    avatarName={currentOwner.avatar_name}
+
                     nickname={currentOwner.nickname}
                     size={32}
                   />
@@ -685,7 +683,7 @@ export default function AppClient({
                   >
                     {userProfile && (
                       <>
-                        <Avatar avatarName={userProfile.avatar_name} nickname={userProfile.nickname} size={24} />
+                        <Avatar nickname={userProfile.nickname} size={24} />
                         <span className="text-sm font-medium">{userProfile.nickname}</span>
                       </>
                     )}
@@ -719,7 +717,7 @@ export default function AppClient({
                                 : "hover:bg-gray-50 dark:hover:bg-background-dark"
                             } transition-colors duration-200`}
                           >
-                            <Avatar avatarName={follow.owner.avatar_name} nickname={follow.owner.nickname} size={24} />
+                            <Avatar nickname={follow.owner.nickname} size={24} />
                             <span className="text-sm font-medium">{follow.owner.nickname}</span>
                           </button>
                         ))
@@ -799,7 +797,7 @@ export default function AppClient({
         {sharingDisabled && currentOwner ? (
           <div className="max-w-md mx-auto mt-12 text-center">
             <div className="mb-4">
-              <Avatar avatarName={currentOwner.avatar_name} nickname={currentOwner.nickname} size={64} />
+              <Avatar nickname={currentOwner.nickname} size={64} />
             </div>
             <h2 className="text-xl font-semibold mb-2">Owner has made it private</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">

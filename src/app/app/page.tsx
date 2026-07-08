@@ -34,14 +34,13 @@ export default async function AppPage({ searchParams }: AppPageProps) {
   const userProfile = profile
     ? {
         nickname: profile.nickname,
-        avatar_name: profile.avatar_name,
       }
     : null;
 
   // Load items based on list_ref
   let items: Awaited<ReturnType<typeof listItemsForUser>> = [];
   let currentListRef: string | null = null;
-  let currentOwner: { nickname: string; avatar_name: string } | null = null;
+  let currentOwner: { nickname: string } | null = null;
   let isFollowingView = false;
   let sharingDisabled = false;
 

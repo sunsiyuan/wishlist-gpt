@@ -50,13 +50,6 @@ export async function addItemForUser(params: {
   const displayHints = extractDisplayHints(hints);
   const derivedDefaults = deriveDisplayDefaults({ url: trimmedUrl, existing: displayHints });
   const updates: DisplayFieldUpdate = { ...displayHints, ...derivedDefaults };
-  const hasPriceUpdate =
-    updates.price_amount_minor !== undefined ||
-    updates.currency !== undefined ||
-    updates.price_text !== undefined;
-  if (hasPriceUpdate) {
-    updates.price_updated_at = new Date().toISOString();
-  }
 
   // Re-host the cover image synchronously so the returned item carries the stable, CSP-safe
   // storage URL (the widget renders from a snapshot and won't auto-refresh on a later update).

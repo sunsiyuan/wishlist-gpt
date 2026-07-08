@@ -64,9 +64,7 @@ export default function SettingsClient({ profile, email, nextPath }: SettingsCli
             initialValues={
               profile
                 ? {
-                    country_code: profile.country_code,
                     preferred_language: profile.preferred_language,
-                    preferred_currency: profile.preferred_currency,
                   }
                 : undefined
             }

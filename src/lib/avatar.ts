@@ -1,13 +1,7 @@
 /**
- * Avatar resolution.
- *
- * Order of precedence (no empty avatars):
- *   1. Uploaded photo  (profiles.avatar_url — Supabase Storage)
- *   2. Preset          (profiles.avatar_name, only if explicitly chosen — legacy, now secondary)
- *   3. Monogram        (initial derived from nickname/email, like Google's default) — the default
+ * Avatar resolution: an uploaded photo, else an initial monogram derived from the
+ * nickname/email (Google-style default). Presets were removed.
  */
-
-const PRESET_DEFAULT = "default";
 
 // Deterministic, legible monogram backgrounds (Crisp neutrals + a few confident hues).
 const MONOGRAM_COLORS = [
@@ -23,7 +17,6 @@ const MONOGRAM_COLORS = [
 
 export type ResolvedAvatar =
   | { kind: "image"; url: string }
-  | { kind: "preset"; url: string; name: string }
   | { kind: "monogram"; initial: string; bg: string };
 
 export function getMonogram(source: string | null | undefined): { initial: string; bg: string } {
@@ -37,39 +30,15 @@ export function getMonogram(source: string | null | undefined): { initial: strin
   return { initial, bg };
 }
 
-function presetUrl(name: string): string {
-  return `https://tapback.co/api/avatar/${name}.webp`;
-}
-
-/**
- * Resolve which avatar to render. `email` is the monogram fallback source when nickname is absent.
- */
+/** Resolve which avatar to render. `email` is the monogram source when nickname is absent. */
 export function resolveAvatar(params: {
   avatarUrl?: string | null;
-  avatarName?: string | null;
   nickname?: string | null;
   email?: string | null;
 }): ResolvedAvatar {
-  const { avatarUrl, avatarName, nickname, email } = params;
+  const { avatarUrl, nickname, email } = params;
   if (avatarUrl && avatarUrl.trim()) {
     return { kind: "image", url: avatarUrl.trim() };
   }
-  if (avatarName && avatarName !== PRESET_DEFAULT && !avatarName.startsWith("upload:")) {
-    return { kind: "preset", url: presetUrl(avatarName), name: avatarName };
-  }
   return { kind: "monogram", ...getMonogram(nickname || email) };
-}
-
-/**
- * @deprecated Use resolveAvatar. Kept for legacy call sites that still pass a preset name.
- */
-export function getAvatarUrl(avatarName: string): string {
-  if (!avatarName || avatarName.startsWith("upload:")) {
-    return presetUrl(PRESET_DEFAULT);
-  }
-  return presetUrl(avatarName);
-}
-
-export function isCustomAvatar(avatarName: string | null): boolean {
-  return avatarName?.startsWith("upload:") ?? false;
 }

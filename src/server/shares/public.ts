@@ -9,7 +9,6 @@ export type PublicShareItem = {
   price_amount_minor: number | null;
   currency: string | null;
   price_text: string | null;
-  price_updated_at: string | null;
   personal_note: string | null;
   canonical_url: string | null;
 };
@@ -23,7 +22,6 @@ type PublicShareItemRecord = {
   price_amount_minor: number | null;
   currency: string | null;
   price_text: string | null;
-  price_updated_at: string | null;
   personal_note: string | null;
   canonical_url: string | null;
   url_original: string | null;
@@ -71,7 +69,6 @@ export async function getPublicShareItems(shareId: string): Promise<PublicShareI
       "price_amount_minor",
       "currency",
       "price_text",
-      "price_updated_at",
       "personal_note",
       "canonical_url",
       "url_original",
@@ -91,7 +88,6 @@ export async function getPublicShareItems(shareId: string): Promise<PublicShareI
     price_amount_minor: item.price_amount_minor,
     currency: item.currency,
     price_text: item.price_text,
-    price_updated_at: item.price_updated_at,
     personal_note: item.personal_note,
     canonical_url: item.canonical_url ?? item.url_original ?? null,
   }));

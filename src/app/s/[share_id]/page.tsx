@@ -51,8 +51,8 @@ export default async function SharePage({ params }: SharePageProps) {
   const currentListRef = createListRef(share.user_id);
 
   // Get user profile and follows if logged in
-  let userProfile: { nickname: string; avatar_name: string } | null = null;
-  let follows: Array<{ list_ref: string; owner: { nickname: string; avatar_name: string } }> = [];
+  let userProfile: { nickname: string } | null = null;
+  let follows: Array<{ list_ref: string; owner: { nickname: string } }> = [];
   let followingCount = 0;
   let isFollowing = false;
 
@@ -65,7 +65,6 @@ export default async function SharePage({ params }: SharePageProps) {
     if (profile) {
       userProfile = {
         nickname: profile.nickname,
-        avatar_name: profile.avatar_name,
       };
       locale = profile.preferred_language ?? DEFAULT_PROFILE_CONTEXT.preferred_language;
     }

@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseUserId } from "../../../server/auth/supabase";
 import { createSupabaseServerClient } from "../../../lib/supabase/server";
 import { getProfileForUser } from "../../../server/profiles/store";
-import {
-  DEFAULT_PROFILE_CONTEXT,
-  POLICY_VERSION,
-  normalizeCountryCode,
-  normalizeCurrencyCode,
-  normalizeLanguage,
-} from "../../../lib/profile";
+import { DEFAULT_PROFILE_CONTEXT, POLICY_VERSION, normalizeLanguage } from "../../../lib/profile";
 import { supabaseAdminFetch } from "../../../server/supabase/admin";
 
 function jsonError(status: number, code: string, message: string) {
@@ -30,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     nickname: profile.nickname,
-    avatar_name: profile.avatar_name,
+    avatar_url: profile.avatar_url,
   });
 }
 
@@ -42,10 +36,7 @@ async function handleProfileUpdate(request: NextRequest) {
 
   let body: {
     nickname?: string;
-    avatar_name?: string;
-    country_code?: string;
     preferred_language?: string;
-    preferred_currency?: string;
   };
   try {
     body = await request.json();
@@ -54,7 +45,7 @@ async function handleProfileUpdate(request: NextRequest) {
   }
 
   const supabase = await createSupabaseServerClient();
-  
+
   // Check if profile exists first, create if missing
   let existingProfile = await getProfileForUser(supabase, userId);
   if (!existingProfile) {
@@ -62,13 +53,10 @@ async function handleProfileUpdate(request: NextRequest) {
     const now = new Date().toISOString();
     const profileData = {
       user_id: userId,
-      country_code: DEFAULT_PROFILE_CONTEXT.country_code,
       preferred_language: DEFAULT_PROFILE_CONTEXT.preferred_language,
-      preferred_currency: DEFAULT_PROFILE_CONTEXT.preferred_currency,
       accepted_at: now,
       policy_version: POLICY_VERSION,
       nickname: "Nickname",
-      avatar_name: "default",
     };
 
     const profileResponse = await supabaseAdminFetch("/rest/v1/profiles", {
@@ -97,10 +85,7 @@ async function handleProfileUpdate(request: NextRequest) {
 
   const updates: {
     nickname?: string;
-    avatar_name?: string;
-    country_code?: string;
     preferred_language?: string;
-    preferred_currency?: string;
     updated_at?: string;
   } = {};
 
@@ -116,27 +101,6 @@ async function handleProfileUpdate(request: NextRequest) {
     updates.nickname = trimmed;
   }
 
-  // Validate and update avatar_name
-  if (body.avatar_name !== undefined) {
-    const trimmed = body.avatar_name.trim();
-    if (trimmed.length === 0) {
-      return jsonError(400, "invalid_avatar_name", "Avatar name cannot be empty");
-    }
-    updates.avatar_name = trimmed;
-  }
-
-  // Validate and update country_code
-  if (body.country_code !== undefined) {
-    const normalized = normalizeCountryCode(body.country_code);
-    if (normalized.length === 0) {
-      return jsonError(400, "invalid_country_code", "Country code cannot be empty");
-    }
-    if (normalized.length !== 2) {
-      return jsonError(400, "invalid_country_code", "Country code must be 2 characters");
-    }
-    updates.country_code = normalized;
-  }
-
   // Validate and update preferred_language
   if (body.preferred_language !== undefined) {
     const normalized = normalizeLanguage(body.preferred_language);
@@ -146,30 +110,17 @@ async function handleProfileUpdate(request: NextRequest) {
     updates.preferred_language = normalized;
   }
 
-  // Validate and update preferred_currency
-  if (body.preferred_currency !== undefined) {
-    const normalized = normalizeCurrencyCode(body.preferred_currency);
-    if (normalized.length === 0) {
-      return jsonError(400, "invalid_preferred_currency", "Preferred currency cannot be empty");
-    }
-    if (normalized.length !== 3) {
-      return jsonError(400, "invalid_preferred_currency", "Preferred currency must be 3 characters");
-    }
-    updates.preferred_currency = normalized;
-  }
-
   if (Object.keys(updates).length === 0) {
     return jsonError(400, "no_updates", "No valid fields to update");
   }
 
-  // Let database handle updated_at via default, or explicitly set it
   updates.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase
     .from("profiles")
     .update(updates)
     .eq("user_id", userId)
-    .select("nickname, avatar_name, country_code, preferred_language, preferred_currency, updated_at")
+    .select("nickname, preferred_language, updated_at")
     .single();
 
   if (error) {
@@ -177,11 +128,8 @@ async function handleProfileUpdate(request: NextRequest) {
       user_id: userId,
       error: error.message,
       error_code: error.code,
-      error_details: error.details,
-      error_hint: error.hint,
       updates,
     });
-    // Return more specific error message
     if (error.code === "42501") {
       return jsonError(403, "permission_denied", "You don't have permission to update this profile");
     }
@@ -195,10 +143,7 @@ async function handleProfileUpdate(request: NextRequest) {
     ok: true,
     profile: {
       nickname: data.nickname,
-      avatar_name: data.avatar_name,
-      country_code: data.country_code,
       preferred_language: data.preferred_language,
-      preferred_currency: data.preferred_currency,
     },
   });
 }

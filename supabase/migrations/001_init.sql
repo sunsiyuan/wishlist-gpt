@@ -77,7 +77,6 @@ create table if not exists public.items (
   price_amount_minor int,
   currency text,
   price_text text,
-  price_updated_at timestamptz,
   unique (user_id, url_original)
 );
 
@@ -154,14 +153,11 @@ create index if not exists feedback_user_created_at_idx on public.feedback (user
 
 create table if not exists public.profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  country_code text not null,
-  preferred_language text not null,
-  preferred_currency text not null,
+  preferred_language text not null, -- drives price-formatting locale
   accepted_at timestamptz not null,
   policy_version text not null,
   nickname text not null default 'Nickname',
-  avatar_name text not null, -- legacy preset id (now a secondary fallback)
-  avatar_url text, -- uploaded photo (Supabase Storage); takes precedence over preset/monogram
+  avatar_url text, -- uploaded photo (Supabase Storage); else a monogram is derived
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

@@ -5,9 +5,7 @@ import DarkModeToggle from "./DarkModeToggle";
 
 type PreferencesSettingsProps = {
   initialValues?: {
-    country_code?: string | null;
     preferred_language?: string | null;
-    preferred_currency?: string | null;
   } | null;
 };
 
