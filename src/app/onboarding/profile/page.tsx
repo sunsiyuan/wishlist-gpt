@@ -19,23 +19,25 @@ export default async function ProfileOnboardingPage({ searchParams }: ProfileOnb
   }
 
   const profile = await getProfileForUser(supabase, userId);
+  const email = (claimsData?.claims?.email as string | undefined) ?? null;
   const resolvedParams = searchParams ? await searchParams : undefined;
   const nextPath = sanitizeNextPath(resolvedParams?.next, "/app");
 
-  // If profile is already complete (has nickname and avatar_name), redirect
-  if (profile?.nickname && profile?.avatar_name) {
+  // Onboarding is complete once a real nickname is set (the avatar defaults to a monogram).
+  if (profile?.nickname && profile.nickname !== "Nickname") {
     redirect(nextPath);
   }
 
   return (
     <main className="max-w-md mx-auto my-8 px-6">
       <h1 className="mb-2 text-2xl font-bold">Set up your profile</h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">
-        Choose a nickname and avatar to personalize your wishlist.
+      <p className="text-secondary dark:text-secondary-dark mb-6">
+        Pick a nickname. Add a photo now or later — otherwise we&apos;ll use your initial.
       </p>
       <ProfileOnboardingClient
         initialNickname={profile?.nickname ?? "Nickname"}
-        initialAvatarName={profile?.avatar_name ?? ""}
+        initialAvatarUrl={profile?.avatar_url ?? null}
+        email={email}
         nextPath={nextPath}
       />
     </main>

@@ -4,20 +4,23 @@ import ProfileEditor from "../../components/ProfileEditor";
 
 type ProfileOnboardingClientProps = {
   initialNickname: string;
-  initialAvatarName: string;
+  initialAvatarUrl: string | null;
+  email: string | null;
   nextPath: string;
 };
 
 export default function ProfileOnboardingClient({
   initialNickname,
-  initialAvatarName,
+  initialAvatarUrl,
+  email,
   nextPath,
 }: ProfileOnboardingClientProps) {
   return (
     <ProfileEditor
       mode="onboarding"
       initialNickname={initialNickname}
-      initialAvatarName={initialAvatarName}
+      initialAvatarUrl={initialAvatarUrl}
+      email={email}
       nextPath={nextPath}
     />
   );

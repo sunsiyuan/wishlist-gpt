@@ -4,18 +4,21 @@ import ProfileEditor from "./ProfileEditor";
 
 type ProfileSettingsProps = {
   initialNickname: string | null;
-  initialAvatarName: string | null;
+  initialAvatarUrl: string | null;
+  email: string | null;
 };
 
 export default function ProfileSettings({
   initialNickname,
-  initialAvatarName,
+  initialAvatarUrl,
+  email,
 }: ProfileSettingsProps) {
   return (
     <ProfileEditor
       mode="settings"
       initialNickname={initialNickname}
-      initialAvatarName={initialAvatarName}
+      initialAvatarUrl={initialAvatarUrl}
+      email={email}
       onSuccess={() => {
         // Success message is handled by ProfileEditor
       }}

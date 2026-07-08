@@ -10,10 +10,11 @@ import type { ProfileRecord } from "../../../lib/profile";
 
 type SettingsClientProps = {
   profile: ProfileRecord | null;
+  email: string | null;
   nextPath: string;
 };
 
-export default function SettingsClient({ profile, nextPath }: SettingsClientProps) {
+export default function SettingsClient({ profile, email, nextPath }: SettingsClientProps) {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<"profile" | "preferences">("profile");
 
@@ -50,7 +51,8 @@ export default function SettingsClient({ profile, nextPath }: SettingsClientProp
         >
           <ProfileSettings
             initialNickname={profile?.nickname ?? null}
-            initialAvatarName={profile?.avatar_name ?? null}
+            initialAvatarUrl={profile?.avatar_url ?? null}
+            email={email}
           />
         </SettingsSection>
         <SettingsSection
