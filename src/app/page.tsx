@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AddToChatGpt } from "./AddToChatGpt";
 import { getChatGptAppUrl } from "../lib/chatgpt";
+import { getSiteUrl } from "../lib/siteUrl";
 
 // Sample items for the inline-widget preview. Real product photos (self-hosted
 // under /public/preview), with titles that match the images.
@@ -75,7 +77,10 @@ function WidgetPreview() {
 }
 
 export default function HomePage() {
+  // Set once the app ships in the ChatGPT app directory; until then visitors add the MCP
+  // connector themselves via developer mode.
   const chatGptAppUrl = getChatGptAppUrl();
+  const mcpUrl = `${getSiteUrl()}/api/mcp`;
 
   return (
     <div className="homepage-glow min-h-screen bg-background dark:bg-background-dark text-primary dark:text-primary-dark">
@@ -142,12 +147,15 @@ export default function HomePage() {
                 </Link>
               </>
             ) : (
-              <Link
-                href="/app"
-                className="rounded-button bg-accent text-accent-fg px-7 py-3 font-semibold hover:bg-accent/90 transition-colors"
-              >
-                Manage your wishes
-              </Link>
+              <>
+                <Link
+                  href="/app"
+                  className="rounded-button bg-accent text-accent-fg px-7 py-3 font-semibold hover:bg-accent/90 transition-colors"
+                >
+                  Manage your wishes
+                </Link>
+                <AddToChatGpt mcpUrl={mcpUrl} />
+              </>
             )}
           </div>
         </section>

@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import { getSiteUrl } from "../lib/siteUrl";
 
-// Mirrors the base-URL resolution in the MCP tools so canonical/OG links are consistent.
-const SITE_URL = process.env.BASE_URL?.replace(/\/+$/, "") ?? "https://wishlistgpt.com";
+const SITE_URL = getSiteUrl();
 
 const TITLE = "WishlistGPT — Wishlist, inside ChatGPT";
 const DESCRIPTION =
